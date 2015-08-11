@@ -1,0 +1,6 @@
+oauth.google.clientId=XXX.apps.googleusercontent.com
+oauth.google.clientSecret=X--aWC4HNiYjdAdHXXXXXXgc
+oauth.google.domain=XXX.com
+oauth.google.admin=UUU@XXX.com
+oauth.google.webCallbackUrl=http://my.callback.url.com
+oauth.google.use_role_names=true

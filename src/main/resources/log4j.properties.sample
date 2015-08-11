@@ -1,0 +1,29 @@
+log4j.rootLogger=info, stdout
+
+log4j.appender.stdout=org.apache.log4j.ConsoleAppender
+log4j.appender.stdout.layout=org.apache.log4j.PatternLayout
+
+log4j.category.org.hibernate.engine.StatefulPersistenceContext.ProxyWarnLog=error
+log4j.category.org.hibernate.tool=error
+log4j.category.org.hibernate.cfg=error
+log4j.category.org.hibernate.transaction=error
+log4j.category.org.hibernate.impl=error
+log4j.category.org.springframework.orm.hibernate3.annotation=error
+log4j.category.org.hibernate.hql.ast=error
+log4j.category.org.springframework.scheduling.concurrent=error
+log4j.category.org.springframework.beans.factory.support=error
+log4j.category.org.springframework.context.support=error
+log4j.category.org.hibernate.dialect=error
+
+# Print the date in ISO 8601 format
+log4j.appender.stdout.layout.ConversionPattern=%d [%t] %-5p %c - %m%n
+
+log4j.appender.R=org.apache.log4j.RollingFileAppender
+log4j.appender.R.File=application.log
+
+log4j.appender.R.MaxFileSize=100KB
+# Keep one backup file
+log4j.appender.R.MaxBackupIndex=1
+
+log4j.appender.R.layout=org.apache.log4j.PatternLayout
+log4j.appender.R.layout.ConversionPattern=%p %t %c - %m%n
