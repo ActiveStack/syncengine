@@ -701,7 +701,7 @@ public class AccountHelper implements IAccountHelper {
 					Boolean isInaccurateList = false;
 					for (ServiceUser nextServiceUser : serviceUserList) {
 						if (!nextServiceUser.getAreRoleNamesAccurate()) {
-							log.debug("Ignoring role names from " + nextServiceUser.getAuthProvider().toString());
+							log.debug("Ignoring role names from " + nextServiceUser.getAuthProviderID().toString());
 							isInaccurateList = true;
 							break;
 						}

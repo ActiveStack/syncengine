@@ -32,8 +32,8 @@ import javax.persistence.*;
 
 @Entity
 @Table(uniqueConstraints = {
-		@UniqueConstraint(columnNames={"authProvider", "accountId"}), 
-		@UniqueConstraint(columnNames={"user_ID", "authProvider"})
+		@UniqueConstraint(columnNames={"authProviderID", "accountId"}),
+		@UniqueConstraint(columnNames={"user_ID", "authProviderID"})
 	})
 public class UserAccount extends _Super_UserAccount
 {

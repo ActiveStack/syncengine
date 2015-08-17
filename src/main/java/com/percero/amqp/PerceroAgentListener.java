@@ -2,6 +2,7 @@ package com.percero.amqp;
 
 import com.percero.agents.auth.helpers.IAccountHelper;
 import com.percero.agents.auth.hibernate.AuthHibernateUtils;
+import com.percero.agents.auth.services.AuthProviderRegistry;
 import com.percero.agents.auth.services.IAuthService;
 import com.percero.agents.auth.vo.*;
 import com.percero.agents.sync.access.IAccessManager;
@@ -102,6 +103,9 @@ public class PerceroAgentListener implements MessageListener {
     GetAccessorHandler getAccessorHandler;
     @Autowired
     GetHistoryHandler getHistoryHandler;
+
+    @Autowired
+    AuthProviderRegistry authProviderRegistry;
 
 
     public static final String PROCESS_TRANSACTION = "processTransaction";
@@ -282,9 +286,9 @@ public class PerceroAgentListener implements MessageListener {
                     OAuthToken token = new OAuthToken();
                     token.setToken(authRequest.getRequestToken());
                     token.setTokenSecret(authRequest.getRequestSecret());
-                    AuthProvider authProvider = authRequest.getAuthProvider();
+                    String authProviderID = authRequest.getAuthProvider();
 
-                    result = authService.authenticateOAuthCode(authProvider, authRequest.getCode(), replyTo, authRequest.getDeviceId(), authRequest.getRedirectUri(), token);
+                    result = authService.authenticateOAuthCode(authProviderID, authRequest.getCode(), replyTo, authRequest.getDeviceId(), authRequest.getRedirectUri(), token);
                     response = new AuthenticateOAuthCodeResponse();
 
                     if (result != null) {
@@ -302,9 +306,9 @@ public class PerceroAgentListener implements MessageListener {
                     OAuthToken token = new OAuthToken();
                     token.setToken(authRequest.getRequestToken());
                     token.setTokenSecret(authRequest.getRequestSecret());
-                    AuthProvider authProvider = authRequest.getAuthProvider();
+                    String authProviderID = authRequest.getAuthProvider();
 
-                    result = authService.authenticateBasicOAuth(authProvider, authRequest.getUserName(), authRequest.getPassword(), authRequest.getScopes(), authRequest.getAppUrl(), replyTo, authRequest.getDeviceId(), token);
+                    result = authService.authenticateBasicOAuth(authProviderID, authRequest.getUserName(), authRequest.getPassword(), authRequest.getScopes(), authRequest.getAppUrl(), replyTo, authRequest.getDeviceId(), token);
                     response = new AuthenticateBasicOAuthResponse();
 
                     if (result != null) {
@@ -319,8 +323,8 @@ public class PerceroAgentListener implements MessageListener {
             else if(key.equals(AuthenticateOAuthAccessTokenRequest.ID) || key.equals("authenticateOAuthAccessToken")){
                 if (request instanceof AuthenticateOAuthAccessTokenRequest) {
                     AuthenticateOAuthAccessTokenRequest authRequest = (AuthenticateOAuthAccessTokenRequest) request;
-                    AuthProvider authProvider = authRequest.getAuthProvider();
-                    result = authService.authenticateOAuthAccessToken(authProvider, authRequest.getAccessToken(), authRequest.getRefreshToken(), replyTo, authRequest.getDeviceId());
+                    String authProviderID = authRequest.getAuthProvider();
+                    result = authService.authenticateOAuthAccessToken(authProviderID, authRequest.getAccessToken(), authRequest.getRefreshToken(), replyTo, authRequest.getDeviceId());
                     response = new AuthenticateOAuthAccessTokenResponse();
                     result = AuthHibernateUtils.cleanObject(result);
                     if (result != null) {

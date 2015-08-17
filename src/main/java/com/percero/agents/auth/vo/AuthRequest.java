@@ -67,11 +67,11 @@ public class AuthRequest {
 		return regAppKey;
 	}
 
-	private AuthProvider authProvider;
-	public AuthProvider getAuthProvider() {
+	private String authProvider;
+	public String getAuthProvider() {
 		return authProvider;
 	}
-	public void setAuthProvider(AuthProvider authProvider) {
-		this.authProvider = authProvider;
+	public void setAuthProvider(String authProviderID) {
+		this.authProvider = authProviderID;
 	}
 }
