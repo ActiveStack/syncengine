@@ -37,7 +37,6 @@ public class AnonAuthProvider implements IAuthProvider {
         serviceUser.setLastName("ANON");
         serviceUser.setId("ANON");
         serviceUser.setAuthProviderID(AuthProvider.ANON.toString());
-        serviceUser.setRefreshToken(anonAuthCode);
 
         List<String> roles = new ArrayList<String>();
         String[] roleNames = anonAuthRoleNames.split(",");
@@ -47,6 +46,11 @@ public class AnonAuthProvider implements IAuthProvider {
         }
         serviceUser.setRoleNames(roles);
         serviceUser.setAreRoleNamesAccurate(true);
+
+        String email = "anonymous@activestack.io";
+        serviceUser.getEmails().add(email);
+        serviceUser.getIdentifiers().add(new ServiceIdentifier("email", email));
+
         return serviceUser;
     }
 }

@@ -3,6 +3,7 @@ package com.percero.amqp;
 import com.percero.agents.auth.helpers.IAccountHelper;
 import com.percero.agents.auth.hibernate.AuthHibernateUtils;
 import com.percero.agents.auth.services.AuthProviderRegistry;
+import com.percero.agents.auth.services.AuthService2;
 import com.percero.agents.auth.services.IAuthService;
 import com.percero.agents.auth.vo.*;
 import com.percero.agents.sync.access.IAccessManager;
@@ -46,6 +47,8 @@ public class PerceroAgentListener implements MessageListener {
     ISyncAgentService syncAgentService;
     @Autowired
     IAuthService authService;
+    @Autowired
+    AuthService2 authService2;
     @Autowired
     IAccessorService accessorService;
     @Autowired
@@ -264,13 +267,14 @@ public class PerceroAgentListener implements MessageListener {
         Object result = "INVALID DEFAULT VALUE";
         AuthResponse response = null;
         try{
-            if(key.equals("authenticationRequest")){
-                if(request instanceof AuthenticationRequest){
-                    AuthenticationRequest authRequest = (AuthenticationRequest) request;
-                }
+            /** authentication provider infrastructure **/
+            if(key.equals("authenticate") && request instanceof AuthenticationRequest){
+                AuthenticationRequest authRequest = (AuthenticationRequest) request;
+                response = authService2.authenticate(authRequest);
+                result = response;
             }
             /** Essentially, Re-login **/
-            if(key.equals(ValidateUserByTokenRequest.ID) || key.equals("validateUserByToken")){
+            else if(key.equals(ValidateUserByTokenRequest.ID) || key.equals("validateUserByToken")){
                 if (request instanceof ValidateUserByTokenRequest) {
                     ValidateUserByTokenRequest authReqest = (ValidateUserByTokenRequest) request;
                     result = authService.validateUserByToken(authReqest.getRegAppKey(), authReqest.getUserId(), authReqest.getToken(), authReqest.getClientId());

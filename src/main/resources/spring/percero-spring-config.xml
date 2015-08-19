@@ -104,6 +104,7 @@
 		message-converter="jsonConverter" />
 	<rabbit:admin connection-factory="rabbitConnectionFactory" />
 	<rabbit:queue name="authenticateOAuthCode" />
+	<rabbit:queue name="authenticate" />
 	<rabbit:queue name="42" />
 	<rabbit:queue name="authenticateOAuthAccessToken" />
 	<rabbit:queue name="41" />
@@ -147,7 +148,7 @@
 
 	<rabbit:listener-container acknowledge="auto" concurrency="$pf{gateway.rabbitmq.concurrency:1}">
 		<rabbit:listener
-			queue-names="authenticateOAuthCode, 42, authenticateOAuthAccessToken, 41, authenticateUserAccount, getServiceUsers, getOAuthRequestToken, getRegAppOAuths, getRegisteredApplication, getAllServiceProviders, logoutUser, testCall, validateUserByToken, 17, disconnectAuth, connect, reconnect, hibernate, upgradeClient, disconnect, logout, create, update, processTransaction, getChangeWatcher, findById, findByIds, findByExample, countAllByName, getAllByName, runQuery, runProcess, createObject, putObject, removeObject, updatesReceived, deletesReceived, searchByExample, delete, getAccessor, getHistory"
+			queue-names="authenticateOAuthCode, authenticate, 42, authenticateOAuthAccessToken, 41, authenticateUserAccount, getServiceUsers, getOAuthRequestToken, getRegAppOAuths, getRegisteredApplication, getAllServiceProviders, logoutUser, testCall, validateUserByToken, 17, disconnectAuth, connect, reconnect, hibernate, upgradeClient, disconnect, logout, create, update, processTransaction, getChangeWatcher, findById, findByIds, findByExample, countAllByName, getAllByName, runQuery, runProcess, createObject, putObject, removeObject, updatesReceived, deletesReceived, searchByExample, delete, getAccessor, getHistory"
 			ref="perceroAgentListener" />
 	</rabbit:listener-container>
 	

@@ -7,14 +7,6 @@ package com.percero.agents.auth.vo;
  */
 public class AuthenticationRequest extends AuthRequest {
 
-    private String providerName;
-    public String getProviderName() {
-        return providerName;
-    }
-    public void setProviderName(String providerName) {
-        this.providerName = providerName;
-    }
-
     private String credential;
     public String getCredential() {
         return credential;
