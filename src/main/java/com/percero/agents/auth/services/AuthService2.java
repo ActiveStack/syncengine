@@ -6,6 +6,7 @@ import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
 import com.percero.agents.auth.vo.*;
 import org.apache.log4j.Logger;
 import org.hibernate.*;
+import org.hibernate.criterion.Restrictions;
 import org.hibernate.exception.LockAcquisitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -47,6 +48,31 @@ public class AuthService2 {
             UserAccount userAccount = getOrCreateUserAccount(serviceUser, provider, request);
 
             UserToken userToken = loginUserAccount(userAccount, request.getClientId(), request.getDeviceId());
+            userToken = (UserToken) AuthHibernateUtils.cleanObject(userToken);
+            response.setResult(userToken);
+        }
+
+        return response;
+    }
+
+    /**
+     * Allows the user to re-login with the token stored on their device from a previous login
+     * @param request
+     * @return
+     */
+    public AuthenticationResponse reauthenticate(ReauthenticationRequest request){
+        AuthenticationResponse response = new AuthenticationResponse();
+
+        Session session = sessionFactoryAuth.getCurrentSession();
+        UserToken userToken = (UserToken) session.createCriteria(UserToken.class)
+                .add(Restrictions.eq("token", request.getToken()))
+                .uniqueResult();
+
+        // TODO: add expiration to the token
+        if(userToken != null){
+            userToken.setLastLogin(new Date());
+            userToken.setClientId(request.getClientId());
+            session.save(userToken);
             userToken = (UserToken) AuthHibernateUtils.cleanObject(userToken);
             response.setResult(userToken);
         }

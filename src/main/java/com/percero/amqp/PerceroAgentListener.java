@@ -273,6 +273,11 @@ public class PerceroAgentListener implements MessageListener {
                 response = authService2.authenticate(authRequest);
                 result = response;
             }
+            else if(key.equals("reauthenticate") && request instanceof ReauthenticationRequest){
+                ReauthenticationRequest authRequest = (ReauthenticationRequest) request;
+                response = authService2.reauthenticate(authRequest);
+                result = response;
+            }
             /** Essentially, Re-login **/
             else if(key.equals(ValidateUserByTokenRequest.ID) || key.equals("validateUserByToken")){
                 if (request instanceof ValidateUserByTokenRequest) {
