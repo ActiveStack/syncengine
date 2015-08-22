@@ -196,10 +196,14 @@ public interface IAccessManager {
 	////////////////////////////////////////////////////////
 	public void addWatcherField(ClassIDPair classIdPair, String fieldName, Collection<String> collection);
 	public void addWatcherField(ClassIDPair classIdPair, String fieldName, Collection<String> collection, String[] params);
+	public void addWatcherField(String category, String subCategory, String fieldName, Collection<String> collection);
+	public void addWatcherField(String category, String subCategory, String fieldName, Collection<String> collection, String[] params);
 	public void addWatcherClient(ClassIDPair classIdPair, String fieldName, String clientId);
 	public void addWatcherClient(ClassIDPair classIdPair, String fieldName, String clientId, String[] params);
 	public void updateWatcherFields(ClassIDPair classIdPair, String fieldName, Collection<String> fieldsToWatch);
 	public void updateWatcherFields(ClassIDPair classIdPair, String fieldName, Collection<String> fieldsToWatch, String[] params);
+	public void updateWatcherFields(String category, String subCategory, String fieldName, Collection<String> fieldsToWatch);
+	public void updateWatcherFields(String category, String subCategory, String fieldName, Collection<String> fieldsToWatch, String[] params);
 	public void saveChangeWatcherResult(ClassIDPair classIdPair, String fieldName, Object result);
 	public void saveChangeWatcherResult(ClassIDPair classIdPair, String fieldName, Object result, String[] params);
 	public Boolean getChangeWatcherResultExists(ClassIDPair classIdPair, String fieldName);

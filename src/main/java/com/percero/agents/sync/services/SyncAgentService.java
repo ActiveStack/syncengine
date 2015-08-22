@@ -27,8 +27,8 @@ import org.springframework.util.StringUtils;
 
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.access.RedisKeyUtils;
-import com.percero.agents.sync.cw.IChangeWatcherHelper;
 import com.percero.agents.sync.cw.IChangeWatcherHelperFactory;
+import com.percero.agents.sync.cw.IChangeWatcherValueHelper;
 import com.percero.agents.sync.datastore.RedisDataStore;
 import com.percero.agents.sync.events.SyncEvent;
 import com.percero.agents.sync.exceptions.ClientException;
@@ -379,18 +379,16 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		return result;
 	}
 
-	public Object getChangeWatcher(ClassIDPair classIdPair, String fieldName, String[] params, String clientId) throws Exception {
+	public Object getChangeWatcherValue(ClassIDPair classIdPair, String fieldName, String[] params, String clientId) throws Exception {
 		Object result = null;
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
 			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
 		
-		if (changeWatcherHelperFactory != null)
-		{
-			IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(classIdPair.getClassName());
-			result = cwh.get(fieldName, classIdPair, params, clientId);
-		}
+		// Only ChangeWatcherValueHelper's have the "get" function.
+		IChangeWatcherValueHelper cwh = (IChangeWatcherValueHelper) changeWatcherHelperFactory.getHelper(classIdPair.getClassName());
+		result = cwh.get(fieldName, classIdPair, params, clientId);
 		
 		return result;
 	}

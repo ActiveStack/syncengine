@@ -468,7 +468,6 @@ public class RedisAccessManager implements IAccessManager {
 		}
 	}
 	
-	@Override
 	@Transactional
 	public void destroyClient(String clientId) {
 		if (!StringUtils.hasText(clientId)) {
@@ -1012,11 +1011,17 @@ public class RedisAccessManager implements IAccessManager {
 		addWatcherField(classIdPair, fieldName, collection, null);
 	}
 	public void addWatcherField(ClassIDPair classIdPair, String fieldName, Collection<String> collection, String[] params) {
+		addWatcherField(classIdPair.getClassName(), classIdPair.getID(), fieldName, collection, params);
+	}
+	public void addWatcherField(String category, String subCategory, String fieldName, Collection<String> collection) {
+		addWatcherField(category, subCategory, fieldName, collection, null);
+	}
+	public void addWatcherField(String category, String subCategory, String fieldName, Collection<String> collection, String[] params) {
 		String fieldWatcherId = "";
 		if (params != null)
-			fieldWatcherId = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcherWithParams(classIdPair.getClassName(), classIdPair.getID(), fieldName, params));
+			fieldWatcherId = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcherWithParams(category, subCategory, fieldName, params));
 		else
-			fieldWatcherId = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcher(classIdPair.getClassName(), classIdPair.getID(), fieldName));
+			fieldWatcherId = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcher(category, subCategory, fieldName));
 		if (collection != null)
 			collection.add(fieldWatcherId);
 	}
@@ -1044,17 +1049,25 @@ public class RedisAccessManager implements IAccessManager {
 		updateWatcherFields(classIdPair, fieldName, fieldsToWatch, null);
 	}
 	
+	public void updateWatcherFields(ClassIDPair classIdPair, String fieldName, Collection<String> fieldsToWatch, String[] params) {
+		updateWatcherFields(classIdPair.getClassName(), classIdPair.getID(), fieldName, fieldsToWatch, params);
+	}
+
+	public void updateWatcherFields(String category, String subCategory, String fieldName, Collection<String> fieldsToWatch) {
+		updateWatcherFields(category, subCategory, fieldName, fieldsToWatch, null);
+	}
+	
 	@SuppressWarnings("unchecked")
 	@Transactional
-	public void updateWatcherFields(ClassIDPair classIdPair, String fieldName, Collection<String> fieldsToWatch, String[] params) {
+	public void updateWatcherFields(String category, String subCategory, String fieldName, Collection<String> fieldsToWatch, String[] params) {
 		String changeWatcherId = "";
 		String watcherField = "";
 		if (params != null) {
-			changeWatcherId = RedisKeyUtils.changeWatcherWithParams(classIdPair.getClassName(), classIdPair.getID(), fieldName, params);
-			watcherField = RedisKeyUtils.watcherField(RedisKeyUtils.changeWatcher(classIdPair.getClassName(), classIdPair.getID(), fieldName));
+			changeWatcherId = RedisKeyUtils.changeWatcherWithParams(category, subCategory, fieldName, params);
+			watcherField = RedisKeyUtils.watcherField(RedisKeyUtils.changeWatcher(category, subCategory, fieldName));
 		}
 		else {
-			changeWatcherId = RedisKeyUtils.changeWatcher(classIdPair.getClassName(), classIdPair.getID(), fieldName);
+			changeWatcherId = RedisKeyUtils.changeWatcher(category, subCategory, fieldName);
 			watcherField = RedisKeyUtils.watcherField(changeWatcherId);
 		}
 
@@ -1113,19 +1126,22 @@ public class RedisAccessManager implements IAccessManager {
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void removeChangeWatchersByObject(ClassIDPair classIdPair) {
-		String classKey = RedisKeyUtils.changeWatcherClass(classIdPair.getClassName(), classIdPair.getID());
+		removeChangeWatchers(classIdPair.getClassName(), classIdPair.getID());
+	}
+	@SuppressWarnings("unchecked")
+	public void removeChangeWatchers(String category, String subCategory) {
+		String categoryKey = RedisKeyUtils.changeWatcherClass(category, subCategory);
 		
 		// Get all change watcher values associated with this object.
-		Set<Object> changeWatcherValueKeys = redisDataStore.getHashKeys(classKey);
+		Set<Object> changeWatcherValueKeys = redisDataStore.getHashKeys(categoryKey);
 		Iterator<Object> itrChangeWatcherValueKeys = changeWatcherValueKeys.iterator();
 		while (itrChangeWatcherValueKeys.hasNext()) {
 			String nextChangeWatcherValueKey = (String) itrChangeWatcherValueKeys.next();
 			// If this is a RESULT key, then add it to the list to check.
 			if (nextChangeWatcherValueKey.endsWith(":" + RedisKeyUtils.RESULT)) {
 				int resultIndex = nextChangeWatcherValueKey.lastIndexOf(":" + RedisKeyUtils.RESULT);
-				String changeWatcherKey = classKey + ":" + nextChangeWatcherValueKey.substring(0, resultIndex);
+				String changeWatcherKey = categoryKey + ":" + nextChangeWatcherValueKey.substring(0, resultIndex);
 				String key = changeWatcherKey;
 				String clientWatcherKey = RedisKeyUtils.clientWatcher(changeWatcherKey);
 				
@@ -1150,7 +1166,7 @@ public class RedisAccessManager implements IAccessManager {
 			}
 		}
 
-		String objectWatchedFieldKey = RedisKeyUtils.objectWatchedFields(classIdPair.getClassName(), classIdPair.getID());
+		String objectWatchedFieldKey = RedisKeyUtils.objectWatchedFields(category, subCategory);
 		Set<Object> objectWatcherValueKeys = redisDataStore.getHashKeys(objectWatchedFieldKey);
 		Iterator<Object> itrObjectWatcherValueKeys = objectWatcherValueKeys.iterator();
 		while (itrObjectWatcherValueKeys.hasNext()) {
@@ -1162,7 +1178,7 @@ public class RedisAccessManager implements IAccessManager {
 		}
 		redisDataStore.deleteKey(objectWatchedFieldKey);	// Removes ALL change watcher values for this Object.
 		
-		redisDataStore.deleteKey(classKey);	// Removes ALL change watcher values for this Object.
+		redisDataStore.deleteKey(categoryKey);	// Removes ALL change watcher values for this Object.
 	}
 
 	public void saveChangeWatcherResult(ClassIDPair classIdPair, String fieldName, Object result) {
@@ -1306,14 +1322,38 @@ public class RedisAccessManager implements IAccessManager {
 				}
 				else {
 					String fieldWatcherKey = "";
-					if (params != null)
+					// Also add for ALL objects of this class type
+					String allClassObjectsFieldWatcherKey = "";
+					if (params != null) {
 						fieldWatcherKey = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcherWithParams(classIdPair.getClassName(), classIdPair.getID(), fieldName, params));
-					else
+						allClassObjectsFieldWatcherKey = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcherWithParams(classIdPair.getClassName(), "0", fieldName, params));
+					}
+					else {
 						fieldWatcherKey = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcher(classIdPair.getClassName(), classIdPair.getID(), fieldName));
+						allClassObjectsFieldWatcherKey = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcher(classIdPair.getClassName(), "0", fieldName));
+					}
+					
 					fieldWatcherKeys.add(fieldWatcherKey);
+					fieldWatcherKeys.add(allClassObjectsFieldWatcherKey);
 				}
 			}
 		}
+		
+		// Also add for this object of this class type with NO field name
+		String noFieldWatcherKey = "";
+		// Also add for ALL objects of this class type with NO field name
+		String allClassObjectsNoFieldWatcherKey = "";
+		if (params != null) {
+			noFieldWatcherKey = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcherWithParams(classIdPair.getClassName(), classIdPair.getID(), "", params));
+			allClassObjectsNoFieldWatcherKey = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcherWithParams(classIdPair.getClassName(), "0", "", params));
+		}
+		else {
+			noFieldWatcherKey = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcher(classIdPair.getClassName(), classIdPair.getID(), ""));
+			allClassObjectsNoFieldWatcherKey = RedisKeyUtils.fieldWatcher(RedisKeyUtils.changeWatcher(classIdPair.getClassName(), "0", ""));
+		}
+		
+		fieldWatcherKeys.add(noFieldWatcherKey);
+		fieldWatcherKeys.add(allClassObjectsNoFieldWatcherKey);
 		
 		Collection<String> changeWatchers = null;
 		if (fieldWatcherKeys.size() > 0) {
@@ -1327,14 +1367,22 @@ public class RedisAccessManager implements IAccessManager {
 		Set<String> fieldWatcherKeys = new HashSet<String>();
 		
 		String objectWatchedFieldKey = RedisKeyUtils.objectWatchedFields(classIdPair.getClassName(), classIdPair.getID());
-		Set<Object> objectWatcherValueKeys = redisDataStore.getHashKeys(objectWatchedFieldKey);
-		Iterator<Object> itrObjectWatcherValueKeys = objectWatcherValueKeys.iterator();
-		while (itrObjectWatcherValueKeys.hasNext()) {
-			String nextObjectWatcherValueKey = (String) itrObjectWatcherValueKeys.next();
+		// Also add for ALL objects of this class type
+		String allObjectsWatchedFieldKey = RedisKeyUtils.objectWatchedFields(classIdPair.getClassName(), "0");
 
-			// Get all fields for this object that are being watched and remove them.
-			String changeWatcherKey = (String) redisDataStore.getHashValue(objectWatchedFieldKey, nextObjectWatcherValueKey);
-			fieldWatcherKeys.add(changeWatcherKey);
+		String[] fieldKeys = {objectWatchedFieldKey, allObjectsWatchedFieldKey};
+		
+		for(int i=0; i<fieldKeys.length; i++) {
+			String nextKey = fieldKeys[i];
+			Set<Object> objectWatcherValueKeys = redisDataStore.getHashKeys(nextKey);
+			Iterator<Object> itrObjectWatcherValueKeys = objectWatcherValueKeys.iterator();
+			while (itrObjectWatcherValueKeys.hasNext()) {
+				String nextObjectWatcherValueKey = (String) itrObjectWatcherValueKeys.next();
+	
+				// Get all fields for this object that are being watched and remove them.
+				String changeWatcherKey = (String) redisDataStore.getHashValue(nextKey, nextObjectWatcherValueKey);
+				fieldWatcherKeys.add(changeWatcherKey);
+			}
 		}
 		
 		return fieldWatcherKeys;
@@ -1399,11 +1447,11 @@ public class RedisAccessManager implements IAccessManager {
 			// Need to break up
 			String[] params = changeWatcherId.split(":");
 			
-			// 3rd var should be class name.
-			String className = params[2];
+			// 3rd var should be category.
+			String category = params[2];
 			
-			// 4th var should be classId.
-			String classId = params[3];
+			// 4th var should be subCategory.
+			String subCategory = params[3];
 			
 			// 5th var should be fieldName.
 			String fieldName = params[4];
@@ -1419,10 +1467,17 @@ public class RedisAccessManager implements IAccessManager {
 			if (changeWatcherHelperFactory != null)
 			{
 				Collection <String> clientIds = (Set<String>) redisDataStore.getSetValue(RedisKeyUtils.clientWatcher(changeWatcherId));	// The list of ClientID's who are interested in this object.
-				ClassIDPair pair = new ClassIDPair(classId, className);
+				
+				IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(category);
+				cwh.reprocess(category, subCategory, fieldName, clientIds, otherParams, requestTimestamp);
 
-				IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(className);
-				cwh.recalculate(fieldName, pair, clientIds, otherParams, requestTimestamp);
+//				// If this is an Object Change Watcher, then build a ClassIDPair and run the recalc.
+//				if (false) {
+//					ClassIDPair pair = new ClassIDPair(subCategory, category);
+//					cwh.recalculate(fieldName, pair, clientIds, otherParams, requestTimestamp);
+//				}
+//				else {
+//				}
 				/**
 				// If no clients interested in this value, then remove it from the cache.
 				if (clientIds == null || clientIds.isEmpty()) {

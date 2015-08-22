@@ -7,6 +7,7 @@ public class ChangeWatcherReporting {
 	
 	public static Integer recalcsCounter = 0;
 	public static Integer abortedRecalcsCounter = 0;
+	public static Integer reprocessCounter = 0;
 	public static Integer unchangedResultsCounter = 0;
 	public static Integer changedResultsCounter = 0;
 	
@@ -17,6 +18,7 @@ public class ChangeWatcherReporting {
 		result.append("Internal Requests: ").append(internalRequestsCounter).append("\n");
 		result.append("Unchanged Results: ").append(unchangedResultsCounter).append("\n");
 		result.append("Changed Results: ").append(changedResultsCounter).append("\n");
+		result.append("Reprocess: ").append(reprocessCounter).append("\n");
 		result.append("Recalcs: ").append(recalcsCounter).append("\n");
 		result.append("Aborted Recalcs: ").append(abortedRecalcsCounter).append("\n");
 		result.append("Aborted %: ").append((100.0 * abortedRecalcsCounter / recalcsCounter)).append("\n");

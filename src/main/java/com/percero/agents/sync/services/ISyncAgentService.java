@@ -52,7 +52,7 @@ public interface ISyncAgentService {
 	public Object findUnique(Object theQueryObject, String clientId) throws Exception;
 	public Object runQuery(String className, String queryName, Object[] queryArguments, String clientId) throws Exception;
 	public Object runProcess(String processName, Object[] queryArguments, String clientId) throws Exception;
-	public Object getChangeWatcher(ClassIDPair classIdPair, String fieldName, String[] params, String clientId) throws Exception;
+	public Object getChangeWatcherValue(ClassIDPair classIdPair, String fieldName, String[] params, String clientId) throws Exception;
 	public List<Object> getHistory(String aClassName, String anId, String clientId) throws Exception;
 
 	public Object searchByExample(Object theQueryObject, String clientId) throws Exception;
