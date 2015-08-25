@@ -9,11 +9,11 @@ public class ManifestHelper {
 	public static IManifest getManifest() {
 		return manifest;
 	}
-	
+
 	public static void setManifest(IManifest value) {
 		manifest = value;
 	}
-	
+
 	@SuppressWarnings("rawtypes")
 	public static Class findImplementingClass(Class theInterface) {
 		
