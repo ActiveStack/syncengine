@@ -26,7 +26,7 @@ import com.percero.agents.auth.services.IAuthService;
 import com.percero.agents.sync.cw.ChangeWatcherReporting;
 import com.percero.agents.sync.cw.IChangeWatcherHelper;
 import com.percero.agents.sync.cw.IChangeWatcherHelperFactory;
-import com.percero.agents.sync.datastore.RedisDataStore;
+import com.percero.agents.sync.datastore.ICacheDataStore;
 import com.percero.agents.sync.exceptions.ClientException;
 import com.percero.agents.sync.helpers.RedisPostClientHelper;
 import com.percero.agents.sync.services.IPushSyncHelper;
@@ -75,8 +75,8 @@ public class RedisAccessManager implements IAccessManager {
 	//MongoOperations mongoOperations;
 
 	@Autowired
-	RedisDataStore redisDataStore;
-	public void setRedisDataStore(RedisDataStore redisDataStore) {
+	ICacheDataStore redisDataStore;
+	public void setRedisDataStore(ICacheDataStore redisDataStore) {
 		this.redisDataStore = redisDataStore;
 	}
 	

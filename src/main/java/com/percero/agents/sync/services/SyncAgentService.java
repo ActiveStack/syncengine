@@ -29,7 +29,7 @@ import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.access.RedisKeyUtils;
 import com.percero.agents.sync.cw.IChangeWatcherHelperFactory;
 import com.percero.agents.sync.cw.IChangeWatcherValueHelper;
-import com.percero.agents.sync.datastore.RedisDataStore;
+import com.percero.agents.sync.datastore.ICacheDataStore;
 import com.percero.agents.sync.events.SyncEvent;
 import com.percero.agents.sync.exceptions.ClientException;
 import com.percero.agents.sync.exceptions.SyncDataException;
@@ -87,9 +87,9 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	}
 
 	@Autowired
-	RedisDataStore redisDataStore;
-	public void setRedisDataStore(RedisDataStore value) {
-		redisDataStore = value;
+	ICacheDataStore cacheDataStore;
+	public void setCacheDataStore(ICacheDataStore value) {
+		cacheDataStore = value;
 	}
 	
 	@Autowired
@@ -252,11 +252,11 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		if (!isValidClient)
 			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
 
-		String dataId = (String) redisDataStore.listIndex(RedisKeyUtils.dataRecord());
+		String dataId = (String) cacheDataStore.listIndex(RedisKeyUtils.dataRecord());
 
 		if (dataId == null) {
 			dataId = UUID.randomUUID().toString();
-			redisDataStore.lpushListValue(RedisKeyUtils.dataRecord(), dataId);
+			cacheDataStore.lpushListValue(RedisKeyUtils.dataRecord(), dataId);
 		}
 		
 		return dataId;
@@ -588,7 +588,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		if (hasReadAccess) {
 			// Get the Historical Objects.
-			return redisDataStore.listAll(RedisKeyUtils.historicalObject(aClassName, anId));
+			return cacheDataStore.listAll(RedisKeyUtils.historicalObject(aClassName, anId));
 		}
 		
 		return null;
@@ -645,7 +645,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			// Get the most recent ObjectModJournal, only if the UpdateDate is set.
 			if (updateDate != null) {
 				try {
-					objectModJournal = (ObjectModJournal) redisDataStore.listIndex(RedisKeyUtils.objectModJournal(perceroObject.getClass().getName(), perceroObject.getID()));
+					objectModJournal = (ObjectModJournal) cacheDataStore.listIndex(RedisKeyUtils.objectModJournal(perceroObject.getClass().getName(), perceroObject.getID()));
 				} catch(Exception e) {
 					log.warn("Unable to retrieve most recent objectModJournal", e);
 				}
@@ -692,7 +692,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						newModJournal.setClassID(result.getID());
 						newModJournal.setClassName(result.getClass().getName());
 						
-						redisDataStore.lpushListValue(RedisKeyUtils.objectModJournal(perceroObject.getClass().getCanonicalName(), perceroObject.getID()), newModJournal);
+						cacheDataStore.lpushListValue(RedisKeyUtils.objectModJournal(perceroObject.getClass().getCanonicalName(), perceroObject.getID()), newModJournal);
 						
 						// Also store historical record, if necessary.
 						// Get the Current object if this is a BaseHistoryObject.
@@ -707,7 +707,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 							historyObject.setObjectChangerId(userId);
 							historyObject.setObjectData(safeObjectMapper.writeValueAsString(result));
 							
-							redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
+							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
 						}
 
 						if (taskExecutor != null && false) {
@@ -755,7 +755,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		try {
 			// Get the most recent ObjectModJournal.
 			try {
-				objectModJournal = (ObjectModJournal) redisDataStore.listIndex(RedisKeyUtils.objectModJournal(perceroObject.getClass().getName(), perceroObject.getID()));
+				objectModJournal = (ObjectModJournal) cacheDataStore.listIndex(RedisKeyUtils.objectModJournal(perceroObject.getClass().getName(), perceroObject.getID()));
 			} catch(Exception e) {
 				log.warn("Unable to retrieve most recent objectModJournal", e);
 			}
@@ -795,7 +795,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						newModJournal.setClassName(result.getClass().getName());
 						newModJournal.setDateModified(updateDate);
 						
-						redisDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
+						cacheDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
 						
 						// Also store historical record, if necessary.
 						// Get the Current object if this is a BaseHistoryObject.
@@ -810,7 +810,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 							historyObject.setObjectChangerId(userId);
 							historyObject.setObjectData(safeObjectMapper.writeValueAsString(result));
 							
-							redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
+							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
 	
 							//syncSession.save(historyObject);
 						}
@@ -873,7 +873,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 					newModJournal.setClassName(result.getClass().getName());
 					
 					try {
-						redisDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
+						cacheDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
 					} catch(Exception e) {
 						log.error("Unable to save mod journal to redis cache", e);
 					}
@@ -892,7 +892,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						historyObject.setObjectData(safeObjectMapper.writeValueAsString(result));
 						
 						try {
-							redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
+							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
 						} catch(Exception e) {
 							log.error("Unable to save history object to redis cache", e);
 						}
@@ -954,7 +954,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 					newModJournal.setClassName(result.getClass().getName());
 					
 					try {
-						redisDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
+						cacheDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
 					} catch(Exception e) {
 						log.error("Unable to save mod journal to redis cache", e);
 					}
@@ -973,7 +973,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						historyObject.setObjectData(safeObjectMapper.writeValueAsString(result));
 						
 						try {
-							redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
+							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
 						} catch(Exception e) {
 							log.error("Unable to save history object to redis cache", e);
 						}
@@ -1211,7 +1211,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						historyObject.setObjectChangerId(userId);
 						historyObject.setObjectData(safeObjectMapper.writeValueAsString(perceroObject));
 						
-						redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(perceroObject.getClass().getCanonicalName(), perceroObject.getID()), historyObject);
+						cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(perceroObject.getClass().getCanonicalName(), perceroObject.getID()), historyObject);
 					} catch(Exception e) {
 						log.warn("Unable to save HistoricalObject in deleteObject", e);
 					}
