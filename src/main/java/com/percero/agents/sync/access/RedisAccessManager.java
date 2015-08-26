@@ -75,9 +75,9 @@ public class RedisAccessManager implements IAccessManager {
 	//MongoOperations mongoOperations;
 
 	@Autowired
-	ICacheDataStore redisDataStore;
-	public void setRedisDataStore(ICacheDataStore redisDataStore) {
-		this.redisDataStore = redisDataStore;
+	ICacheDataStore cacheDataStore;
+	public void setCacheDataStore(ICacheDataStore cacheDataStore) {
+		this.cacheDataStore = cacheDataStore;
 	}
 	
 	@Autowired
@@ -105,48 +105,48 @@ public class RedisAccessManager implements IAccessManager {
 	public void createClient(String clientId, String userId, String deviceType, String deviceId) throws Exception {
 		
 		String clientUserKey = RedisKeyUtils.clientUser(userId);
-		redisDataStore.addSetValue(clientUserKey, clientId);
+		cacheDataStore.addSetValue(clientUserKey, clientId);
 
 		if (StringUtils.hasText(deviceId)) {
 			String userDeviceKey = RedisKeyUtils.userDeviceHash(userId);
-			redisDataStore.setHashValue(userDeviceKey, deviceId, clientId);
+			cacheDataStore.setHashValue(userDeviceKey, deviceId, clientId);
 			String deviceKey = RedisKeyUtils.deviceHash(deviceId);
-			redisDataStore.addSetValue(deviceKey, clientId);
+			cacheDataStore.addSetValue(deviceKey, clientId);
 		}
 		
 		// Set the client's userId.
-		redisDataStore.setValue(RedisKeyUtils.client(clientId), userId);
+		cacheDataStore.setValue(RedisKeyUtils.client(clientId), userId);
 		
 		// Add to ClientUser list
-		redisDataStore.addSetValue(clientUserKey, clientId);
+		cacheDataStore.addSetValue(clientUserKey, clientId);
 		
 		if (Client.PERSISTENT_TYPE.equalsIgnoreCase(deviceType)) {
-			redisDataStore.addSetValue(RedisKeyUtils.clientsPersistent(), clientId);
+			cacheDataStore.addSetValue(RedisKeyUtils.clientsPersistent(), clientId);
 		}
 		else {
-			redisDataStore.addSetValue(RedisKeyUtils.clientsNonPersistent(), clientId);
+			cacheDataStore.addSetValue(RedisKeyUtils.clientsNonPersistent(), clientId);
 		}
 	}
 	
 	public Boolean isNonPersistentClient(String clientId) {
-		return redisDataStore.getSetIsMember(RedisKeyUtils.clientsNonPersistent(), clientId);
+		return cacheDataStore.getSetIsMember(RedisKeyUtils.clientsNonPersistent(), clientId);
 	}
 	
 	public String getClientUserId(String clientId) {
-		return (String) redisDataStore.getValue(RedisKeyUtils.client(clientId));
+		return (String) cacheDataStore.getValue(RedisKeyUtils.client(clientId));
 	}
 	
 	public Boolean findClientByClientIdUserId(String clientId, String userId) throws Exception {
-		return redisDataStore.getSetIsMember(RedisKeyUtils.clientUser(userId), clientId);
+		return cacheDataStore.getSetIsMember(RedisKeyUtils.clientUser(userId), clientId);
 	}
 	
 	@SuppressWarnings("unchecked")
 	public Set<String> findClientByUserIdDeviceId(String userId, String deviceId) throws Exception {
-		Set<String> deviceClientIds = (Set<String>) redisDataStore.getSetValue(RedisKeyUtils.deviceHash(deviceId));
+		Set<String> deviceClientIds = (Set<String>) cacheDataStore.getSetValue(RedisKeyUtils.deviceHash(deviceId));
 		if (deviceClientIds == null) {
 			deviceClientIds = new HashSet<String>(1);
 		}
-		String result = (String) redisDataStore.getHashValue(RedisKeyUtils.userDeviceHash(userId), deviceId);
+		String result = (String) cacheDataStore.getHashValue(RedisKeyUtils.userDeviceHash(userId), deviceId);
 		if (!StringUtils.hasText(result)) {
 			deviceClientIds.add(result);
 		}
@@ -155,9 +155,9 @@ public class RedisAccessManager implements IAccessManager {
 	}
 	
 	public Boolean findClientByClientId(String clientId) {
-		if (redisDataStore.getSetIsMember(RedisKeyUtils.clientsPersistent(), clientId))
+		if (cacheDataStore.getSetIsMember(RedisKeyUtils.clientsPersistent(), clientId))
 			return true;
-		else if (redisDataStore.getSetIsMember(RedisKeyUtils.clientsNonPersistent(), clientId))
+		else if (cacheDataStore.getSetIsMember(RedisKeyUtils.clientsNonPersistent(), clientId))
 			return true;
 		else
 			return false;
@@ -186,13 +186,13 @@ public class RedisAccessManager implements IAccessManager {
 	
 	@SuppressWarnings("unchecked")
 	public Set<String> validateClients(Collection<String> clientIds) throws Exception {
-		Set<String> validClients = (Set<String>) redisDataStore.getSetsContainsMembers(CLIENT_KEYS_SEY, clientIds.toArray());
+		Set<String> validClients = (Set<String>) cacheDataStore.getSetsContainsMembers(CLIENT_KEYS_SEY, clientIds.toArray());
 		return validClients;
 	}
 	
 	@SuppressWarnings("unchecked")
 	public Set<String> validateClientsIncludeFromDeviceHistory(Map<String, String> clientDevices) throws Exception {
-		Set<String> validClients = (Set<String>) redisDataStore.getSetsContainsMembers(CLIENT_KEYS_SEY, clientDevices.keySet().toArray());
+		Set<String> validClients = (Set<String>) cacheDataStore.getSetsContainsMembers(CLIENT_KEYS_SEY, clientDevices.keySet().toArray());
 		
 		// Now check each device to see if it has a corresponding clientId.
 		Iterator<Map.Entry<String, String>> itrClientDevices = clientDevices.entrySet().iterator();
@@ -201,7 +201,7 @@ public class RedisAccessManager implements IAccessManager {
 			String nextClient = nextClientDevice.getKey();
 			String nextDevice = nextClientDevice.getValue();
 			
-			if (redisDataStore.getSetIsMember(RedisKeyUtils.deviceHash(nextDevice), nextClient)) {
+			if (cacheDataStore.getSetIsMember(RedisKeyUtils.deviceHash(nextDevice), nextClient)) {
 				validClients.add(nextClient);
 			}
 		}
@@ -217,9 +217,9 @@ public class RedisAccessManager implements IAccessManager {
 		}
 		else {
 			// Client is NOT current, but could still be valid.
-			if (redisDataStore.getSetIsMember(RedisKeyUtils.deviceHash(deviceId), clientId)) {
+			if (cacheDataStore.getSetIsMember(RedisKeyUtils.deviceHash(deviceId), clientId)) {
 				// Client IS valid, now get current Client.
-				Set<String> validDeviceClientIds = (Set<String>) redisDataStore.getSetValue(RedisKeyUtils.deviceHash(deviceId));
+				Set<String> validDeviceClientIds = (Set<String>) cacheDataStore.getSetValue(RedisKeyUtils.deviceHash(deviceId));
 				Iterator<String> itrValidDeviceClientIds = validDeviceClientIds.iterator();
 				while (itrValidDeviceClientIds.hasNext()) {
 					String nextClientId = itrValidDeviceClientIds.next();
@@ -250,8 +250,8 @@ public class RedisAccessManager implements IAccessManager {
 		if (!isValidClient)
 			createClient(clientId, userId, deviceType, deviceId);
 		
-		redisDataStore.addSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
-		redisDataStore.deleteHashKey(RedisKeyUtils.clientsHibernated(), clientId);
+		cacheDataStore.addSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
+		cacheDataStore.deleteHashKey(RedisKeyUtils.clientsHibernated(), clientId);
 		postClient(clientId);
 	}
 	
@@ -263,8 +263,8 @@ public class RedisAccessManager implements IAccessManager {
 		// Make sure this client/user combo is a valid one.
 		if (findClientByClientIdUserId(clientId, userId)) {
 			// Remove the client from the LoggedIn list and add it to the Hibernated list.
-			redisDataStore.setHashValue(RedisKeyUtils.clientsHibernated(), clientId, System.currentTimeMillis());
-			redisDataStore.removeSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
+			cacheDataStore.setHashValue(RedisKeyUtils.clientsHibernated(), clientId, System.currentTimeMillis());
+			cacheDataStore.removeSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
 			
 			// NOTE: The client is still in either the "client persistent" or "client non-persistent" list and
 			//	is therefore still considered a valid client.
@@ -294,16 +294,16 @@ public class RedisAccessManager implements IAccessManager {
 			
 			try {
 				// Remove from NonPersistent list.
-				redisDataStore.removeSetValue(RedisKeyUtils.clientsNonPersistent(), clientId);
+				cacheDataStore.removeSetValue(RedisKeyUtils.clientsNonPersistent(), clientId);
 				
 				// Add to Persistent List.
-				redisDataStore.addSetValue(RedisKeyUtils.clientsPersistent(), clientId);
+				cacheDataStore.addSetValue(RedisKeyUtils.clientsPersistent(), clientId);
 				
 				// Add to LoggedIn list
-				redisDataStore.addSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
+				cacheDataStore.addSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
 				
 				// Remove from Hibernated list
-				redisDataStore.deleteHashKey(RedisKeyUtils.clientsHibernated(), clientId);
+				cacheDataStore.deleteHashKey(RedisKeyUtils.clientsHibernated(), clientId);
 
 				if (previousClientIds != null && !previousClientIds.isEmpty()) {
 					Iterator<String> itrPreviousClientIds = previousClientIds.iterator();
@@ -311,7 +311,7 @@ public class RedisAccessManager implements IAccessManager {
 						String nextPreviousClient = itrPreviousClientIds.next();
 						if (StringUtils.hasText(nextPreviousClient) && nextPreviousClient.equals(clientId)) {
 							// Remove from NonPersistent list.
-							redisDataStore.removeSetValue(RedisKeyUtils.clientsNonPersistent(), nextPreviousClient);
+							cacheDataStore.removeSetValue(RedisKeyUtils.clientsNonPersistent(), nextPreviousClient);
 		
 							renameClient(nextPreviousClient, clientId);
 						}
@@ -319,7 +319,7 @@ public class RedisAccessManager implements IAccessManager {
 				}
 				else {
 					// Add to ClientUser list
-					redisDataStore.addSetValue(RedisKeyUtils.clientUser(userId), clientId);
+					cacheDataStore.addSetValue(RedisKeyUtils.clientUser(userId), clientId);
 				}
 
 				result = true;
@@ -344,94 +344,94 @@ public class RedisAccessManager implements IAccessManager {
 		}
 
 		// Get the existing UserId.
-		String userId = (String) redisDataStore.getValue(RedisKeyUtils.client(thePreviousClient));
+		String userId = (String) cacheDataStore.getValue(RedisKeyUtils.client(thePreviousClient));
 		log.debug("Renaming client " + thePreviousClient + " to " + clientId);
 		
 		if (StringUtils.hasText(userId)) {
 			log.debug("Renaming user " + userId + " from client " + thePreviousClient + " to " + clientId);
 			// Remove Previous Client from ClientUser list
-			redisDataStore.removeSetValue(RedisKeyUtils.clientUser(userId), thePreviousClient);
+			cacheDataStore.removeSetValue(RedisKeyUtils.clientUser(userId), thePreviousClient);
 			// Add to ClientUser list
-			redisDataStore.addSetValue(RedisKeyUtils.clientUser(userId), clientId);
+			cacheDataStore.addSetValue(RedisKeyUtils.clientUser(userId), clientId);
 			
 			// Update the UserDevice ClientID.
 			String userDeviceHashKey = RedisKeyUtils.userDeviceHash(userId);
-			Collection<Object> userDeviceKeys = redisDataStore.getHashKeys(userDeviceHashKey);
+			Collection<Object> userDeviceKeys = cacheDataStore.getHashKeys(userDeviceHashKey);
 			Iterator<Object> itrUserDevices = userDeviceKeys.iterator();
 			while (itrUserDevices.hasNext()) {
 				String nextDeviceKey = (String) itrUserDevices.next();
-				if (thePreviousClient.equals(redisDataStore.getHashValue(userDeviceHashKey, nextDeviceKey))) {
-					redisDataStore.addSetValue(RedisKeyUtils.deviceHash(nextDeviceKey), clientId);
-					redisDataStore.setHashValue(userDeviceHashKey, nextDeviceKey, clientId);
+				if (thePreviousClient.equals(cacheDataStore.getHashValue(userDeviceHashKey, nextDeviceKey))) {
+					cacheDataStore.addSetValue(RedisKeyUtils.deviceHash(nextDeviceKey), clientId);
+					cacheDataStore.setHashValue(userDeviceHashKey, nextDeviceKey, clientId);
 				}
 			}
 
 			// Set the Client's userId
-			redisDataStore.setValue(RedisKeyUtils.client(clientId), userId);
+			cacheDataStore.setValue(RedisKeyUtils.client(clientId), userId);
 			// Remove the Previous Client's userId
-			redisDataStore.deleteKey(RedisKeyUtils.client(thePreviousClient));
+			cacheDataStore.deleteKey(RedisKeyUtils.client(thePreviousClient));
 		}
 		else {
 			log.debug("Previous Client" + thePreviousClient + " has no corresponding UserID");
 		}
 		
 		// Swap NonPersistent list.
-		redisDataStore.swapSetValue(RedisKeyUtils.clientsNonPersistent(), thePreviousClient, clientId);
+		cacheDataStore.swapSetValue(RedisKeyUtils.clientsNonPersistent(), thePreviousClient, clientId);
 
 		// Swap Persistent list.
-		redisDataStore.swapSetValue(RedisKeyUtils.clientsPersistent(), thePreviousClient, clientId);
+		cacheDataStore.swapSetValue(RedisKeyUtils.clientsPersistent(), thePreviousClient, clientId);
 		
 		// Swap LoggedIn list.
-		redisDataStore.swapSetValue(RedisKeyUtils.clientsLoggedIn(), thePreviousClient, clientId);
+		cacheDataStore.swapSetValue(RedisKeyUtils.clientsLoggedIn(), thePreviousClient, clientId);
 		
 		// Swap Hibernated list.
-		redisDataStore.swapHashKey(RedisKeyUtils.clientsHibernated(), thePreviousClient, clientId);
+		cacheDataStore.swapHashKey(RedisKeyUtils.clientsHibernated(), thePreviousClient, clientId);
 		
 		// Rename the UpdateJournals list.
 		String prevUpdateJournalKey = RedisKeyUtils.updateJournal(thePreviousClient);
-		if (redisDataStore.hasKey(prevUpdateJournalKey)) {
-			if (!redisDataStore.renameIfAbsent(prevUpdateJournalKey, RedisKeyUtils.updateJournal(clientId))) {
+		if (cacheDataStore.hasKey(prevUpdateJournalKey)) {
+			if (!cacheDataStore.renameIfAbsent(prevUpdateJournalKey, RedisKeyUtils.updateJournal(clientId))) {
 				// If new list already exists, then merge the two.
-				redisDataStore.setUnionAndStore(RedisKeyUtils.updateJournal(thePreviousClient), RedisKeyUtils.updateJournal(clientId), RedisKeyUtils.updateJournal(clientId));
+				cacheDataStore.setUnionAndStore(RedisKeyUtils.updateJournal(thePreviousClient), RedisKeyUtils.updateJournal(clientId), RedisKeyUtils.updateJournal(clientId));
 				// Delete the old Key
-				redisDataStore.deleteKey(RedisKeyUtils.updateJournal(thePreviousClient));
+				cacheDataStore.deleteKey(RedisKeyUtils.updateJournal(thePreviousClient));
 			}
 		}
 		
 		// Rename the DeleteJournals list.
 		String prevDeleteJournalKey = RedisKeyUtils.deleteJournal(thePreviousClient);
-		if (redisDataStore.hasKey(prevDeleteJournalKey)) {
-			if (!redisDataStore.renameIfAbsent(RedisKeyUtils.deleteJournal(thePreviousClient), RedisKeyUtils.deleteJournal(clientId))) {
+		if (cacheDataStore.hasKey(prevDeleteJournalKey)) {
+			if (!cacheDataStore.renameIfAbsent(RedisKeyUtils.deleteJournal(thePreviousClient), RedisKeyUtils.deleteJournal(clientId))) {
 				// If new list already exists, then merge the two.
-				redisDataStore.setUnionAndStore(RedisKeyUtils.deleteJournal(thePreviousClient), RedisKeyUtils.deleteJournal(clientId), RedisKeyUtils.deleteJournal(clientId));
+				cacheDataStore.setUnionAndStore(RedisKeyUtils.deleteJournal(thePreviousClient), RedisKeyUtils.deleteJournal(clientId), RedisKeyUtils.deleteJournal(clientId));
 				// Delete the old Key
-				redisDataStore.deleteKey(RedisKeyUtils.deleteJournal(thePreviousClient));
+				cacheDataStore.deleteKey(RedisKeyUtils.deleteJournal(thePreviousClient));
 			}
 		}
 		
 		// Merge sets of Access Journals.
 		String prevClientAccessJournalKey = RedisKeyUtils.clientAccessJournal(thePreviousClient);
-		if (redisDataStore.hasKey(prevClientAccessJournalKey)) {
-			Set<String> accessJournalIds = (Set<String>)redisDataStore.getSetValue(prevClientAccessJournalKey);
+		if (cacheDataStore.hasKey(prevClientAccessJournalKey)) {
+			Set<String> accessJournalIds = (Set<String>)cacheDataStore.getSetValue(prevClientAccessJournalKey);
 			Iterator<String> itrAccessJournalIds = accessJournalIds.iterator();
 			while (itrAccessJournalIds.hasNext()) {
 				String nextAccessJournalId = itrAccessJournalIds.next();
-				redisDataStore.swapSetValue(RedisKeyUtils.accessJournal(nextAccessJournalId), thePreviousClient, clientId);
+				cacheDataStore.swapSetValue(RedisKeyUtils.accessJournal(nextAccessJournalId), thePreviousClient, clientId);
 			}
 		}
-		redisDataStore.setUnionAndStore(RedisKeyUtils.clientAccessJournal(clientId), RedisKeyUtils.clientAccessJournal(thePreviousClient), RedisKeyUtils.clientAccessJournal(clientId));
+		cacheDataStore.setUnionAndStore(RedisKeyUtils.clientAccessJournal(clientId), RedisKeyUtils.clientAccessJournal(thePreviousClient), RedisKeyUtils.clientAccessJournal(clientId));
 		
 		// Merge sets of ChangeWatchers.
 		String prevWatcherClientKey = RedisKeyUtils.watcherClient(thePreviousClient);
-		if (redisDataStore.hasKey(prevWatcherClientKey)) {
-			Set<String> changeWatcherIds = (Set<String>)redisDataStore.getSetValue(prevWatcherClientKey);
+		if (cacheDataStore.hasKey(prevWatcherClientKey)) {
+			Set<String> changeWatcherIds = (Set<String>)cacheDataStore.getSetValue(prevWatcherClientKey);
 			Iterator<String> itrChangeWatcherIds = changeWatcherIds.iterator();
 			while (itrChangeWatcherIds.hasNext()) {
 				String nextChangeWatcherId = itrChangeWatcherIds.next();
-				redisDataStore.swapSetValue(nextChangeWatcherId, thePreviousClient, clientId);
+				cacheDataStore.swapSetValue(nextChangeWatcherId, thePreviousClient, clientId);
 			}
 		}
-		redisDataStore.setUnionAndStore(RedisKeyUtils.watcherClient(clientId), RedisKeyUtils.watcherClient(thePreviousClient), RedisKeyUtils.watcherClient(clientId));
+		cacheDataStore.setUnionAndStore(RedisKeyUtils.watcherClient(clientId), RedisKeyUtils.watcherClient(thePreviousClient), RedisKeyUtils.watcherClient(clientId));
 		
 //		// Rename the TransactionJournals list.
 //		Collection<String> transKeys = redisDataStore.keys(RedisKeyUtils.transactionJournal(clientId, "*"));
@@ -454,10 +454,10 @@ public class RedisAccessManager implements IAccessManager {
 		log.debug("Logging out client " + clientId + " [" + (pleaseDestroyClient != null && pleaseDestroyClient ? "T" : "F") + "]");
 		
 		// Remove from LoggedIn Clients
-		redisDataStore.removeSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
+		cacheDataStore.removeSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
 		
 		// Check to see if this is a non-persistent client type.
-		Boolean isNonPersistent = redisDataStore.getSetIsMember(RedisKeyUtils.clientsNonPersistent(), clientId);
+		Boolean isNonPersistent = cacheDataStore.getSetIsMember(RedisKeyUtils.clientsNonPersistent(), clientId);
 		
 		if (isNonPersistent || pleaseDestroyClient) {
 			destroyClient(clientId);
@@ -475,37 +475,37 @@ public class RedisAccessManager implements IAccessManager {
 		}
 
 		// Get the client's userId.
-		String userId = (String) redisDataStore.getValue(RedisKeyUtils.client(clientId));
+		String userId = (String) cacheDataStore.getValue(RedisKeyUtils.client(clientId));
 		Boolean validUser = StringUtils.hasText(userId);
 		
 		// Remove from ClientUser list
 		if (validUser) {
-			redisDataStore.removeSetValue(RedisKeyUtils.clientUser(userId), clientId);
+			cacheDataStore.removeSetValue(RedisKeyUtils.clientUser(userId), clientId);
 		}
 		
 		// Remove from Client's User ID.
-		redisDataStore.deleteKey(RedisKeyUtils.client(clientId));
+		cacheDataStore.deleteKey(RedisKeyUtils.client(clientId));
 		
 		// Remove from LoggedIn Clients
-		redisDataStore.removeSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
+		cacheDataStore.removeSetValue(RedisKeyUtils.clientsLoggedIn(), clientId);
 
 		// Remove from Hibernated Clients
-		redisDataStore.deleteHashKey(RedisKeyUtils.clientsHibernated(), clientId);
+		cacheDataStore.deleteHashKey(RedisKeyUtils.clientsHibernated(), clientId);
 		
 		// Remove from NonPersistent Clients
-		redisDataStore.removeSetValue(RedisKeyUtils.clientsNonPersistent(), clientId);
+		cacheDataStore.removeSetValue(RedisKeyUtils.clientsNonPersistent(), clientId);
 		
 		// Remove from Persistent Clients
-		redisDataStore.removeSetValue(RedisKeyUtils.clientsPersistent(), clientId);
+		cacheDataStore.removeSetValue(RedisKeyUtils.clientsPersistent(), clientId);
 		
 		// Delete all UpdateJournals for this Client.
 		String updateJournalKey = RedisKeyUtils.updateJournal(clientId);
 //		Set<String> updateJournalIds = (Set<String>)redisDataStore.getSetValue(updateJournalKey);
 //		redisDataStore.removeSetsValue(updateJournalIds, clientId);
-		redisDataStore.deleteKey(updateJournalKey);
+		cacheDataStore.deleteKey(updateJournalKey);
 		
 		// Delete all DeleteJournals for this Client.
-		redisDataStore.deleteKey(RedisKeyUtils.deleteJournal(clientId));
+		cacheDataStore.deleteKey(RedisKeyUtils.deleteJournal(clientId));
 		
 //		// Delete all TransactionJournals for this Client.
 //		Collection<String> transJournalKeys = redisDataStore.keys(RedisKeyUtils.transactionJournal(clientId, "*"));
@@ -514,25 +514,25 @@ public class RedisAccessManager implements IAccessManager {
 		// Delete Client's UserDevice.
 		if (validUser) {
 			String userDeviceHashKey = RedisKeyUtils.userDeviceHash(userId);
-			Collection<Object> userDeviceKeys = redisDataStore.getHashKeys(userDeviceHashKey);
+			Collection<Object> userDeviceKeys = cacheDataStore.getHashKeys(userDeviceHashKey);
 			int originalSize = userDeviceKeys.size();
 			int countRemoved = 0;
 			Iterator<Object> itrUserDevices = userDeviceKeys.iterator();
 			while (itrUserDevices.hasNext()) {
 				String nextDeviceKey = (String) itrUserDevices.next();
-				if (clientId.equals(redisDataStore.getHashValue(userDeviceHashKey, nextDeviceKey))) {
+				if (clientId.equals(cacheDataStore.getHashValue(userDeviceHashKey, nextDeviceKey))) {
 					// Since the client id being destroyed, the whole device history related to this client is also to be destroyed. 
 					//	However, as a safety precaution, set the expiration for the device hash.
-					redisDataStore.expire(RedisKeyUtils.deviceHash(nextDeviceKey), userDeviceTimeout, TimeUnit.SECONDS);
-					redisDataStore.removeSetValue(RedisKeyUtils.deviceHash(nextDeviceKey), clientId);
-					redisDataStore.deleteHashKey(userDeviceHashKey, nextDeviceKey);
+					cacheDataStore.expire(RedisKeyUtils.deviceHash(nextDeviceKey), userDeviceTimeout, TimeUnit.SECONDS);
+					cacheDataStore.removeSetValue(RedisKeyUtils.deviceHash(nextDeviceKey), clientId);
+					cacheDataStore.deleteHashKey(userDeviceHashKey, nextDeviceKey);
 					countRemoved++;
 				}
 			}
 			
 			if (countRemoved >= originalSize) {
 				// Remove the UserDevice Hash.
-				redisDataStore.deleteKey(userDeviceHashKey);
+				cacheDataStore.deleteKey(userDeviceHashKey);
 			}
 		}
 		
@@ -572,22 +572,22 @@ public class RedisAccessManager implements IAccessManager {
 	@Transactional
 	private void deleteClientAccessJournals(String clientId) {
 		String clientAccessJournalsKey = RedisKeyUtils.clientAccessJournal(clientId);
-		Set<String> clientAccessJournals = (Set<String>) redisDataStore.getSetValue(clientAccessJournalsKey);
-		redisDataStore.removeSetsValue(RedisKeyUtils.ACCESS_JOURNAL_PREFIX, clientAccessJournals, clientId);
+		Set<String> clientAccessJournals = (Set<String>) cacheDataStore.getSetValue(clientAccessJournalsKey);
+		cacheDataStore.removeSetsValue(RedisKeyUtils.ACCESS_JOURNAL_PREFIX, clientAccessJournals, clientId);
 		
 		// Now remove the Client's AccessJournal key.
-		redisDataStore.deleteKey(clientAccessJournalsKey);
+		cacheDataStore.deleteKey(clientAccessJournalsKey);
 	}
 	
 	@SuppressWarnings("unchecked")
 	@Transactional
 	private void deleteClientWatchers(String clientId) {
 		String watcherClientKey = RedisKeyUtils.watcherClient(clientId);
-		Set<String> watcherClientIds = (Set<String>) redisDataStore.getSetValue(watcherClientKey);
-		redisDataStore.removeSetsValue("", watcherClientIds, clientId);
+		Set<String> watcherClientIds = (Set<String>) cacheDataStore.getSetValue(watcherClientKey);
+		cacheDataStore.removeSetsValue("", watcherClientIds, clientId);
 		
 		// Now remove the Client's Watcher key.
-		redisDataStore.deleteKey(watcherClientKey);
+		cacheDataStore.deleteKey(watcherClientKey);
 	}
 	
 	/**
@@ -618,7 +618,7 @@ public class RedisAccessManager implements IAccessManager {
 		Iterator<String> itrAccessJournals = accessJournalsToDelete.iterator();
 		while (itrAccessJournals.hasNext()) {
 			String nextAccessJournal = itrAccessJournals.next();
-			Set<String> accessJournalClients = (Set<String>)redisDataStore.getSetValue(nextAccessJournal);
+			Set<String> accessJournalClients = (Set<String>)cacheDataStore.getSetValue(nextAccessJournal);
 			
 			if (accessJournalClients != null) {
 				Set<String> clientIdsToRemove = new HashSet<String>();
@@ -637,7 +637,7 @@ public class RedisAccessManager implements IAccessManager {
 				}
 				
 				if (!clientIdsToRemove.isEmpty()) {
-					redisDataStore.removeSetValues(nextAccessJournal, clientIdsToRemove);
+					cacheDataStore.removeSetValues(nextAccessJournal, clientIdsToRemove);
 				}
 			}
 		}
@@ -688,7 +688,7 @@ public class RedisAccessManager implements IAccessManager {
 		}
 			
 		// Now check Hibernating clients to see if any of those need to be removed
-		Map<Object, Object> hibernatingClients = redisDataStore.getHashEntries(RedisKeyUtils.clientsHibernated());
+		Map<Object, Object> hibernatingClients = cacheDataStore.getHashEntries(RedisKeyUtils.clientsHibernated());
 		Iterator<Map.Entry<Object,Object>> itrHibernatingClientsEntries = hibernatingClients.entrySet().iterator();
 		while (itrHibernatingClientsEntries.hasNext()) {
 			Map.Entry<Object,Object> nextEntry = itrHibernatingClientsEntries.next();
@@ -698,7 +698,7 @@ public class RedisAccessManager implements IAccessManager {
 			} catch(Exception e) {
 				// This is an invalid key, so remove it from the hash.
 				try {
-					redisDataStore.deleteHashKey(RedisKeyUtils.clientsHibernated(), nextEntry.getKey());
+					cacheDataStore.deleteHashKey(RedisKeyUtils.clientsHibernated(), nextEntry.getKey());
 				} catch(Exception e1) {
 					log.error("Invalid hash key in " + RedisKeyUtils.clientsHibernated());
 				}
@@ -711,7 +711,7 @@ public class RedisAccessManager implements IAccessManager {
 			} catch(Exception e) {
 				// This timeout is not in a valid format, set to current time and move on.
 				try {
-					redisDataStore.setHashValue(RedisKeyUtils.clientsHibernated(), nextHibernatingClientId, nextEntry.getValue());
+					cacheDataStore.setHashValue(RedisKeyUtils.clientsHibernated(), nextHibernatingClientId, nextEntry.getValue());
 				} catch(Exception e1) {
 					log.error("Invalid hash value in " + RedisKeyUtils.clientsHibernated());
 				}
@@ -757,7 +757,7 @@ public class RedisAccessManager implements IAccessManager {
 					}
 					
 					String key = RedisKeyUtils.updateJournal(nextClient);
-					redisDataStore.addSetValue(key, classValue);
+					cacheDataStore.addSetValue(key, classValue);
 				}
 
 			} catch(Exception e) {
@@ -767,12 +767,12 @@ public class RedisAccessManager implements IAccessManager {
 	}
 	
 	public Long deleteUpdateJournal(String clientId, String className, String classId) {
-		return redisDataStore.removeSetValue(RedisKeyUtils.updateJournal(clientId), RedisKeyUtils.classIdPair(className, classId));
+		return cacheDataStore.removeSetValue(RedisKeyUtils.updateJournal(clientId), RedisKeyUtils.classIdPair(className, classId));
 	}
 	
 	public void deleteUpdateJournals(String clientId, ClassIDPair[] objects) {
 		for(ClassIDPair nextObject : objects) {
-			redisDataStore.removeSetValue(RedisKeyUtils.updateJournal(clientId), RedisKeyUtils.classIdPair(nextObject.getClassName(), nextObject.getID()));
+			cacheDataStore.removeSetValue(RedisKeyUtils.updateJournal(clientId), RedisKeyUtils.classIdPair(nextObject.getClassName(), nextObject.getID()));
 		}
 	}
 	
@@ -790,7 +790,7 @@ public class RedisAccessManager implements IAccessManager {
 					}
 					
 					String key = RedisKeyUtils.deleteJournal(nextClient);
-					redisDataStore.addSetValue(key, classValue);
+					cacheDataStore.addSetValue(key, classValue);
 				}
 
 			} catch(Exception e) {
@@ -800,12 +800,12 @@ public class RedisAccessManager implements IAccessManager {
 	}
 	
 	public Long deleteDeleteJournal(String clientId, String className, String classId) {
-		return redisDataStore.removeSetValue(RedisKeyUtils.deleteJournal(clientId), RedisKeyUtils.classIdPair(className, classId));
+		return cacheDataStore.removeSetValue(RedisKeyUtils.deleteJournal(clientId), RedisKeyUtils.classIdPair(className, classId));
 	}
 	
 	public void deleteDeleteJournals(String clientId, ClassIDPair[] objects) {
 		for(ClassIDPair nextObject : objects) {
-			redisDataStore.removeSetValue(RedisKeyUtils.deleteJournal(clientId), RedisKeyUtils.classIdPair(nextObject.getClassName(), nextObject.getID()));
+			cacheDataStore.removeSetValue(RedisKeyUtils.deleteJournal(clientId), RedisKeyUtils.classIdPair(nextObject.getClassName(), nextObject.getID()));
 		}
 	}
 	
@@ -828,10 +828,10 @@ public class RedisAccessManager implements IAccessManager {
 		try {
 			// Need to add the ObjectID to the Client's AccessJournals set.
 			String clientAccessJournalKey = RedisKeyUtils.clientAccessJournal(clientId);
-			redisDataStore.addSetValue(clientAccessJournalKey, RedisKeyUtils.objectId(className, classId));
+			cacheDataStore.addSetValue(clientAccessJournalKey, RedisKeyUtils.objectId(className, classId));
 			
 			// Need to add the ClientID to the Object's AccessJournal set.
-			return redisDataStore.addSetValue(key, clientId);
+			return cacheDataStore.addSetValue(key, clientId);
 		} catch(Exception e) {
 			log.error("Unable to upsertRedisAccessJournal", e);
 		} finally {
@@ -867,7 +867,7 @@ public class RedisAccessManager implements IAccessManager {
 		//moveAccessJournals();
 		// TODO: Use a class id map instead of class name for faster lookup.
 		//	Use hash of full class name to generate ID?
-		Set<String> redisClassIdSet = (Set<String>) redisDataStore.getSetUnion(objectAccessJournalKey, allObjectAccessJournalKey);
+		Set<String> redisClassIdSet = (Set<String>) cacheDataStore.getSetUnion(objectAccessJournalKey, allObjectAccessJournalKey);
 		result.addAll(redisClassIdSet);
 //				RedisKeyUtils.accessJournal(className, classId),
 //				RedisKeyUtils.accessJournal(className, "0"));
@@ -900,15 +900,15 @@ public class RedisAccessManager implements IAccessManager {
 		Collection<String> updateJournalSet = null;
 		
 		if (loggedInOnly) {
-			if (redisDataStore.getSetIsMember(RedisKeyUtils.clientsLoggedIn(), clientId)) {
-				updateJournalSet = (Set<String>) redisDataStore.getSetValue(key);
+			if (cacheDataStore.getSetIsMember(RedisKeyUtils.clientsLoggedIn(), clientId)) {
+				updateJournalSet = (Set<String>) cacheDataStore.getSetValue(key);
 			}
 			else {
 				updateJournalSet = new HashSet<String>(0);
 			}
 		}
 		else {
-			updateJournalSet = (Set<String>) redisDataStore.getSetValue(key);
+			updateJournalSet = (Set<String>) cacheDataStore.getSetValue(key);
 		}
 		
 		return updateJournalSet;
@@ -923,15 +923,15 @@ public class RedisAccessManager implements IAccessManager {
 		Collection<String> deleteJournalSet = null;
 		
 		if (loggedInOnly) {
-			if (redisDataStore.getSetIsMember(RedisKeyUtils.clientsLoggedIn(), clientId)) {
-				deleteJournalSet = (Set<String>) redisDataStore.getSetValue(key);
+			if (cacheDataStore.getSetIsMember(RedisKeyUtils.clientsLoggedIn(), clientId)) {
+				deleteJournalSet = (Set<String>) cacheDataStore.getSetValue(key);
 			}
 			else {
 				deleteJournalSet = new HashSet<String>(0);
 			}
 		}
 		else {
-			deleteJournalSet = (Set<String>) redisDataStore.getSetValue(key);
+			deleteJournalSet = (Set<String>) cacheDataStore.getSetValue(key);
 		}
 		
 		return deleteJournalSet;
@@ -942,7 +942,7 @@ public class RedisAccessManager implements IAccessManager {
 	 */
 	public void removeUpdateJournals(String clientId, Collection<Object> updateJournalsToRemove) throws Exception {
 		String key = RedisKeyUtils.updateJournal(clientId);
-		redisDataStore.removeSetValues(key, updateJournalsToRemove);
+		cacheDataStore.removeSetValues(key, updateJournalsToRemove);
 	}
 
 	/* (non-Javadoc)
@@ -958,7 +958,7 @@ public class RedisAccessManager implements IAccessManager {
 		String objectId = RedisKeyUtils.objectId(classIdPair.getClassName(), classIdPair.getID());
 		String accessJournalKey = RedisKeyUtils.accessJournal(classIdPair.getClassName(), classIdPair.getID());
 
-		Set<String> clientIds = (Set<String>) redisDataStore.getSetValue(accessJournalKey);
+		Set<String> clientIds = (Set<String>) cacheDataStore.getSetValue(accessJournalKey);
 		Set<String> clientAccessJournalKeys = new HashSet<String>(clientIds.size());
 		Iterator<String> itrClientIds = clientIds.iterator();
 		while (itrClientIds.hasNext()) {
@@ -968,7 +968,7 @@ public class RedisAccessManager implements IAccessManager {
 			clientAccessJournalKeys.add(clientAccessJournalsKey);
 		}
 		
-		redisDataStore.removeSetsValue(clientAccessJournalKeys, objectId);
+		cacheDataStore.removeSetsValue(clientAccessJournalKeys, objectId);
 		
 //		Iterator<String> itrClientIds = clientIds.iterator();
 //		while (itrClientIds.hasNext()) {
@@ -984,15 +984,15 @@ public class RedisAccessManager implements IAccessManager {
 //		}
 
 		// Now delete the AccessJournal record.
-		redisDataStore.deleteKey(accessJournalKey);
+		cacheDataStore.deleteKey(accessJournalKey);
 	}
 
 	public void removeObjectModJournalsByObject(ClassIDPair classIdPair) {
-		redisDataStore.deleteKey(RedisKeyUtils.objectModJournal(classIdPair.getClassName(), classIdPair.getID()));
+		cacheDataStore.deleteKey(RedisKeyUtils.objectModJournal(classIdPair.getClassName(), classIdPair.getID()));
 	}
 	
 	public void removeHistoricalObjectsByObject(ClassIDPair classIdPair) {
-		redisDataStore.deleteKey(RedisKeyUtils.historicalObject(classIdPair.getClassName(), classIdPair.getID()));
+		cacheDataStore.deleteKey(RedisKeyUtils.historicalObject(classIdPair.getClassName(), classIdPair.getID()));
 	}
 	
 	
@@ -1040,9 +1040,9 @@ public class RedisAccessManager implements IAccessManager {
 			changeWatcherId = RedisKeyUtils.clientWatcher(RedisKeyUtils.changeWatcher(classIdPair.getClassName(), classIdPair.getID(), fieldName));
 
 		// Add the ClientID to the ChangeWatcher client Set
-		redisDataStore.addSetValue(changeWatcherId, clientId);
+		cacheDataStore.addSetValue(changeWatcherId, clientId);
 		// Also add the ChangeWatcher ID to the client ChangeWatcher Set
-		redisDataStore.addSetValue(RedisKeyUtils.watcherClient(clientId), changeWatcherId);
+		cacheDataStore.addSetValue(RedisKeyUtils.watcherClient(clientId), changeWatcherId);
 	}
 	
 	public void updateWatcherFields(ClassIDPair classIdPair, String fieldName, Collection<String> fieldsToWatch) {
@@ -1071,10 +1071,10 @@ public class RedisAccessManager implements IAccessManager {
 			watcherField = RedisKeyUtils.watcherField(changeWatcherId);
 		}
 
-		Collection<String> watchedFields = (Set<String>) redisDataStore.getSetValue(watcherField);
+		Collection<String> watchedFields = (Set<String>) cacheDataStore.getSetValue(watcherField);
 		
 		// Remove current set of fields to watch and replace with new set.
-		redisDataStore.replaceSet(watcherField, fieldsToWatch);
+		cacheDataStore.replaceSet(watcherField, fieldsToWatch);
 		
 		if (fieldsToWatch != null) {
 			Iterator<String> itrFieldsToWatch = fieldsToWatch.iterator();
@@ -1082,7 +1082,7 @@ public class RedisAccessManager implements IAccessManager {
 				String nextField = itrFieldsToWatch.next();
 				
 				// Also add this ChangeWatcher from the FieldWatcher.
-				redisDataStore.addSetValue(nextField, changeWatcherId);
+				cacheDataStore.addSetValue(nextField, changeWatcherId);
 				
 				// Keep track of field that is being watched at an object level.
 				String[] nextFieldArr = nextField.split(":");
@@ -1104,7 +1104,7 @@ public class RedisAccessManager implements IAccessManager {
 					}
 					
 					String objectWatchedFieldKey = RedisKeyUtils.objectWatchedFields(nextFieldClassName, nextFieldClassId);
-					redisDataStore.setHashValue(objectWatchedFieldKey, hashKey, nextField);
+					cacheDataStore.setHashValue(objectWatchedFieldKey, hashKey, nextField);
 				}
 				
 				if (watchedFields != null) {
@@ -1121,7 +1121,7 @@ public class RedisAccessManager implements IAccessManager {
 				String nextOldField = itrOldWatchedFields.next();
 				
 				// Also remove this ChangeWatcher from the FieldWatcher.
-				redisDataStore.removeSetValue(nextOldField, changeWatcherId);
+				cacheDataStore.removeSetValue(nextOldField, changeWatcherId);
 			}
 		}
 	}
@@ -1134,7 +1134,7 @@ public class RedisAccessManager implements IAccessManager {
 		String categoryKey = RedisKeyUtils.changeWatcherClass(category, subCategory);
 		
 		// Get all change watcher values associated with this object.
-		Set<Object> changeWatcherValueKeys = redisDataStore.getHashKeys(categoryKey);
+		Set<Object> changeWatcherValueKeys = cacheDataStore.getHashKeys(categoryKey);
 		Iterator<Object> itrChangeWatcherValueKeys = changeWatcherValueKeys.iterator();
 		while (itrChangeWatcherValueKeys.hasNext()) {
 			String nextChangeWatcherValueKey = (String) itrChangeWatcherValueKeys.next();
@@ -1149,36 +1149,36 @@ public class RedisAccessManager implements IAccessManager {
 				// For every watcherField, find the corresponding set and remove this changeWatcherKey
 				//	from that set.
 				String watcherField = RedisKeyUtils.watcherField(changeWatcherKey);
-				Set<String> watcherFieldValues = (Set<String>) redisDataStore.getSetValue(watcherField);
+				Set<String> watcherFieldValues = (Set<String>) cacheDataStore.getSetValue(watcherField);
 				Iterator<String> itrWatcherFieldValues = watcherFieldValues.iterator();
 				while (itrWatcherFieldValues.hasNext()) {
 					String nextWatcherFieldValue = itrWatcherFieldValues.next();
-					redisDataStore.removeSetValue(nextWatcherFieldValue, changeWatcherKey);
+					cacheDataStore.removeSetValue(nextWatcherFieldValue, changeWatcherKey);
 				}
 				
 				String fieldWatcher = RedisKeyUtils.fieldWatcher(changeWatcherKey);
 				
 				// Now remove all keys associated with this Change Watcher Value.
-				redisDataStore.deleteKey(key);
-				redisDataStore.deleteKey(clientWatcherKey);
-				redisDataStore.deleteKey(watcherField);
-				redisDataStore.deleteKey(fieldWatcher);
+				cacheDataStore.deleteKey(key);
+				cacheDataStore.deleteKey(clientWatcherKey);
+				cacheDataStore.deleteKey(watcherField);
+				cacheDataStore.deleteKey(fieldWatcher);
 			}
 		}
 
 		String objectWatchedFieldKey = RedisKeyUtils.objectWatchedFields(category, subCategory);
-		Set<Object> objectWatcherValueKeys = redisDataStore.getHashKeys(objectWatchedFieldKey);
+		Set<Object> objectWatcherValueKeys = cacheDataStore.getHashKeys(objectWatchedFieldKey);
 		Iterator<Object> itrObjectWatcherValueKeys = objectWatcherValueKeys.iterator();
 		while (itrObjectWatcherValueKeys.hasNext()) {
 			String nextObjectWatcherValueKey = (String) itrObjectWatcherValueKeys.next();
 
 			// Get all fields for this object that are being watched and remove them.
-			String changeWatcherKey = (String) redisDataStore.getHashValue(objectWatchedFieldKey, nextObjectWatcherValueKey);
-			redisDataStore.deleteKey(changeWatcherKey);
+			String changeWatcherKey = (String) cacheDataStore.getHashValue(objectWatchedFieldKey, nextObjectWatcherValueKey);
+			cacheDataStore.deleteKey(changeWatcherKey);
 		}
-		redisDataStore.deleteKey(objectWatchedFieldKey);	// Removes ALL change watcher values for this Object.
+		cacheDataStore.deleteKey(objectWatchedFieldKey);	// Removes ALL change watcher values for this Object.
 		
-		redisDataStore.deleteKey(categoryKey);	// Removes ALL change watcher values for this Object.
+		cacheDataStore.deleteKey(categoryKey);	// Removes ALL change watcher values for this Object.
 	}
 
 	public void saveChangeWatcherResult(ClassIDPair classIdPair, String fieldName, Object result) {
@@ -1192,7 +1192,7 @@ public class RedisAccessManager implements IAccessManager {
 		HashMap<String, Object> resultHash = new HashMap<String, Object>();
 		resultHash.put(RedisKeyUtils.changeWatcherValueTimestamp(fieldName, params), System.currentTimeMillis());
 		resultHash.put(RedisKeyUtils.changeWatcherValueResult(fieldName, params), result);
-		redisDataStore.setAllHashValues(classKey, resultHash);
+		cacheDataStore.setAllHashValues(classKey, resultHash);
 	}
 	
 	public void removeChangeWatcherResult(ClassIDPair classIdPair, String fieldName) {
@@ -1203,8 +1203,8 @@ public class RedisAccessManager implements IAccessManager {
 	public void removeChangeWatcherResult(ClassIDPair classIdPair, String fieldName, String[] params) {
 		String key = RedisKeyUtils.changeWatcherClass(classIdPair.getClassName(), classIdPair.getID());
 
-		redisDataStore.deleteHashKey(key, RedisKeyUtils.changeWatcherValueTimestamp(fieldName, params));
-		redisDataStore.deleteHashKey(key, RedisKeyUtils.changeWatcherValueResult(fieldName, params));
+		cacheDataStore.deleteHashKey(key, RedisKeyUtils.changeWatcherValueTimestamp(fieldName, params));
+		cacheDataStore.deleteHashKey(key, RedisKeyUtils.changeWatcherValueResult(fieldName, params));
 	}
 	
 	public Long getChangeWatcherResultTimestamp(ClassIDPair classIdPair, String fieldName) {
@@ -1214,7 +1214,7 @@ public class RedisAccessManager implements IAccessManager {
 	public Long getChangeWatcherResultTimestamp(ClassIDPair classIdPair, String fieldName, String[] params) {
 		String key = RedisKeyUtils.changeWatcherClass(classIdPair.getClassName(), classIdPair.getID());
 
-		Long result = (Long) redisDataStore.getHashValue(key, RedisKeyUtils.changeWatcherValueTimestamp(fieldName, params));
+		Long result = (Long) cacheDataStore.getHashValue(key, RedisKeyUtils.changeWatcherValueTimestamp(fieldName, params));
 		return result;
 	}
 	
@@ -1269,7 +1269,7 @@ public class RedisAccessManager implements IAccessManager {
 	public Boolean getChangeWatcherResultExists(ClassIDPair classIdPair, String fieldName, String[] params) {
 		String key = RedisKeyUtils.changeWatcherClass(classIdPair.getClassName(), classIdPair.getID());
 
-		Boolean hasKey = redisDataStore.hasHashKey(key, RedisKeyUtils.changeWatcherValueResult(fieldName, params));
+		Boolean hasKey = cacheDataStore.hasHashKey(key, RedisKeyUtils.changeWatcherValueResult(fieldName, params));
 		
 		return hasKey;
 	}
@@ -1281,7 +1281,7 @@ public class RedisAccessManager implements IAccessManager {
 	public Object getChangeWatcherResult(ClassIDPair classIdPair, String fieldName, String[] params) {
 		String key = RedisKeyUtils.changeWatcherClass(classIdPair.getClassName(), classIdPair.getID());
 
-		return redisDataStore.getHashValue(key, RedisKeyUtils.changeWatcherValueResult(fieldName, params));
+		return cacheDataStore.getHashValue(key, RedisKeyUtils.changeWatcherValueResult(fieldName, params));
 	}
 	
 	public void checkChangeWatchers(ClassIDPair classIdPair) {
@@ -1357,7 +1357,7 @@ public class RedisAccessManager implements IAccessManager {
 		
 		Collection<String> changeWatchers = null;
 		if (fieldWatcherKeys.size() > 0) {
-			changeWatchers = (Set<String>) redisDataStore.getSetUnion(null, fieldWatcherKeys);
+			changeWatchers = (Set<String>) cacheDataStore.getSetUnion(null, fieldWatcherKeys);
 		}
 		
 		return changeWatchers;
@@ -1374,13 +1374,13 @@ public class RedisAccessManager implements IAccessManager {
 		
 		for(int i=0; i<fieldKeys.length; i++) {
 			String nextKey = fieldKeys[i];
-			Set<Object> objectWatcherValueKeys = redisDataStore.getHashKeys(nextKey);
+			Set<Object> objectWatcherValueKeys = cacheDataStore.getHashKeys(nextKey);
 			Iterator<Object> itrObjectWatcherValueKeys = objectWatcherValueKeys.iterator();
 			while (itrObjectWatcherValueKeys.hasNext()) {
 				String nextObjectWatcherValueKey = (String) itrObjectWatcherValueKeys.next();
 	
 				// Get all fields for this object that are being watched and remove them.
-				String changeWatcherKey = (String) redisDataStore.getHashValue(nextKey, nextObjectWatcherValueKey);
+				String changeWatcherKey = (String) cacheDataStore.getHashValue(nextKey, nextObjectWatcherValueKey);
 				fieldWatcherKeys.add(changeWatcherKey);
 			}
 		}
@@ -1415,7 +1415,7 @@ public class RedisAccessManager implements IAccessManager {
 			Iterator<String> itrFieldWatcherKeys = fieldWatcherKeys.iterator();
 			while (itrFieldWatcherKeys.hasNext()) {
 				String nextFieldWatcherKey = itrFieldWatcherKeys.next();
-				Long countRemoved = redisDataStore.removeSetValue(nextFieldWatcherKey, changeWatcherId);
+				Long countRemoved = cacheDataStore.removeSetValue(nextFieldWatcherKey, changeWatcherId);
 				result += countRemoved;
 			}
 		}
@@ -1466,7 +1466,7 @@ public class RedisAccessManager implements IAccessManager {
 			
 			if (changeWatcherHelperFactory != null)
 			{
-				Collection <String> clientIds = (Set<String>) redisDataStore.getSetValue(RedisKeyUtils.clientWatcher(changeWatcherId));	// The list of ClientID's who are interested in this object.
+				Collection <String> clientIds = (Set<String>) cacheDataStore.getSetValue(RedisKeyUtils.clientWatcher(changeWatcherId));	// The list of ClientID's who are interested in this object.
 				
 				IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(category);
 				cwh.reprocess(category, subCategory, fieldName, clientIds, otherParams, requestTimestamp);
