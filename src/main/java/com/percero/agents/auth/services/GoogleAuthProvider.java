@@ -69,7 +69,7 @@ public class GoogleAuthProvider implements IAuthProvider{
         }
     }
 
-    private static final String ID = "google";
+    private static final String ID = "googleoauth";
     public String getID() {
         return ID;
     }
