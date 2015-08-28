@@ -1,5 +1,6 @@
 package com.percero.agents.auth.services;
 
+import com.percero.agents.auth.vo.BasicAuthCredential;
 import com.percero.agents.auth.vo.InMemoryAuthProviderUser;
 import com.percero.agents.auth.vo.ServiceIdentifier;
 import com.percero.agents.auth.vo.ServiceUser;
@@ -22,23 +23,20 @@ public class InMemoryAuthProvider implements IAuthProvider {
 
     public ServiceUser authenticate(String credential) {
         ServiceUser result = null;
-        String[] parts = credential.split(":");
-        if(parts.length == 2){
-            String username = parts[0];
-            String password = parts[1];
-            String hashPass = DigestUtils.sha1Hex(password);
+        BasicAuthCredential cred = BasicAuthCredential.fromString(credential);
 
-            InMemoryAuthProviderUser user = users.get(username);
-            if(user != null && user.getPassHash().equals(hashPass)) {
-                result = new ServiceUser();
-                result.setAuthProviderID(getID());
-                result.setId(username);
-                result.setFirstName(user.getFirstName());
-                result.setLastName(user.getLastName());
-                result.getEmails().add(user.getEmail());
-                result.setAreRoleNamesAccurate(true);
-                result.getIdentifiers().add(new ServiceIdentifier("email", user.getEmail()));
-            }
+        String hashPass = DigestUtils.sha1Hex(cred.getPassword());
+
+        InMemoryAuthProviderUser user = users.get(cred.getUsername());
+        if(user != null && user.getPassHash().equals(hashPass)) {
+            result = new ServiceUser();
+            result.setAuthProviderID(getID());
+            result.setId(cred.getUsername());
+            result.setFirstName(user.getFirstName());
+            result.setLastName(user.getLastName());
+            result.getEmails().add(user.getEmail());
+            result.setAreRoleNamesAccurate(true);
+            result.getIdentifiers().add(new ServiceIdentifier("email", user.getEmail()));
         }
 
         return result;
