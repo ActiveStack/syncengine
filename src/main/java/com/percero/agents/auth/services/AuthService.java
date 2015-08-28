@@ -135,7 +135,7 @@ public class AuthService implements IAuthService {
 
 		if (accessTokenResult instanceof ServiceUser) {
 			ServiceUser serviceUser = (ServiceUser) accessTokenResult;
-			serviceUser.setAuthProviderID(authProviderID.toString());
+			serviceUser.setAuthProviderID(authProviderID);
 			return setupServiceUser(authProviderID, serviceUser, clientId, deviceId);
 		}
 		else if (accessTokenResult instanceof OAuthToken){
