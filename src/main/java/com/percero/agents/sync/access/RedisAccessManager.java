@@ -1471,13 +1471,6 @@ public class RedisAccessManager implements IAccessManager {
 				IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(category);
 				cwh.reprocess(category, subCategory, fieldName, clientIds, otherParams, requestTimestamp);
 
-//				// If this is an Object Change Watcher, then build a ClassIDPair and run the recalc.
-//				if (false) {
-//					ClassIDPair pair = new ClassIDPair(subCategory, category);
-//					cwh.recalculate(fieldName, pair, clientIds, otherParams, requestTimestamp);
-//				}
-//				else {
-//				}
 				/**
 				// If no clients interested in this value, then remove it from the cache.
 				if (clientIds == null || clientIds.isEmpty()) {

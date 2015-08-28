@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.hibernate.SyncHibernateUtils;
 import com.percero.agents.sync.metadata.IMappedClassManager;
 import com.percero.agents.sync.metadata.MappedClass;
@@ -28,13 +27,30 @@ import com.percero.agents.sync.vo.IClassIDPair;
 import com.percero.agents.sync.vo.PushCWUpdateResponse;
 import com.percero.framework.vo.IPerceroObject;
 
+/**
+ * Customized Change Watcher for calculating Derived Values. Derived Values are
+ * properties on the data model that are derived from other properties and thus
+ * NOT stored in the data store. Derived Values are stored in the cache, along
+ * with the triggers necessary to recalculate them.
+ * 
+ * For each Derived Value, a Change Watcher is meant to be set on each and every
+ * property that could potentially effect the resultant Derived Value. When one
+ * of those values changes, the Change Watcher will cause the Derived Value to
+ * be recalculated. Changes to a Derived Value are also automatically pushed out
+ * to all Clients who have registered interest in that Derived Value.
+ * 
+ * Dynamic parameters can be used to register for a Derived Value. For example,
+ * a daily report roll-up could use the Date as part of the name of the Derived
+ * Value. These parameters are passed as part of the name (ie. identifier) of
+ * the Derived Value.
+ * 
+ * @author Collin Brown
+ * 
+ */
 @Component
 public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper implements IChangeWatcherValueHelper {
 
 	private static final Logger log = Logger.getLogger(ChangeWatcherHelper.class);
-	
-//	@Autowired
-//	ObjectMapper objectMapper;
 	
 	@Autowired
 	protected IPushSyncHelper pushSyncHelper;

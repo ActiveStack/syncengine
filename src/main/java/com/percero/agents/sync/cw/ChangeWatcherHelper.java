@@ -15,12 +15,14 @@ import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.framework.vo.IPerceroObject;
 
 /**
- * ChangeWatcherHelper allows code to be executed upon the change of any model data.  The ChangeWatcherHelper is used
- * as the mechanism to execute that code.  A ChangeWatcherHelper must be registered with the ChangeWatcherHelperFactory.
- * 	Ex: ChangeWatcherHelperFactory.getInstance().registerChangeWatcherHelper( "category", this );
+ * ChangeWatcherHelper allows code to be executed upon the change of any model
+ * data. The ChangeWatcherHelper is used as the mechanism to execute that code.
+ * A ChangeWatcherHelper must be registered with the ChangeWatcherHelperFactory.
+ * Ex: ChangeWatcherHelperFactory.getInstance().registerChangeWatcherHelper(
+ * "category", this );
  * 
  * @author Collin Brown
- *
+ * 
  */
 @Component
 public class ChangeWatcherHelper implements IChangeWatcherHelper {
