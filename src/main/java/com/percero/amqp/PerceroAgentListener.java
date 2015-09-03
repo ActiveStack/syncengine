@@ -36,6 +36,11 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component("perceroAgentListener")
 public class PerceroAgentListener implements MessageListener {
+	
+	private static PerceroAgentListener perceroAgentListener = null;
+	public static PerceroAgentListener getInstance() {
+		return perceroAgentListener;
+	}
 
     @Autowired
     AmqpTemplate template;
@@ -114,6 +119,10 @@ public class PerceroAgentListener implements MessageListener {
     public static final String PROCESS_TRANSACTION = "processTransaction";
 
     private static Logger logger = Logger.getLogger(PerceroAgentListener.class);
+    
+    public PerceroAgentListener() {
+    	PerceroAgentListener.perceroAgentListener = this;
+    }
 
     /**
      * Message handling function

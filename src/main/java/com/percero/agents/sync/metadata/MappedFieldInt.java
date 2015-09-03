@@ -34,6 +34,12 @@ public class MappedFieldInt extends MappedField {
 		output.writeInt(intValue);
 	}
 	
+	@Override
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		Integer value = (Integer) getValue(anObject);
+		return (value != null && value.intValue() != 0);
+	}
+	
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,
 	IllegalAccessException, InvocationTargetException {
 		Integer valueA = (Integer) getValue(objectA);

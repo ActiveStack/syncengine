@@ -5,6 +5,8 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.InvocationTargetException;
 
+import org.springframework.util.StringUtils;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -35,6 +37,12 @@ public class MappedFieldString extends MappedField {
 		if (stringValue == null)
 			stringValue = "";
 		output.writeUTF(stringValue);
+	}
+	
+	@Override
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		String value = (String) getValue(anObject);
+		return StringUtils.hasText(value);
 	}
 	
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,

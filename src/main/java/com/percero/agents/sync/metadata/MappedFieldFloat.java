@@ -22,6 +22,12 @@ public class MappedFieldFloat extends MappedField {
 		output.writeFloat(floatValue);
 	}
 	
+	@Override
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		Float value = (Float) getValue(anObject);
+		return (value != null && value.floatValue() != 0.0);
+	}
+	
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,
 	IllegalAccessException, InvocationTargetException {
 		Float valueA = (Float) getValue(objectA);

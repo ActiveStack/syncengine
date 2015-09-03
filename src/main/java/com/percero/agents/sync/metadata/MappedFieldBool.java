@@ -22,6 +22,12 @@ public class MappedFieldBool extends MappedField {
 		output.writeBoolean(booleanValue);
 	}
 	
+	@Override
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		Boolean value = (Boolean) getValue(anObject);
+		return (value != null);
+	}
+	
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,
 	IllegalAccessException, InvocationTargetException {
 		boolean valueA = (Boolean) getValue(objectA);

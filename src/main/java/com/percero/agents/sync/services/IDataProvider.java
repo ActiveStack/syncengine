@@ -50,4 +50,21 @@ public interface IDataProvider {
 	 * @return
 	 */
 	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject);
+	
+	/**
+	 * Given the mappedField, returns ALL objects in the relationship described by the mappedField.
+	 * If shellOnly is TRUE, then only a shell object will be returned, which is an Object with only it's ID set.
+	 * Will enforce access rights based on the userId.
+	 * Returns a cleaned object, meaning all its relationships are filled in with shell objects.
+	 * 
+	 * @param perceroObject
+	 * @param mappedField
+	 * @param shellOnly
+	 * @param userId
+	 * @return List<IPerceroObject>
+	 * @throws SyncException 
+	 */
+	public List<IPerceroObject> findAllRelatedObjects(IPerceroObject perceroObject, MappedField mappedField, Boolean shellOnly, String userId) throws SyncException;
+
+	public List<IPerceroObject> getAllByRelationship(MappedField mappedField, ClassIDPair targetClassIdPair, Boolean shellOnly, String userId) throws SyncException;
 }

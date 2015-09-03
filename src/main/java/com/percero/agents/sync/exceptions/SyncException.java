@@ -12,6 +12,8 @@ public class SyncException extends Exception {
 	public static final Integer INVALID_CLIENT_USER_CODE = -102;
 	public static final String RUN_PROCESS_ERROR = "runProcessError";
 	public static final Integer RUN_PROCESS_ERROR_CODE = -103;
+	public static final String MISSING_MAPPED_CLASS_ERROR = "missingMappedClass";
+	public static final Integer MISSING_MAPPED_CLASS_ERROR_CODE = -104;
 	
 	
 	public SyncException(String name, Integer code, String desc, Throwable t) {
@@ -30,6 +32,10 @@ public class SyncException extends Exception {
 		super();
 		this.setName(name);
 		this.setCode(code);
+	}
+	
+	public SyncException(Exception e) {
+		super(e);
 	}
 	
 	public SyncException() {

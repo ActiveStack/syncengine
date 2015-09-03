@@ -27,4 +27,12 @@ public class MappedFieldMap extends MappedField {
 		Object[] objectArray = DataExternalizer.getClassIDPairArray(mapObject.values());
 		output.writeObject(objectArray);
 	}
+
+	@SuppressWarnings("rawtypes")
+	@Override
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		Map value = (Map) getValue(anObject);
+		return (value != null && !value.isEmpty());
+	}
+	
 }

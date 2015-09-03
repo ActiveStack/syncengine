@@ -1,7 +1,5 @@
 package com.percero.framework.metadata;
 
-import org.hibernate.Query;
-import org.hibernate.impl.SessionImpl;
 
 public interface IMappedQuery {
 
@@ -13,6 +11,6 @@ public interface IMappedQuery {
 	
 	public boolean getUseId();
 	
-	public void setQueryParameters(Query theQuery, Object theObject, String userId) throws Exception;
-	public void setQueryParameters(Query theQuery, Object theObject, String userId, Object[] params, SessionImpl s) throws Exception;
+	public String setQueryParameters(String theQuery, Object theObject, String userId) throws Exception;
+	public String setQueryParameters(String theQuery, Object theObject, String userId, Object[] params) throws Exception;
 }

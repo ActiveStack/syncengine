@@ -19,6 +19,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
@@ -46,6 +47,8 @@ import com.percero.agents.sync.metadata.annotations.PropertyInterfaceParam;
 import com.percero.agents.sync.metadata.annotations.PropertyInterfaces;
 import com.percero.agents.sync.metadata.annotations.RelationshipInterface;
 import com.percero.agents.sync.metadata.annotations.RelationshipInterfaces;
+import com.percero.agents.sync.services.DataProviderManager;
+import com.percero.agents.sync.services.IDataProvider;
 import com.percero.framework.bl.IManifest;
 import com.percero.framework.bl.ManifestHelper;
 import com.percero.framework.metadata.IMappedClass;
@@ -160,12 +163,38 @@ public class MappedClass implements IMappedClass {
 	public Boolean queriesInitialized = false;
 	public Boolean relationshipsInitialized = false;
 //	private Boolean isInitializing = false;
+	
 	public String dataProviderName = "";
+	public String getDataProviderName() {
+		return dataProviderName;
+	}
+	public void setDataProviderName(String dataProviderName) {
+		this.dataProviderName = dataProviderName;
+		
+		// Reset the DataProvider
+		if (dataProvider != null) {
+			dataProvider = null;
+		}
+	}
+	
 	public String className = "";
 	public String tableName = "";
+	public String tableSchema = "";
+	public MappedField idMappedField = null;
 	public List<MappedField> requiredFields = Collections.synchronizedList(new ArrayList<MappedField>());
+	
 	public Set<MappedField> toManyFields = Collections.synchronizedSet(new HashSet<MappedField>());
-	public Set<MappedField> toOneFields = Collections.synchronizedSet(new HashSet<MappedField>());
+	public Set<MappedFieldPerceroObject> toOneFields = Collections.synchronizedSet(new HashSet<MappedFieldPerceroObject>());
+
+	private Set<MappedFieldPerceroObject> sourceMappedFields = Collections.synchronizedSet(new HashSet<MappedFieldPerceroObject>());
+	public Set<MappedFieldPerceroObject> getSourceMappedFields() {
+		return sourceMappedFields;
+	}
+	private Set<MappedField> targetMappedFields = Collections.synchronizedSet(new HashSet<MappedField>());
+	public Set<MappedField> getTargetMappedFields() {
+		return targetMappedFields;
+	}
+
 	public Set<MappedField> propertyFields = Collections.synchronizedSet(new HashSet<MappedField>());
 	public List<Field> entityFields = Collections.synchronizedList(new ArrayList<Field>());
 	public List<Field> mapFields = Collections.synchronizedList(new ArrayList<Field>());
@@ -184,6 +213,15 @@ public class MappedClass implements IMappedClass {
 	}
 	
 	
+	IDataProvider dataProvider = null;
+	public IDataProvider getDataProvider() {
+		if (dataProvider == null) {
+			dataProvider = DataProviderManager.dataProviderManager.getDataProviderByName(dataProviderName);
+		}
+		return dataProvider;
+	}
+	
+	
 	/**
 	 * readAccessRightsFieldReferences holds all MappedFields that have some sort of
 	 * readAccessRights associated with that field.  This means that this field needs
@@ -195,7 +233,7 @@ public class MappedClass implements IMappedClass {
 	public Set<MappedField> getReadAccessRightsFieldReferences() {
 		return readAccessRightsFieldReferences;
 	}
-	public List<Object> uniqueConstraints = new ArrayList<Object>();
+	public List<List<MappedField>> uniqueConstraints = new ArrayList<List<MappedField>>();
 	public List<IMappedQuery> queries = new ArrayList<IMappedQuery>();
 	public Boolean hasGeneratedId = false;
 	public Boolean hasNonLazyLoadProperties = false;
@@ -428,17 +466,36 @@ public class MappedClass implements IMappedClass {
 				OneToMany oneToMany = (OneToMany) theGetter.getAnnotation(OneToMany.class);
 				if (oneToMany == null)
 					oneToMany = (OneToMany) nextField.getAnnotation(OneToMany.class);
-				
 				if (oneToMany != null) {
 					toManyFields.add(nextMappedField);
+					getTargetMappedFields().add(nextMappedField);
 				}
 
+				ManyToOne manyToOne = (ManyToOne) theGetter.getAnnotation(ManyToOne.class);
+				if (manyToOne == null)
+					manyToOne = (ManyToOne) nextField.getAnnotation(ManyToOne.class);
+				if (manyToOne != null) {
+					getSourceMappedFields().add((MappedFieldPerceroObject) nextMappedField);
+				}
+				
+				OneToOne oneToOne = (OneToOne) theGetter.getAnnotation(OneToOne.class);
+				if (oneToOne == null)
+					oneToOne = (OneToOne) nextField.getAnnotation(OneToOne.class);
+				if (oneToOne != null) {
+					if (StringUtils.hasText(oneToOne.mappedBy())) {
+						getTargetMappedFields().add(nextMappedField);
+					}
+					else {
+						getSourceMappedFields().add((MappedFieldPerceroObject) nextMappedField);
+					}
+				}
+				
 				Boolean isPropertyField = true;
 				Entity nextEntity = (Entity) nextField.getType().getAnnotation(Entity.class);
 				if (nextEntity != null)
 				{
 					entityFields.add(nextField);
-					toOneFields.add(nextMappedField);
+					toOneFields.add( (MappedFieldPerceroObject) nextMappedField );
 					isPropertyField = false;
 				}
 				
@@ -464,7 +521,11 @@ public class MappedClass implements IMappedClass {
 				if (id == null)
 					id = (Id) nextField.getAnnotation(Id.class);
 				if (id != null) {
-					uniqueConstraints.add(nextMappedField);
+					idMappedField = nextMappedField;
+
+					List<MappedField> uniqueConstraintList = new ArrayList<MappedField>(1);
+					uniqueConstraintList.add(nextMappedField);
+					uniqueConstraints.add(uniqueConstraintList);
 					
 					// Check to see if this class has a Generated ID.
 					GeneratedValue generatedValue = (GeneratedValue) nextField.getAnnotation(GeneratedValue.class);
@@ -475,13 +536,25 @@ public class MappedClass implements IMappedClass {
 				if (column == null)
 					column = (Column) nextField.getAnnotation(Column.class);
 				if (column != null) {
-					if (column.unique())
-						uniqueConstraints.add(nextMappedField);
+					if (column.unique()) {
+						List<MappedField> uniqueConstraintList = new ArrayList<MappedField>(1);
+						uniqueConstraintList.add(nextMappedField);
+						uniqueConstraints.add(uniqueConstraintList);
+					}
 					
 					if (column.name() != null && column.name().trim().length() > 0)
 						nextMappedField.setColumnName(column.name());
 					else
 						nextMappedField.setColumnName(nextField.getName());
+				}
+				
+				JoinColumn joinColumn = (JoinColumn) theGetter.getAnnotation(JoinColumn.class);
+				if (joinColumn == null)
+					joinColumn = (JoinColumn) nextField.getAnnotation(JoinColumn.class);
+				if (joinColumn != null) {
+					if (StringUtils.hasText(joinColumn.name())) {
+						nextMappedField.setJoinColumnName(joinColumn.name());
+					}
 				}
 
 				// Get NamedQueries for handling Access Rights.
@@ -504,11 +577,18 @@ public class MappedClass implements IMappedClass {
 							nextMappedField.updateQuery.setQuery(nextAccessRight.query());
 						} else*/ 
 						if (nextAccessRight.type().equalsIgnoreCase("readQuery")) {
-							if (nextAccessRight.query().indexOf("jpql:") >= 0)
+							if (nextAccessRight.query().indexOf("jpql:") >= 0) {
 								nextMappedField.setReadQuery(new JpqlQuery());
-							else
-								nextMappedField.setReadQuery(new MappedQuery());
-							nextMappedField.getReadQuery().setQuery(nextAccessRight.query());
+								nextMappedField.getReadQuery().setQuery(nextAccessRight.query());
+							}
+							else if (nextAccessRight.query().indexOf("sql:") >= 0) {
+								nextMappedField.setReadQuery(new SqlQuery(nextAccessRight.query().substring(nextAccessRight.query().indexOf("sql:")+4)));
+							}
+							else {
+								// Whatever type of Query this is, it is not supported.
+								continue;
+//								nextMappedField.setReadQuery(new MappedQuery());
+							}
 							nextMappedField.setHasReadAccessRights(true);
 							readAccessRightsFieldReferences.add(nextMappedField);
 						} /*else if (nextAccessRight.type().equalsIgnoreCase("deleteQuery")) {
@@ -521,11 +601,18 @@ public class MappedClass implements IMappedClass {
 
 						// Add to queries list.
 						IMappedQuery nextQuery = null;
-						if (nextAccessRight.query().indexOf("jpql:") >= 0)
+						if (nextAccessRight.query().indexOf("jpql:") >= 0) {
 							nextQuery = new JpqlQuery();
-						else
-							nextQuery = new MappedQuery();
-						nextQuery.setQuery(nextAccessRight.query());
+							nextQuery.setQuery(nextAccessRight.query());
+						}
+						else if (nextAccessRight.query().indexOf("sql:") >= 0) {
+							nextQuery = new SqlQuery(nextAccessRight.query().substring(nextAccessRight.query().indexOf("sql:")+4));
+						}
+						else {
+							// Unsupported Query type
+							continue;
+//							nextQuery = new MappedQuery();
+						}
 						nextQuery.setQueryName(nextAccessRight.type());
 						
 						nextMappedField.queries.add(nextQuery);
@@ -623,10 +710,17 @@ public class MappedClass implements IMappedClass {
 					}
 				}
 				
+				if (!StringUtils.hasText(tableSchema)) {
+					Table table = (Table) tempClazz.getAnnotation(Table.class);
+					if (table != null && StringUtils.hasText(table.schema())) {
+						tableSchema = table.schema();
+					}
+				}
+				
 				if (!StringUtils.hasText(dataProviderName)) {
 					DataProvider dataProvider = (DataProvider) tempClazz.getAnnotation(DataProvider.class);
 					if (dataProvider != null) {
-						dataProviderName = dataProvider.name();
+						setDataProviderName(dataProvider.name());
 					}
 				}
 				
@@ -658,9 +752,9 @@ public class MappedClass implements IMappedClass {
 						} else if (nextNamedQuery.name().equalsIgnoreCase("readQuery")) {
 							readQuery = QueryFactory.createQuery(nextNamedQuery.query());
 							
-							Iterator<MappedField> itrToOneFields = toOneFields.iterator();
+							Iterator<MappedFieldPerceroObject> itrToOneFields = toOneFields.iterator();
 							while(itrToOneFields.hasNext()) {
-								MappedField nextMappedField = itrToOneFields.next();
+								MappedFieldPerceroObject nextMappedField = itrToOneFields.next();
 								MappedClass referencedMappedClass = mcm.getMappedClassByClassName(nextMappedField.getField().getType().getCanonicalName());
 								// Need to find the corresponding field.
 								for(MappedField nextRefMappedField : referencedMappedClass.toManyFields) {
@@ -754,6 +848,9 @@ public class MappedClass implements IMappedClass {
 					oneToMany = (OneToMany) nextMappedField.getField().getAnnotation(OneToMany.class);
 				
 				if (oneToMany != null) {
+//					// This must be a source MappedField
+//					sourceMappedFields.add((MappedFieldPerceroObject) nextMappedField);
+
 					//toManyFields.add(nextMappedField);
 					ParameterizedType listType = (ParameterizedType) nextMappedField.getField().getGenericType();
 					Class<?> listClass = (Class<?>) listType.getActualTypeArguments()[0];
@@ -765,15 +862,33 @@ public class MappedClass implements IMappedClass {
 						nextMappedField.setHasReadAccessRights(true);
 						readAccessRightsFieldReferences.add(nextMappedField);
 					}
+					
 				}
 
 				ManyToOne manyToOne = (ManyToOne) nextMappedField.getGetter().getAnnotation(ManyToOne.class);
 				if (manyToOne == null)
 					manyToOne = (ManyToOne) nextMappedField.getField().getAnnotation(ManyToOne.class);
 				
+//				if (manyToOne != null) {
+//					// This must be a target MappedField
+//					targetMappedFields.add(nextMappedField);
+//				}
+				
 				OneToOne oneToOne = (OneToOne) nextMappedField.getGetter().getAnnotation(OneToOne.class);
 				if (oneToOne == null)
 					oneToOne = (OneToOne) nextMappedField.getField().getAnnotation(OneToOne.class);
+				
+//				if (oneToOne != null) {
+//					// Not sure if this is source or target, let's find out...
+//					if(StringUtils.hasText(oneToOne.mappedBy())) {
+//						// This must be a target MappedField
+//						targetMappedFields.add(nextMappedField);
+//					}
+//					else {
+//						// This must be a source MappedField
+//						sourceMappedFields.add((MappedFieldPerceroObject) nextMappedField);
+//					}
+//				}
 				
 				if (manyToOne != null && !manyToOne.optional()
 						||
