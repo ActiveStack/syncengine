@@ -1,6 +1,8 @@
 package com.percero.agents.sync.jobs;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
+import com.percero.agents.sync.helpers.PostDeleteHelper;
+import com.percero.framework.bl.IManifest;
 import org.apache.log4j.Logger;
 import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,12 @@ public class UpdateTablePoller {
     @Autowired
     UpdateTableConnectionFactory connectionFactory;
 
+    @Autowired
+    IManifest manifest;
+
+    @Autowired
+    PostDeleteHelper postDeleteHelper;
+
     /**
      * Run every minute
      */
@@ -34,7 +42,7 @@ public class UpdateTablePoller {
     public void pollUpdateTables(){
         logger.info("Polling Update Tables...");
         for(String tableName : tableNames){
-            UpdateTableProcessor processor = new UpdateTableProcessor(tableName, connectionFactory);
+            UpdateTableProcessor processor = new UpdateTableProcessor(tableName, connectionFactory, manifest, postDeleteHelper);
             ProcessorResult result = processor.process();
             if(result.isSuccess()){
                 logger.debug("Update table processor ("+tableName+") finished successfully. Total rows ("+result.getTotal()+")");

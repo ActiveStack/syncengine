@@ -22,20 +22,32 @@ public class UpdateTableConnectionFactory {
     private static Logger logger = Logger.getLogger(UpdateTableConnectionFactory.class);
 
     @Autowired
-    @Value("pf{updateTable.driverClassName:com.mysql.jdbc.Driver")
+    @Value("pf{updateTable.driverClassName:com.mysql.jdbc.Driver}")
     private String driverClassName;
+    public void setDriverClassName(String val){
+        this.driverClassName = val;
+    }
 
     @Autowired
-    @Value("pf{updateTable.username")
+    @Value("pf{updateTable.username}")
     private String username;
+    public void setUsername(String val){
+        this.username = val;
+    }
 
     @Autowired
-    @Value("pf{updateTable.username")
+    @Value("pf{updateTable.username}")
     private String password;
+    public void setPassword(String val){
+        this.password = val;
+    }
 
     @Autowired
-    @Value("pf{updateTable.jdbcUrl:jdbc:mysql://localhost/db")
+    @Value("pf{updateTable.jdbcUrl:jdbc:mysql://localhost/db}")
     private String jdbcUrl;
+    public void setJdbcUrl(String val){
+        this.jdbcUrl = val;
+    }
 
     private ComboPooledDataSource cpds;
     @PostConstruct
@@ -47,10 +59,9 @@ public class UpdateTableConnectionFactory {
             cpds.setUser(username);
             cpds.setPassword(password);
 
-// the settings below are optional -- c3p0 can work with defaults
+            // the settings below are optional -- c3p0 can work with defaults
             cpds.setMinPoolSize(5);
             cpds.setAcquireIncrement(5);
-            cpds.setMaxPoolSize(20);
 
         }catch(PropertyVetoException pve){
             logger.error(pve.getMessage(), pve);
@@ -64,25 +75,6 @@ public class UpdateTableConnectionFactory {
         }catch(SQLException e){
             logger.error(e.getMessage(), e);
             throw e;
-        }
-    }
-
-    public static void main(String[] args) throws Exception{
-        UpdateTableConnectionFactory cf = new UpdateTableConnectionFactory();
-        cf.driverClassName = "com.mysql.jdbc.Driver";
-        cf.jdbcUrl = "jdbc:mysql://localhost/test";
-        cf.username = "root";
-        cf.password = "root";
-        cf.init();
-
-        Connection c = cf.getConnection();
-        Statement stmt = c.createStatement();
-
-
-        ResultSet rs = stmt.executeQuery("SELECT * FROM Account");
-        while(rs.next()) {
-            logger.info("ID: " + rs.getInt("ID"));
-            logger.info("markedForRemoval: "+ rs.getDate("markedForRemoval"));
         }
     }
 }
