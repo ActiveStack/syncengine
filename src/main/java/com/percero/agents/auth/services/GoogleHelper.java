@@ -184,7 +184,7 @@ public class GoogleHelper implements IAuthHelper {
 				ServiceUser serviceUser = new ServiceUser();
 				serviceUser.setAccessToken("DEV");
 				serviceUser.setAreRoleNamesAccurate(useRoleNames);
-				serviceUser.setAuthProvider(null);
+				serviceUser.setAuthProviderID(null);
 				serviceUser.setAvatarUrl("");
 				
 				ArrayList<String> emails = new ArrayList<String>();
@@ -268,7 +268,7 @@ public class GoogleHelper implements IAuthHelper {
 				ServiceUser serviceUser = new ServiceUser();
 				serviceUser.setAccessToken("DEV");
 				serviceUser.setAreRoleNamesAccurate(useRoleNames);
-				serviceUser.setAuthProvider(null);
+				serviceUser.setAuthProviderID(null);
 				serviceUser.setAvatarUrl("");
 				
 				ArrayList<String> emails = new ArrayList<String>();

@@ -11,7 +11,7 @@ public class ServiceUser implements Serializable {
 	 */
 	private static final long serialVersionUID = 5880752591299642651L;
 	
-	private AuthProvider authProvider;
+	private String authProvider;
 	private String id = "";
 	private String login = "";
 	public String getLogin() {
@@ -142,10 +142,10 @@ public class ServiceUser implements Serializable {
 	public void setAvatarUrl(String value) {
 		avatarUrl = value;
 	}
-	public AuthProvider getAuthProvider() {
+	public String getAuthProviderID() {
 		return authProvider;
 	}
-	public void setAuthProvider(AuthProvider authProvider) {
-		this.authProvider = authProvider;
+	public void setAuthProviderID(String authProviderID) {
+		this.authProvider = authProviderID;
 	}
 }

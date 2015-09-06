@@ -41,8 +41,6 @@ import com.percero.agents.auth.vo.UserIdentifier;
 import com.percero.agents.auth.vo.UserToken;
 import com.percero.agents.sync.access.IAccessManager;
 
-import edu.emory.mathcs.backport.java.util.Arrays;
-
 /**
  * The AuthService is responsible for managing authentication of users within the Percero framework. The AuthService
  * maintains its own separate database that generically references users.  Implementations of IAuthHelper's provide
@@ -129,20 +127,20 @@ public class AuthService implements IAuthService {
 	/* (non-Javadoc)
 	 * @see com.com.percero.agents.auth.services.IAuthService#authenticateOAuthCode(com.com.percero.agents.auth.vo.AuthProvider, java.lang.String, java.lang.String, java.lang.String, java.lang.String, com.com.percero.agents.auth.vo.OAuthToken)
 	 */
-	public OAuthResponse authenticateOAuthCode(AuthProvider authProvider, String code, String clientId, String deviceId, String redirectUrl, OAuthToken requestToken){
+	public OAuthResponse authenticateOAuthCode(String authProviderID, String code, String clientId, String deviceId, String redirectUrl, OAuthToken requestToken){
 
-		Object accessTokenResult = getServiceProviderAccessToken(authProvider, code, redirectUrl, requestToken);
+		Object accessTokenResult = getServiceProviderAccessToken(authProviderID, code, redirectUrl, requestToken);
 		if (accessTokenResult == null)
 			return null;
 
 		if (accessTokenResult instanceof ServiceUser) {
 			ServiceUser serviceUser = (ServiceUser) accessTokenResult;
-			serviceUser.setAuthProvider(authProvider);
-			return setupServiceUser(authProvider, serviceUser, clientId, deviceId);
+			serviceUser.setAuthProviderID(authProviderID);
+			return setupServiceUser(authProviderID, serviceUser, clientId, deviceId);
 		}
 		else if (accessTokenResult instanceof OAuthToken){
 			OAuthToken token = (OAuthToken) accessTokenResult;
-			return authenticateOAuthAccessToken(authProvider, token.getToken(), token.getTokenSecret(), clientId, deviceId, false);
+			return authenticateOAuthAccessToken(authProviderID, token.getToken(), token.getTokenSecret(), clientId, deviceId, false);
 		}
 		else {
 			log.error("Invalid access token result in authenticateOAuthCode");
@@ -150,11 +148,11 @@ public class AuthService implements IAuthService {
 		}
 	}
 
-	protected Object getServiceProviderAccessToken(AuthProvider authProvider, String code, String redirectUrl, OAuthToken requestToken) {
+	protected Object getServiceProviderAccessToken(String authProviderID, String code, String redirectUrl, OAuthToken requestToken) {
 		OAuthToken token = null;
 
 		try {
-			/*if (authProvider.equals(AuthProvider.LINKEDIN)) {
+			/*if (authProviderID.equals(AuthProvider.LINKEDIN)) {
 				//				LinkedInHelper linkedInHelper = new LinkedInHelper();
 				//				token = linkedInHelper.getAccessToken(svcOAuth.getAppKey(), svcOAuthSecret.getAppToken(), code, requestToken);
 			}
@@ -162,24 +160,25 @@ public class AuthService implements IAuthService {
 			//				//oauthToken = FacebookHelper.getRequestToken(svcOauth.getAppKey(), svcOauthSecret.getAppToken());
 			//				throw new IllegalArgumentException("Facebook OAuth Not supported");
 			//			}
-			else */if (authProvider.equals(AuthProvider.GOOGLE)) {
+			else */
+			if (authProviderID.equals(AuthProvider.GOOGLE.toString())) {
 				ServiceUser serviceUser = googleHelper.authenticateOAuthCode(code, redirectUrl);
 				return serviceUser;
 			}
-			else if (authProvider.equals(AuthProvider.LINKEDIN)) {
+			else if (authProviderID.equals(AuthProvider.LINKEDIN.toString())) {
 				ServiceUser serviceUser = linkedInHelper.authenticateOAuthCode(code, redirectUrl);
 				return serviceUser;
 			}
-			else if (authProvider.equals(AuthProvider.FACEBOOK)) {
+			else if (authProviderID.equals(AuthProvider.FACEBOOK.toString())) {
 				ServiceUser serviceUser = facebookHelper.authenticateOAuthCode(code, redirectUrl);
 				return serviceUser;
 			}
-			else if (authProvider.equals(AuthProvider.GITHUB)) {
+			else if (authProviderID.equals(AuthProvider.GITHUB.toString())) {
 				String accessToken = githubHelper.getAccessTokenResponse(code, redirectUrl);
 				token = new OAuthToken();
 				token.setToken(accessToken);
 			}
-			else if(authProvider.equals(AuthProvider.ANON)){
+			else if(authProviderID.equals(AuthProvider.ANON.toString())){
 				token = new OAuthToken();
 				token.setToken("ANON");
 				token.setTokenSecret("ANON");
@@ -194,31 +193,31 @@ public class AuthService implements IAuthService {
 	/* (non-Javadoc)
 	 * @see com.com.percero.agents.auth.services.IAuthService#authenticateBasicOAuth(com.com.percero.agents.auth.vo.AuthProvider, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, com.com.percero.agents.auth.vo.OAuthToken)
 	 */
-	public OAuthResponse authenticateBasicOAuth(AuthProvider authProvider, String userName, String password, String scopes, String appUrl, String clientId, String deviceId, OAuthToken requestToken){
+	public OAuthResponse authenticateBasicOAuth(String authProviderID, String userName, String password, String scopes, String appUrl, String clientId, String deviceId, OAuthToken requestToken){
 
-		OAuthToken token = getServiceProviderAccessTokenViaBasicAuth(authProvider, userName, password, scopes, appUrl, requestToken);
+		OAuthToken token = getServiceProviderAccessTokenViaBasicAuth(authProviderID, userName, password, scopes, appUrl, requestToken);
 		if (token == null)
 			return null;
 
-		return authenticateOAuthAccessToken(authProvider, token.getToken(), token.getTokenSecret(), clientId, deviceId, false);
+		return authenticateOAuthAccessToken(authProviderID, token.getToken(), token.getTokenSecret(), clientId, deviceId, false);
 	}
 
-	protected OAuthToken getServiceProviderAccessTokenViaBasicAuth(AuthProvider authProvider, String userName, String password, String scopes, String appUrl, OAuthToken requestToken) {
+	protected OAuthToken getServiceProviderAccessTokenViaBasicAuth(String authProviderID, String userName, String password, String scopes, String appUrl, OAuthToken requestToken) {
 		OAuthToken token = null;
 
 		try {
-			if (authProvider.equals(AuthProvider.GITHUB)) {
+			if (authProviderID.equals(AuthProvider.GITHUB)) {
 				String accessToken = githubHelper.getBasicAccessTokenResponse(userName, password, scopes, appUrl);
 				token = new OAuthToken();
 				token.setToken(accessToken);
 			}
-			else if(authProvider.equals(AuthProvider.ANON)){
+			else if(authProviderID.equals(AuthProvider.ANON)){
 				token = new OAuthToken();
 				token.setToken("ANON");
 				token.setTokenSecret("ANON");
 			}
 			else {
-				throw new IllegalArgumentException(authProvider.name() + " OAuth Not supported");
+				throw new IllegalArgumentException(authProviderID + " OAuth Not supported");
 
 			}
 		} catch (Exception e) {
@@ -231,11 +230,11 @@ public class AuthService implements IAuthService {
 	/* (non-Javadoc)
 	 * @see com.com.percero.agents.auth.services.IAuthService#authenticateOAuthAccessToken(com.com.percero.agents.auth.vo.AuthProvider, java.lang.String, java.lang.String, java.lang.String, java.lang.String)
 	 */
-	public OAuthResponse authenticateOAuthAccessToken(AuthProvider authProvider, String accessToken, String refreshToken, String clientId, String deviceId) {
-		return authenticateOAuthAccessToken(authProvider, accessToken, refreshToken, clientId, deviceId, true);
+	public OAuthResponse authenticateOAuthAccessToken(String authProviderID, String accessToken, String refreshToken, String clientId, String deviceId) {
+		return authenticateOAuthAccessToken(authProviderID, accessToken, refreshToken, clientId, deviceId, true);
 	}
 	
-	public OAuthResponse authenticateOAuthAccessToken(AuthProvider authProvider, String accessToken, String refreshToken, String clientId, String deviceId, Boolean canOverideAccessToken) {
+	public OAuthResponse authenticateOAuthAccessToken(String authProviderID, String accessToken, String refreshToken, String clientId, String deviceId, Boolean canOverideAccessToken) {
 		/**
 		 * The client may not actually have the refresh token.  If not then we need to find it, because without a valid
 		 * refresh token then any "Auto-login" will fail after the token expires... which can cause client connections
@@ -259,7 +258,7 @@ public class AuthService implements IAuthService {
 			if(user != null){
 				for(Object ob : user.getUserAccounts()){
 					UserAccount ua = (UserAccount)ob;
-					if(ua.getAuthProvider().equals(authProvider)){
+					if(ua.getAuthProviderID().equals(authProviderID)){
 						refreshToken = ua.getRefreshToken();
 						accessToken = ua.getAccessToken();
 						break;
@@ -269,14 +268,14 @@ public class AuthService implements IAuthService {
 
 		}
 
-		ServiceUser serviceUser = getServiceProviderServiceUser(accessToken, refreshToken, "", authProvider);
+		ServiceUser serviceUser = getServiceProviderServiceUser(accessToken, refreshToken, "", authProviderID);
 		if (serviceUser == null)
 			return null;
 		else
-			return setupServiceUser(authProvider, serviceUser, clientId, deviceId);
+			return setupServiceUser(authProviderID, serviceUser, clientId, deviceId);
 	}
 
-	public OAuthResponse setupServiceUser(AuthProvider authProvider, ServiceUser serviceUser, String clientId, String deviceId) {
+	public OAuthResponse setupServiceUser(String authProviderID, ServiceUser serviceUser, String clientId, String deviceId) {
 		
 		OAuthResponse result = null;
 		UserToken userToken = null;
@@ -301,7 +300,7 @@ public class AuthService implements IAuthService {
 			if(user != null){
 				for(Object ob : user.getUserAccounts()){
 					UserAccount ua = (UserAccount)ob;
-					if(ua.getAuthProvider().equals(authProvider)){
+					if(ua.getAuthProviderID().equals(authProviderID)){
 						serviceUser.setRefreshToken(ua.getRefreshToken());
 						serviceUser.setAccessToken(ua.getAccessToken());
 						break;
@@ -323,7 +322,7 @@ public class AuthService implements IAuthService {
 				queryUserAccount.setAccountId(accountId);
 				queryUserAccount.setAccessToken(serviceUser.getAccessToken());
 				queryUserAccount.setRefreshToken(serviceUser.getRefreshToken());
-				queryUserAccount.setAuthProvider(serviceUser.getAuthProvider());
+				queryUserAccount.setAuthProviderID(serviceUser.getAuthProviderID());
 				
 				UserAccount theFoundUserAccount = updateUserAccountToken(queryUserAccount, true, serviceUser);
 				
@@ -351,17 +350,17 @@ public class AuthService implements IAuthService {
 	
 	// TODO: Need to check the Service Application only, NOT ALL Service Applications for this Service Provider.
 	protected Boolean validateUserRoles(ServiceUser serviceUser, String userId) {
-		// Get list of role names required for this Auth provider
-		List<SvcAppRole> authProviderRequiredSvcRoles = getSvcAppRoles(serviceUser.getAuthProvider());
+		// Get list of role names required for this Auth authProviderID
+		List<SvcAppRole> authProviderRequiredSvcRoles = getSvcAppRoles(serviceUser.getAuthProviderID());
 		
-		// If the auth provider requires no valid roles, then we have "foundMatchingRole"
+		// If the auth authProviderID requires no valid roles, then we have "foundMatchingRole"
 		Boolean foundMatchingRole = (authProviderRequiredSvcRoles == null || authProviderRequiredSvcRoles.size() == 0);
 
 		// Only check the ServiceUser roles list if role names for the ServiceUser are valid.
 		if (serviceUser.getAreRoleNamesAccurate() && !foundMatchingRole) {
 			Iterator<SvcAppRole> itrSvcRoles = authProviderRequiredSvcRoles.iterator();
 
-			// Check to see if the ServiceUser has at least one role that is in the required auth provider roles list.
+			// Check to see if the ServiceUser has at least one role that is in the required auth authProviderID roles list.
 			while(!foundMatchingRole && itrSvcRoles.hasNext()) {
 				SvcAppRole nextSvcAppRole = itrSvcRoles.next();
 				for(String nextRole : serviceUser.getRoleNames()) {
@@ -373,7 +372,7 @@ public class AuthService implements IAuthService {
 			}
 		}
 
-		// Now check existing auth roles for the user. Not all Auth Providers provider roles.
+		// Now check existing auth roles for the user. Not all Auth Providers authProviderID roles.
 		if (!foundMatchingRole) {
 			Iterator<SvcAppRole> itrAuthProviderRequiredSvcRoles = authProviderRequiredSvcRoles.iterator();
 
@@ -407,21 +406,21 @@ public class AuthService implements IAuthService {
 
 
 	/**
-	 * Retrieve the list of valid role names for the specified auth provider (or NONE)
+	 * Retrieve the list of valid role names for the specified auth authProviderID (or NONE)
 	 * for which a user must have have at least one to access the system.
 	 * 
-	 * @param authProvider
+	 * @param authProviderID
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	protected List<SvcAppRole> getSvcAppRoles(AuthProvider authProvider) {
+	protected List<SvcAppRole> getSvcAppRoles(String authProviderID) {
 		Session s = null;
 		List<SvcAppRole> result = null;
 
 		try {
 			s = sessionFactoryAuth.openSession();
 			Query query = s.createQuery("FROM SvcAppRole sar WHERE sar.authProvider = :authProvider OR sar.authProvider = NULL");
-			query.setString("authProvider", authProvider.toString());
+			query.setString("authProvider", authProviderID.toString());
 
 			result = (List<SvcAppRole>) query.list();
 			result = (List<SvcAppRole>) AuthHibernateUtils.cleanObject(result);
@@ -524,7 +523,7 @@ public class AuthService implements IAuthService {
 
 				theFoundUserAccount = new UserAccount();
 
-				theFoundUserAccount.setAuthProvider(serviceUser.getAuthProvider());
+				theFoundUserAccount.setAuthProviderID(serviceUser.getAuthProviderID());
 				theFoundUserAccount.setUser(theUser);
 				theFoundUserAccount.setDateCreated(currentDate);
 				theFoundUserAccount.setDateModified(currentDate);
@@ -872,7 +871,7 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 			// Get list of all ServiceApplicationOAuth's for this ServiceProvider.
 			for (UserAccount nextUserAccount : userAccounts) {
 
-				ServiceUser nextServiceUser = getServiceProviderServiceUser(nextUserAccount, nextUserAccount.getAuthProvider());
+				ServiceUser nextServiceUser = getServiceProviderServiceUser(nextUserAccount, nextUserAccount.getAuthProviderID());
 				if(nextServiceUser != null) {
 					// Found a valid Service User, add to list and break.
 					result.add(nextServiceUser);
@@ -926,8 +925,8 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 	 * @param aUserAccount
 	 * @return
 	 */
-	public ServiceUser getServiceProviderServiceUser(UserAccount aUserAccount, AuthProvider provider) {
-		return getServiceProviderServiceUser(aUserAccount.getAccessToken(), aUserAccount.getRefreshToken(), aUserAccount.getAccountId(), provider);
+	public ServiceUser getServiceProviderServiceUser(UserAccount aUserAccount, String authProviderID) {
+		return getServiceProviderServiceUser(aUserAccount.getAccessToken(), aUserAccount.getRefreshToken(), aUserAccount.getAccountId(), authProviderID);
 	}
 
 	/**
@@ -936,10 +935,10 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 	 * @param accessToken
 	 * @param refreshToken
 	 * @param accountId
-	 * @param provider
+	 * @param authProviderID
 	 * @return
 	 */
-	public ServiceUser getServiceProviderServiceUser(String accessToken, String refreshToken, String accountId, AuthProvider provider) {
+	public ServiceUser getServiceProviderServiceUser(String accessToken, String refreshToken, String accountId, String authProviderID) {
 		ServiceUser serviceUser = null;
 
 		try {
@@ -950,7 +949,7 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 					serviceUser.setFirstName("ANON");
 					serviceUser.setLastName("ANON");
 					serviceUser.setId("ANON");
-					serviceUser.setAuthProvider(AuthProvider.ANON);
+					serviceUser.setAuthProviderID(AuthProvider.ANON.toString());
 					serviceUser.setRefreshToken(anonAuthCode);
 
 					List<String> roles = new ArrayList<String>();
@@ -965,7 +964,7 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 				}
 			}
 
-			/**if (AuthProvider.LINKEDIN.equals(provider)) {
+			/**if (AuthProvider.LINKEDIN.equals(authProviderID)) {
 				//				LinkedInHelper linkedInHelper = new LinkedInHelper();
 				//				ServiceUser liServiceUser = linkedInHelper.getServiceUser(
 				//						svcOauth.getAppKey(), svcOauthSecret.getAppToken(), 
@@ -974,44 +973,44 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 				//						svcOauth.getServiceApplication().getAppDomain());
 				//				serviceUser = liServiceUser;
 			}
-			else */if (AuthProvider.FACEBOOK.equals(provider)) {
+			else */if (AuthProvider.FACEBOOK.equals(authProviderID)) {
 				ServiceUser fbServiceUser = facebookHelper.getServiceUser(
 						accessToken,
 						accountId);
 				serviceUser = fbServiceUser;
 			}
-			else if (AuthProvider.GOOGLE.equals(provider)) {
+			else if (AuthProvider.GOOGLE.equals(authProviderID)) {
 				ServiceUser glServiceUser = googleHelper.authenticateAccessToken(accessToken, refreshToken, accountId);
 				//ServiceUser glServiceUser = googleHelper.retrieveServiceUser(accountId);
 				serviceUser = glServiceUser;
 			}
-			else if (AuthProvider.GITHUB.equals(provider)) {
+			else if (AuthProvider.GITHUB.equals(authProviderID)) {
 				ServiceUser glServiceUser = githubHelper.getServiceUser(accessToken, refreshToken);
 				serviceUser = glServiceUser;
 			}
-			else if (AuthProvider.LINKEDIN.equals(provider)) {
+			else if (AuthProvider.LINKEDIN.equals(authProviderID)) {
 				ServiceUser liServiceUser = linkedInHelper.getServiceUser(accessToken, refreshToken);
 				serviceUser = liServiceUser;
 			}
-			else if(AuthProvider.ANON.equals(provider)){
+			else if(AuthProvider.ANON.equals(authProviderID)){
 				serviceUser = new ServiceUser();
 				serviceUser.setEmails(new ArrayList<String>());
 				serviceUser.getEmails().add("blargblarg@com.percero.com");
 				serviceUser.setAccessToken("blargblarg");
 				serviceUser.setFirstName("ANONYMOUS");
 				serviceUser.setId("ANONYMOUS");
-				serviceUser.setAuthProvider(AuthProvider.ANON);
+				serviceUser.setAuthProviderID(AuthProvider.ANON.toString());
 			}
 			else
 			{
-				log.warn("ServiceProvider not yet supported: " + provider);
+				log.warn("ServiceProvider not yet supported: " + authProviderID);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
 		if (serviceUser != null)
-			serviceUser.setAuthProvider(provider);
+			serviceUser.setAuthProviderID(authProviderID);
 
 		return serviceUser;
 	}

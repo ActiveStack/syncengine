@@ -56,7 +56,7 @@ public class DatabaseHelper {
 					result.getEmails().add(userIdentifier.getUserIdentifier());
 				}
 				result.setAccessToken(UUID.randomUUID().toString());
-				result.setAuthProvider(AuthProvider.DATABASE);
+				result.setAuthProviderID(AuthProvider.DATABASE.toString());
 				result.setAreRoleNamesAccurate(false);
 			}
 			

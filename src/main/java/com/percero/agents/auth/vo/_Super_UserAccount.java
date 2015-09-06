@@ -9,8 +9,6 @@ import java.io.Serializable;
 import java.util.Date;
 
 import javax.persistence.Column;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -41,8 +39,7 @@ public class _Super_UserAccount implements Serializable, IAuthCachedObject
     private String _accountId;
 	private Boolean _isSupended;
 	private Boolean _isAdmin;
-	@Enumerated(EnumType.STRING)
-	private AuthProvider _authProvider;
+	private String _authProviderID;
 
     /*
      * Property getters and setters
@@ -203,12 +200,12 @@ public class _Super_UserAccount implements Serializable, IAuthCachedObject
         return result;
     }
 
-	public AuthProvider getAuthProvider() {
-		return _authProvider;
+	public String getAuthProviderID() {
+		return _authProviderID;
 	}
 
-	public void setAuthProvider(AuthProvider _provider) {
-		this._authProvider = _provider;
+	public void setAuthProviderID(String providerID) {
+		this._authProviderID = providerID;
 	}
 }
 

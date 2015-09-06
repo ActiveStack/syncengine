@@ -21,7 +21,7 @@ public interface IAuthService {
 	/**
 	 * Authenticates an OAuth Code.  Typical use case is client-side code produces an OAuth Code that the server then valdates.
 	 * 
-	 * @param authProvider
+	 * @param authProviderID
 	 * @param code
 	 * @param clientId
 	 * @param deviceId
@@ -29,12 +29,12 @@ public interface IAuthService {
 	 * @param requestToken
 	 * @return
 	 */
-	public OAuthResponse authenticateOAuthCode(AuthProvider authProvider, String code, String clientId, String deviceId, String redirectUrl, OAuthToken requestToken);
+	public OAuthResponse authenticateOAuthCode(String authProviderID, String code, String clientId, String deviceId, String redirectUrl, OAuthToken requestToken);
 
 	/**
 	 * In the case the OAuth Provider allows exchanging a user name/password combination for an Access Token, this method does just that.
 	 * 
-	 * @param authProvider
+	 * @param authProviderID
 	 * @param userName
 	 * @param password
 	 * @param scopes
@@ -44,20 +44,20 @@ public interface IAuthService {
 	 * @param requestToken
 	 * @return
 	 */
-	public OAuthResponse authenticateBasicOAuth(AuthProvider authProvider, String userName, String password, String scopes, String appUrl, String clientId, String deviceId, OAuthToken requestToken);
+	public OAuthResponse authenticateBasicOAuth(String authProviderID, String userName, String password, String scopes, String appUrl, String clientId, String deviceId, OAuthToken requestToken);
 
 	/**
 	 * Authenticates an OAuth Access Token. Typically, OAuth providers issue an AccessToken (and RefreshToken) that can be used to authenticate
 	 * a user for a pre-determined amount of time.
 	 * 
-	 * @param authProvider
+	 * @param authProviderID
 	 * @param accessToken
 	 * @param refreshToken
 	 * @param clientId
 	 * @param deviceId
 	 * @return
 	 */
-	public OAuthResponse authenticateOAuthAccessToken(AuthProvider authProvider, String accessToken, String refreshToken, String clientId, String deviceId);
+	public OAuthResponse authenticateOAuthAccessToken(String authProviderID, String accessToken, String refreshToken, String clientId, String deviceId);
 	
 	/**
 	 * Checks to see if the aUserId, aToken, aClientId combination exists in the Auth Service data store.
