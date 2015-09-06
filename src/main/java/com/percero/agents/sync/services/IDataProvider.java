@@ -25,6 +25,7 @@ public interface IDataProvider {
 	public List<Object> runQuery(MappedClass mappedClass, String queryName, Object[] queryArguments, String clientId);
 	public IPerceroObject findById(ClassIDPair classIdPair, String userId);
 	public <T extends IPerceroObject> T systemGetById(ClassIDPair classIdPair);
+	public <T extends IPerceroObject> T systemGetById(ClassIDPair classIdPair, boolean ignoreCache);
 	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId);
 	public IPerceroObject findUnique(IPerceroObject theQueryObject, String userId);
 	public List<IPerceroObject> findByExample(IPerceroObject theQueryObject, List<String> excludeProperties, String userId);

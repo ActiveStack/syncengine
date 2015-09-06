@@ -19,6 +19,7 @@ import java.util.Date;
 import java.util.List;
 
 @Entity
+@Table(name = "Person")
 @EntityInterface(interfaceClass=IUserAnchor.class)
 public class Person extends BaseDataObject implements Serializable, IUserAnchor
 {

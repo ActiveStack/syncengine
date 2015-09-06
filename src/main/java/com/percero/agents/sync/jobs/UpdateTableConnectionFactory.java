@@ -22,28 +22,28 @@ public class UpdateTableConnectionFactory {
     private static Logger logger = Logger.getLogger(UpdateTableConnectionFactory.class);
 
     @Autowired
-    @Value("pf{updateTable.driverClassName:com.mysql.jdbc.Driver}")
+    @Value("$pf{updateTable.driverClassName:com.mysql.jdbc.Driver}")
     private String driverClassName;
     public void setDriverClassName(String val){
         this.driverClassName = val;
     }
 
     @Autowired
-    @Value("pf{updateTable.username}")
+    @Value("$pf{updateTable.username}")
     private String username;
     public void setUsername(String val){
         this.username = val;
     }
 
     @Autowired
-    @Value("pf{updateTable.username}")
+    @Value("$pf{updateTable.username}")
     private String password;
     public void setPassword(String val){
         this.password = val;
     }
 
     @Autowired
-    @Value("pf{updateTable.jdbcUrl:jdbc:mysql://localhost/db}")
+    @Value("$pf{updateTable.jdbcUrl:jdbc:mysql://localhost/db}")
     private String jdbcUrl;
     public void setJdbcUrl(String val){
         this.jdbcUrl = val;

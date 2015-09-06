@@ -25,33 +25,28 @@ public class UpdateTablePoller {
         tableNames = val.split(",");
     }
 
-
     @Autowired
-    UpdateTableConnectionFactory connectionFactory;
+    UpdateTableProcessorFactory updateTableProcessorFactory;
 
-    @Autowired
-    IManifest manifest;
-
-    @Autowired
-    PostDeleteHelper postDeleteHelper;
+    public boolean enabled = true;
 
     /**
      * Run every minute
      */
-    @Scheduled(fixedDelay=6000, initialDelay=6000)
+    @Scheduled(fixedDelay=10000, initialDelay=10000)
     public void pollUpdateTables(){
-        logger.info("Polling Update Tables...");
-        for(String tableName : tableNames){
-            UpdateTableProcessor processor = new UpdateTableProcessor(tableName, connectionFactory, manifest, postDeleteHelper);
-            ProcessorResult result = processor.process();
-            if(result.isSuccess()){
-                logger.debug("Update table processor ("+tableName+") finished successfully. Total rows ("+result.getTotal()+")");
+        if(enabled)
+            for(String tableName : tableNames){
+                UpdateTableProcessor processor = updateTableProcessorFactory.getProcessor(tableName);
+                ProcessorResult result = processor.process();
+                if(result.isSuccess()){
+                    logger.debug("Update table processor ("+tableName+") finished successfully. Total rows ("+result.getTotal()+")");
+                }
+                else{
+                    logger.warn("Update table processor ("+tableName+") failed. Details:");
+                    logger.warn(result);
+                }
             }
-            else{
-                logger.warn("Update table processor ("+tableName+") failed. Details:");
-                logger.warn(result);
-            }
-        }
     }
 
 

@@ -153,6 +153,11 @@ public class RedisDataProvider implements IDataProvider {
 		return null;**/
 	}
 
+	@Override
+	public <T extends IPerceroObject> T systemGetById(ClassIDPair classIdPair, boolean ignoreCache) {
+		return null;
+	}
+
 	public IPerceroObject systemGetById(ClassIDPair classIdPair) {
 		return null;
 	}

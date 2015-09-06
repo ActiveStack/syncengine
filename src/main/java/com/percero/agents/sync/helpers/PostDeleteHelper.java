@@ -106,7 +106,6 @@ public class PostDeleteHelper {
 				pushDeleteResponse = new PushDeleteResponse();
 				pushDeleteResponse.setObjectList(new ArrayList<RemovedClassIDPair>());
 				
-//				pushDeleteResponse.setClientId(nextClientId);
 				pushDeleteResponse.getObjectList().add(removedPair);
 
 				pushDeleteResponse.setObjectJson(objectJson);
