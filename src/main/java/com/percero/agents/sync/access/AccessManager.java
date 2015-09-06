@@ -1257,6 +1257,34 @@ public class AccessManager implements IAccessManager {
 		return null;
 	}
 
+	@Override
+	public void updateWatcherFields(String category, String subCategory,
+			String fieldName, Collection<String> fieldsToWatch, String[] params) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void addWatcherField(String category, String subCategory,
+			String fieldName, Collection<String> collection, String[] params) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void addWatcherField(String category, String subCategory,
+			String fieldName, Collection<String> collection) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void updateWatcherFields(String category, String subCategory,
+			String fieldName, Collection<String> fieldsToWatch) {
+		// TODO Auto-generated method stub
+		
+	}
+
 	/* (non-Javadoc)
 	 * @see com.com.percero.agents.sync.services.IAccessManager#removeDeleteJournals(java.util.List)
 	 *

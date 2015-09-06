@@ -84,7 +84,7 @@ public class PostPutHelper {
 		
 		// Now run past the ChangeWatcher.
 		
-		if (changedFields == null) {
+		if (changedFields == null || changedFields.isEmpty()) {
 			accessManager.checkChangeWatchers(pair, null, null);
 		}
 		else {

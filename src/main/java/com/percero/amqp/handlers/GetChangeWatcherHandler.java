@@ -20,7 +20,7 @@ public class GetChangeWatcherHandler extends SyncMessageHandler {
 	public SyncResponse handleMessage(SyncRequest request, String replyTo) throws Exception {
 		PushCWUpdateResponse response = new PushCWUpdateResponse();
 		PushCWUpdateRequest pushCwUpdateRequest = (PushCWUpdateRequest) request;
-		Object result = syncAgentService.getChangeWatcher(pushCwUpdateRequest.getClassIdPair(), pushCwUpdateRequest.getFieldName(), pushCwUpdateRequest.getParams(), pushCwUpdateRequest.getClientId());
+		Object result = syncAgentService.getChangeWatcherValue(pushCwUpdateRequest.getClassIdPair(), pushCwUpdateRequest.getFieldName(), pushCwUpdateRequest.getParams(), pushCwUpdateRequest.getClientId());
 		response.setFieldName(pushCwUpdateRequest.getFieldName());
 		response.setParams(pushCwUpdateRequest.getParams());
 		response.setClassIdPair(pushCwUpdateRequest.getClassIdPair());

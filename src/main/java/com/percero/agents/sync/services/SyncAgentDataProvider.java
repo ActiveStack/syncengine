@@ -37,7 +37,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.percero.agents.sync.access.RedisKeyUtils;
-import com.percero.agents.sync.datastore.RedisDataStore;
+import com.percero.agents.sync.datastore.ICacheDataStore;
 import com.percero.agents.sync.exceptions.SyncDataException;
 import com.percero.agents.sync.exceptions.SyncException;
 import com.percero.agents.sync.hibernate.AssociationExample;
@@ -77,7 +77,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 	}
 	
 	@Autowired
-	RedisDataStore redisDataStore;
+	ICacheDataStore cacheDataStore;
 	
 	@Autowired
 	Long cacheTimeout = Long.valueOf(60 * 60 * 24 * 14);	// Two weeks
@@ -463,7 +463,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 						key = RedisKeyUtils.classIdPair(result.getClass().getCanonicalName(), result.getID());
 						result = (IPerceroObject) SyncHibernateUtils.cleanObject(result, s);
 						if (cacheTimeout > 0)
-							redisDataStore.setValue(key, ((BaseDataObject)result).toJson());
+							cacheDataStore.setValue(key, ((BaseDataObject)result).toJson());
 					}
 					else {
 						// Not necessarily a problem but could be helpful when debugging.
@@ -476,7 +476,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 
 				// (Re)Set the expiration.
 				if (cacheTimeout > 0 && key != null) {
-					redisDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
+					cacheDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
 				}
 				
 				return result;
@@ -514,7 +514,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 						key = RedisKeyUtils.classIdPair(result.getClass().getCanonicalName(), result.getID());
 						result = (IPerceroObject) SyncHibernateUtils.cleanObject(result, s);
 						if (cacheTimeout > 0)
-							redisDataStore.setValue(key, ((BaseDataObject)result).toJson());
+							cacheDataStore.setValue(key, ((BaseDataObject)result).toJson());
 					}
 					else {
 						log.warn("Unable to retrieve object from database: " + classIdPair.toString());
@@ -526,7 +526,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 				
 				// (Re)Set the expiration.
 				if (cacheTimeout > 0 && key != null) {
-					redisDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
+					cacheDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
 				}
 				
 				return result;
@@ -555,7 +555,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			MappedClass mc = mcm.getMappedClassByClassName(classIdPair.getClassName());
 			
 			String key = RedisKeyUtils.classIdPair(classIdPair.getClassName(), classIdPair.getID());
-			String jsonObjectString = (String) redisDataStore.getValue(key);
+			String jsonObjectString = (String) cacheDataStore.getValue(key);
 			if (jsonObjectString != null) {
 				if (IJsonObject.class.isAssignableFrom(theClass)) {
 					IJsonObject jsonObject = (IJsonObject) theClass.newInstance();
@@ -572,7 +572,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 				while (itrChildMappedClasses.hasNext()) {
 					MappedClass nextChildMc = itrChildMappedClasses.next();
 					key = RedisKeyUtils.classIdPair(nextChildMc.className, classIdPair.getID());
-					jsonObjectString = (String) redisDataStore.getValue(key);
+					jsonObjectString = (String) cacheDataStore.getValue(key);
 					if (jsonObjectString != null) {
 						result = (IPerceroObject) safeObjectMapper.readValue(jsonObjectString, theClass);
 						return result;
@@ -614,7 +614,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			}
 			
 //			String key = RedisKeyUtils.classIdPair(classIdPair.getClassName(), classIdPair.getID());
-			List<Object> jsonObjectStrings = redisDataStore.getValues(keys);
+			List<Object> jsonObjectStrings = cacheDataStore.getValues(keys);
 			Iterator<Object> itrJsonObjectStrings = jsonObjectStrings.iterator();
 			while (itrJsonObjectStrings.hasNext()) {
 				String jsonObjectString = (String) itrJsonObjectStrings.next();
@@ -646,7 +646,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			}
 			
 			if (pleaseSetTimeout) {
-				redisDataStore.expire(keys, cacheTimeout, TimeUnit.SECONDS);
+				cacheDataStore.expire(keys, cacheTimeout, TimeUnit.SECONDS);
 			}
 		}
 		
@@ -873,9 +873,9 @@ public class SyncAgentDataProvider implements IDataProvider {
 							}
 							
 							// Store the objects in redis.
-							redisDataStore.setValues(mapJsonObjectStrings);
+							cacheDataStore.setValues(mapJsonObjectStrings);
 							// (Re)Set the expiration.
-							redisDataStore.expire(mapJsonObjectStrings.keySet(), cacheTimeout, TimeUnit.SECONDS);
+							cacheDataStore.expire(mapJsonObjectStrings.keySet(), cacheTimeout, TimeUnit.SECONDS);
 						}
 						
 						if (result == null) {
@@ -1080,8 +1080,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 			if (cacheTimeout > 0) {
 				String key = RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID());
 				if (cacheTimeout > 0) {
-					redisDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
-					redisDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
+					cacheDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
+					cacheDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
 				}
 
 				Set<String> keysToDelete = new HashSet<String>();
@@ -1130,7 +1130,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 				}
 				
 				if (!keysToDelete.isEmpty()) {
-					redisDataStore.deleteKeys(keysToDelete);
+					cacheDataStore.deleteKeys(keysToDelete);
 					// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
 					//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 				}
@@ -1284,8 +1284,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 			if (cacheTimeout > 0) {
 				// TODO: Also need to update the caches of anything object that is related to this object.
 				String key = RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID());
-				if (redisDataStore.hasKey(key)) {
-					redisDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
+				if (cacheDataStore.hasKey(key)) {
+					cacheDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
 				}
 				
 				// Iterate through each changed object and reset the cache for that object.
@@ -1311,7 +1311,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 					}
 					
 					if (!keysToDelete.isEmpty()) {
-						redisDataStore.deleteKeys(keysToDelete);
+						cacheDataStore.deleteKeys(keysToDelete);
 						// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
 						//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 					}
@@ -1327,8 +1327,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 						if (fieldObject != null) {
 							if (fieldObject instanceof IPerceroObject) {
 								String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-								if (redisDataStore.hasKey(nextKey)) {
-									redisDataStore.deleteKey(nextKey);
+								if (cacheDataStore.hasKey(nextKey)) {
+									cacheDataStore.deleteKey(nextKey);
 									// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
 									//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 								}
@@ -1339,8 +1339,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 									Object nextListObject = itrFieldObject.next();
 									if (nextListObject instanceof IPerceroObject) {
 										String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-										if (redisDataStore.hasKey(nextKey)) {
-											redisDataStore.deleteKey(nextKey);
+										if (cacheDataStore.hasKey(nextKey)) {
+											cacheDataStore.deleteKey(nextKey);
 											// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
 											//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 										}
@@ -1356,8 +1356,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 						if (fieldObject != null) {
 							if (fieldObject instanceof IPerceroObject) {
 								String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-								if (redisDataStore.hasKey(nextKey)) {
-									redisDataStore.deleteKey(nextKey);
+								if (cacheDataStore.hasKey(nextKey)) {
+									cacheDataStore.deleteKey(nextKey);
 									// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
 									//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 								}
@@ -1368,8 +1368,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 									Object nextListObject = itrFieldObject.next();
 									if (nextListObject instanceof IPerceroObject) {
 										String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-										if (redisDataStore.hasKey(nextKey)) {
-											redisDataStore.deleteKey(nextKey);
+										if (cacheDataStore.hasKey(nextKey)) {
+											cacheDataStore.deleteKey(nextKey);
 											// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
 											//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 										}
@@ -1511,7 +1511,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 				}
 				
 				if (!keysToDelete.isEmpty()) {
-					redisDataStore.deleteKeys(keysToDelete);
+					cacheDataStore.deleteKeys(keysToDelete);
 					// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
 					//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 				}
