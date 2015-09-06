@@ -56,7 +56,7 @@ public class AuthService2 {
 
         // Login successful
         if(serviceUser != null) {
-            logger.info(provider.getID() + " Authentication success");
+            logger.debug(provider.getID() + " Authentication success");
             serviceUser.setAuthProviderID(provider.getID()); // Set the provider ID just in case the provider didn't
             UserAccount userAccount = getOrCreateUserAccount(serviceUser, provider, request);
             ensureAnchorUserExists(serviceUser, userAccount.getUser());
