@@ -830,7 +830,11 @@ public class RedisAccessManager implements IAccessManager {
 			// Need to add the ObjectID to the Client's AccessJournals set.
 			String clientAccessJournalKey = RedisKeyUtils.clientAccessJournal(clientId);
 			redisDataStore.addSetValue(clientAccessJournalKey, RedisKeyUtils.objectId(className, classId));
-			
+
+            // Add to the class's AccessJournals set
+			String classAccessJournalKey = RedisKeyUtils.classAccessJournal(className);
+			redisDataStore.addSetValue(classAccessJournalKey, classId);
+
 			// Need to add the ClientID to the Object's AccessJournal set.
 			return redisDataStore.addSetValue(key, clientId);
 		} catch(Exception e) {
@@ -984,6 +988,9 @@ public class RedisAccessManager implements IAccessManager {
 //			}
 //		}
 
+        String classAccessJournalKey = RedisKeyUtils.classAccessJournal(classIdPair.getClassName());
+        redisDataStore.removeSetValue(classAccessJournalKey, classIdPair.getID());
+        
 		// Now delete the AccessJournal record.
 		redisDataStore.deleteKey(accessJournalKey);
 	}

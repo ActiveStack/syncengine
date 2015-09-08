@@ -111,6 +111,10 @@ public abstract class RedisKeyUtils {
 	public static String clientAccessJournal(String clientId) {
 		return (new StringBuilder(INT_64).append("c:").append(ACCESS_JOURNAL_PREFIX).append(clientId)).toString();
 	}
+
+	public static String classAccessJournal(String className) {
+		return (new StringBuilder(INT_64).append("class:").append(ACCESS_JOURNAL_PREFIX).append(className)).toString();
+	}
 	
 	public static String historicalObject(String className, String classId) {
 		return (new StringBuilder(INT_128).append("ho:").append(className).append(":").append(classId)).toString();
