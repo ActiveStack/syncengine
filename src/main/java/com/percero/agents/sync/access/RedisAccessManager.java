@@ -566,7 +566,6 @@ public class RedisAccessManager implements IAccessManager {
 	 * This function checks to see if a User has no more UserDevices. If they do not have
 	 * 	any, then it removes all the User's entries in ALL AccessJournal sets.
 	 * 
-	 * @param userId
 	 * @param clientId
 	 */
 	@SuppressWarnings("unchecked")
