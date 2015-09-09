@@ -566,7 +566,7 @@ public class RedisAccessManager implements IAccessManager {
 	 * This function checks to see if a User has no more UserDevices. If they do not have
 	 * 	any, then it removes all the User's entries in ALL AccessJournal sets.
 	 * 
-	 * @param clientId
+    	 * @param clientId
 	 */
 	@SuppressWarnings("unchecked")
 	@Transactional
@@ -577,6 +577,18 @@ public class RedisAccessManager implements IAccessManager {
 		
 		// Now remove the Client's AccessJournal key.
 		redisDataStore.deleteKey(clientAccessJournalsKey);
+
+        // Check to see if each Object's access journal set is empty and if so remove it
+        // from the class access journal set
+        for(String caj : clientAccessJournals){
+            if(redisDataStore.getSetIsEmpty(RedisKeyUtils.ACCESS_JOURNAL_PREFIX+caj)){
+                String[] parts = caj.split(":");
+                String className = parts[0];
+                String ID = parts[1];
+                String classAccessJournalKey = RedisKeyUtils.classAccessJournal(className);
+                redisDataStore.removeSetValue(classAccessJournalKey, ID);
+            }
+        }
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -831,8 +843,11 @@ public class RedisAccessManager implements IAccessManager {
 			redisDataStore.addSetValue(clientAccessJournalKey, RedisKeyUtils.objectId(className, classId));
 
             // Add to the class's AccessJournals set
-			String classAccessJournalKey = RedisKeyUtils.classAccessJournal(className);
-			redisDataStore.addSetValue(classAccessJournalKey, classId);
+            if(classId != null && !classId.isEmpty() && !classId.equals("0")) {
+                log.info("Adding to class AccessJournals: "+classId);
+                String classAccessJournalKey = RedisKeyUtils.classAccessJournal(className);
+                redisDataStore.addSetValue(classAccessJournalKey, classId);
+            }
 
 			// Need to add the ClientID to the Object's AccessJournal set.
 			return redisDataStore.addSetValue(key, clientId);
