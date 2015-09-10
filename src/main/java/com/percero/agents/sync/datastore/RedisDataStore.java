@@ -183,6 +183,11 @@ public class RedisDataStore {
 	public Long getHashSize( final String key ) {
 		return template.opsForHash().size(key);
 	}
+
+	@Transactional
+	public Long getSetSize( final String key ) {
+		return template.opsForSet().size(key);
+	}
 	
 	@Transactional
 	public void deleteHashKey( final String key, final Object hashKey ) {

@@ -899,6 +899,14 @@ public class RedisAccessManager implements IAccessManager {
 		return result;
 	}
 
+    public Set<String> getClassAccessJournalIDs(String className){
+        return (Set<String>) redisDataStore.getSetValue(RedisKeyUtils.classAccessJournal(className));
+    }
+
+    public long getNumClientsInterestedInWholeClass(String className){
+        return redisDataStore.getSetSize(RedisKeyUtils.accessJournal(className,"0"));
+    }
+
 	public List<String> checkUserListAccessRights(Collection<Object> clientIdList, String className, String classId) throws Exception {
 		List<String> result = new ArrayList<String>();
 		

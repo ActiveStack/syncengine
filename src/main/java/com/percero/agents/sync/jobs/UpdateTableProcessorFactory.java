@@ -1,5 +1,6 @@
 package com.percero.agents.sync.jobs;
 
+import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.cache.CacheManager;
 import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.helpers.PostPutHelper;
@@ -33,8 +34,11 @@ public class UpdateTableProcessorFactory {
     @Autowired
     DataProviderManager dataProviderManager;
 
+    @Autowired
+    IAccessManager accessManager;
+
     public UpdateTableProcessor getProcessor(String tableName){
         return new UpdateTableProcessor(tableName, connectionFactory, manifest,
-                postDeleteHelper, postPutHelper, cacheManager, dataProviderManager);
+                postDeleteHelper, postPutHelper, cacheManager, dataProviderManager, accessManager);
     }
 }

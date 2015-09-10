@@ -1,5 +1,6 @@
 package com.percero.agents.sync.jobs;
 
+import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.cache.CacheManager;
 import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.helpers.PostPutHelper;
@@ -19,8 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Date;
-import java.util.Random;
+import java.util.*;
 
 /**
  * Responsible for querying an update table and processing the rows.
@@ -38,6 +38,7 @@ public class UpdateTableProcessor {
     private IManifest manifest;
     private CacheManager cacheManager;
     private DataProviderManager dataProviderManager;
+    private IAccessManager accessManager;
 
     public UpdateTableProcessor(String tableName,
                                 UpdateTableConnectionFactory connectionFactory,
@@ -45,7 +46,8 @@ public class UpdateTableProcessor {
                                 PostDeleteHelper postDeleteHelper,
                                 PostPutHelper postPutHelper,
                                 CacheManager cacheManager,
-                                DataProviderManager dataProviderManager)
+                                DataProviderManager dataProviderManager,
+                                IAccessManager accessManager)
     {
         this.tableName          = tableName;
         this.connectionFactory  = connectionFactory;
@@ -54,6 +56,7 @@ public class UpdateTableProcessor {
         this.manifest           = manifest;
         this.cacheManager       = cacheManager;
         this.dataProviderManager= dataProviderManager;
+        this.accessManager      = accessManager;
     }
 
     /**
@@ -84,6 +87,7 @@ public class UpdateTableProcessor {
                     result.addResult(row.getType().toString(), false, "");
                 }
             }catch(Exception e){
+                logger.warn("Failed to process update: "+ e.getMessage(), e);
                 result.addResult(row.getType().toString(), false, e.getMessage());
             }
 
@@ -147,17 +151,32 @@ public class UpdateTableProcessor {
      */
     private boolean processUpdateSingle(UpdateTableRow row) throws Exception{
         Class clazz = getClassForTableName(row.getTableName());
-        IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-        MappedClass mappedClass = mcm.getMappedClassByClassName(clazz.getName());
-        IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-        ClassIDPair pair = new ClassIDPair(row.getRowId(), clazz.getCanonicalName());
-        IPerceroObject object = dataProvider.systemGetById(pair, true);
-
-        if(object != null){
-            cacheManager.updateCachedObject(object, null);
-            postPutHelper.postPutObject(pair, null, null, true, null);
-        }
+        List<String> list = new ArrayList<String>();
+        list.add(row.getRowId());
+        processUpdates(clazz.getCanonicalName(), list);
         return true;
+    }
+
+    /**
+     * Takes a class and list of ids that need to be pushed out
+     * @param className
+     * @param Ids
+     * @throws Exception
+     */
+    private void processUpdates(String className, Collection<String> Ids) throws Exception{
+        IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+        MappedClass mappedClass = mcm.getMappedClassByClassName(className);
+        IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
+
+        for(String ID : Ids) {
+            ClassIDPair pair = new ClassIDPair(ID, className);
+            IPerceroObject object = dataProvider.systemGetById(pair, true);
+
+            if (object != null) {
+                cacheManager.updateCachedObject(object, null);
+                postPutHelper.postPutObject(pair, null, null, true, null);
+            }
+        }
     }
 
     /**
@@ -185,8 +204,33 @@ public class UpdateTableProcessor {
      * @param row
      * @return
      */
-    private boolean processUpdateTable(UpdateTableRow row){
+    private boolean processUpdateTable(UpdateTableRow row) throws Exception{
+        Class clazz = getClassForTableName(row.getTableName());
+
+        Set<String> accessedIds = null;
+        // If there are any clients that have asked for all objects in a class then we have to push everything
+        if(accessManager.getNumClientsInterestedInWholeClass(clazz.getName()) > 0)
+            accessedIds = getAllIdsForTable(row.getTableName());
+        else
+            accessedIds = accessManager.getClassAccessJournalIDs(clazz.getName());
+
+        processUpdates(clazz.getCanonicalName(), accessedIds);
         return true;
+    }
+
+    private Set<String> getAllIdsForTable(String tableName) throws SQLException{
+        Set<String> result = new HashSet<String>();
+        String query = "select ID from "+tableName;
+        try(Connection connection = connectionFactory.getConnection();
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(query)){
+
+            while(resultSet.next()){
+                result.add(resultSet.getString("ID"));
+            }
+        }
+
+        return result;
     }
 
     /**
