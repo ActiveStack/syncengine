@@ -4,11 +4,10 @@ import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.cache.CacheManager;
 import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.helpers.PostPutHelper;
-import com.percero.agents.sync.metadata.IMappedClassManager;
-import com.percero.agents.sync.metadata.MappedClass;
-import com.percero.agents.sync.metadata.MappedClassManagerFactory;
+import com.percero.agents.sync.metadata.*;
 import com.percero.agents.sync.services.DataProviderManager;
 import com.percero.agents.sync.services.IDataProvider;
+import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.framework.bl.IManifest;
 import com.percero.framework.vo.IPerceroObject;
@@ -195,7 +194,17 @@ public class UpdateTableProcessor {
      * @param row
      * @return
      */
-    private boolean processDeleteTable(UpdateTableRow row){
+    private boolean processDeleteTable(UpdateTableRow row) throws Exception{
+        Class clazz = getClassForTableName(row.getTableName());
+        Set<String> accessedIds = accessManager.getClassAccessJournalIDs(clazz.getName());
+        Set<String> allIds = getAllIdsForTable(row.getTableName());
+
+        // Now we have the set that has been removed that we care about
+        accessedIds.removeAll(allIds);
+        for(String id : accessedIds){
+            postDeleteHelper.postDeleteObject(new ClassIDPair(id, clazz.getCanonicalName()), null, null, true);
+        }
+
         return true;
     }
 
@@ -239,6 +248,32 @@ public class UpdateTableProcessor {
      * @return
      */
     private boolean processInsertTable(UpdateTableRow row){
+        Class clazz = getClassForTableName(row.getTableName());
+        IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+        MappedClass mappedClass = mcm.getMappedClassByClassName(clazz.getName());
+
+//        TODO: uncomment and implement
+//        for(MappedFieldPerceroObject nextMappedField : mappedClass.externalizablePerceroObjectFields) {
+//            try {
+//                if (nextMappedField.getReverseMappedField() != null) {
+//                    IPerceroObject fieldValue = (IPerceroObject) nextMappedField.getValue(perceroObject);
+//                    if (fieldValue != null) {
+//                        ClassIDPair fieldPair = BaseDataObject.toClassIdPair(fieldValue);
+//
+//                        Collection<MappedField> classChangedFields = changedObjects.get(fieldPair);
+//                        if (classChangedFields == null) {
+//                            classChangedFields = new HashSet<MappedField>();
+//                            changedObjects.put(fieldPair, classChangedFields);
+//                        }
+//                        MappedField reverseMappedField = nextMappedField.getReverseMappedField();
+//                        classChangedFields.add(reverseMappedField);
+//                    }
+//                }
+//            } catch(Exception e) {
+//                log.error("Error in postCreateObject " + mappedClass.className + "." + nextMappedField.getField().getName(), e);
+//            }
+//        }
+
         return true;
     }
 
