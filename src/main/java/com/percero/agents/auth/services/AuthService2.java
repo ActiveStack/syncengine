@@ -411,14 +411,14 @@ public class AuthService2 {
 
             boolean userAnchorUpdated = false;
             if (StringUtils.hasText(serviceUser.getFirstName()) && firstNamePropImpl != null) {
-                if (firstName == null || !firstName.equals(serviceUser.getFirstName())) {
+                if (serviceUser.getFirstName() != null && (firstName == null || !firstName.equals(serviceUser.getFirstName()))) {
                     firstName = serviceUser.getFirstName();
                     firstNamePropImpl.mappedField.getSetter().invoke(userAnchor, firstName);
                     userAnchorUpdated = true;
                 }
             }
             if (StringUtils.hasText(serviceUser.getLastName()) && lastNamePropImpl != null) {
-                if (lastName == null || !lastName.equals(serviceUser.getLastName())) {
+                if (serviceUser.getLastName() != null && (lastName == null || !lastName.equals(serviceUser.getLastName()))) {
                     lastName = serviceUser.getLastName();
                     lastNamePropImpl.mappedField.getSetter().invoke(userAnchor, lastName);
                     userAnchorUpdated = true;
