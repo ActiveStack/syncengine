@@ -1,5 +1,6 @@
 package com.percero.agents.sync.metadata;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -22,6 +23,11 @@ public class MappedClassManager implements IMappedClassManager {
 		}
 		
 		return mc;
+	}
+
+	@Override
+	public Collection<MappedClass> getAllMappedClasses() {
+		return mappedClassesByName.values();
 	}
 
 }

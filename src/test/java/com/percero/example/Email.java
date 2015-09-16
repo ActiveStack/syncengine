@@ -97,13 +97,13 @@ public class Email extends BaseDataObject implements Serializable, IUserIdentifi
     @JsonSerialize(using=BDOSerializer.class)
     @JsonDeserialize(using=BDODeserializer.class)
     @JoinColumn(name="user_ID")
-    @org.hibernate.annotations.ForeignKey(name="FK_User_user_TO_Email")
+    @org.hibernate.annotations.ForeignKey(name="FK_Person_person_TO_Email")
     @ManyToOne(fetch=FetchType.LAZY, optional=false)
     private Person person;
     public Person getPerson() {
         return this.person;
     }
-    public void setUser(Person value) {
+    public void setPerson(Person value) {
         this.person = value;
     }
 
@@ -161,7 +161,7 @@ public class Email extends BaseDataObject implements Serializable, IUserIdentifi
             objectJson += "null";
         else {
             try {
-                objectJson += ((BaseDataObject) getPerson()).toEmbeddedJson();
+                objectJson += getPerson().toEmbeddedJson();
             } catch(Exception e) {
                 objectJson += "null";
             }

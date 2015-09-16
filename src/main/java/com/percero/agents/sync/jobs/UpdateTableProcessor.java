@@ -7,7 +7,6 @@ import com.percero.agents.sync.helpers.PostPutHelper;
 import com.percero.agents.sync.metadata.*;
 import com.percero.agents.sync.services.DataProviderManager;
 import com.percero.agents.sync.services.IDataProvider;
-import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.framework.bl.IManifest;
 import com.percero.framework.vo.IPerceroObject;
@@ -140,6 +139,7 @@ public class UpdateTableProcessor {
     private boolean processDeleteSingle(UpdateTableRow row) throws Exception{
         Class clazz = getClassForTableName(row.getTableName());
         postDeleteHelper.postDeleteObject(new ClassIDPair(row.getRowId(), clazz.getCanonicalName()), null, null, true);
+        updateReferences(clazz.getName());
         return true;
     }
 
@@ -152,7 +152,8 @@ public class UpdateTableProcessor {
         Class clazz = getClassForTableName(row.getTableName());
         List<String> list = new ArrayList<String>();
         list.add(row.getRowId());
-        processUpdates(clazz.getCanonicalName(), list);
+        processUpdates(clazz.getName(), list);
+        updateReferences(clazz.getName());
         return true;
     }
 
@@ -186,6 +187,7 @@ public class UpdateTableProcessor {
     private boolean processInsertSingle(UpdateTableRow row) throws Exception{
         Class clazz = getClassForTableName(row.getTableName());
         postPutHelper.postPutObject(new ClassIDPair(row.getRowId(), clazz.getCanonicalName()), null, null, true, null);
+        updateReferences(clazz.getName());
         return true;
     }
 
@@ -205,6 +207,8 @@ public class UpdateTableProcessor {
             postDeleteHelper.postDeleteObject(new ClassIDPair(id, clazz.getCanonicalName()), null, null, true);
         }
 
+        updateReferences(clazz.getName());
+
         return true;
     }
 
@@ -223,7 +227,9 @@ public class UpdateTableProcessor {
         else
             accessedIds = accessManager.getClassAccessJournalIDs(clazz.getName());
 
-        processUpdates(clazz.getCanonicalName(), accessedIds);
+        processUpdates(clazz.getName(), accessedIds);
+        updateReferences(clazz.getName());
+
         return true;
     }
 
@@ -247,34 +253,54 @@ public class UpdateTableProcessor {
      * @param row
      * @return
      */
-    private boolean processInsertTable(UpdateTableRow row){
-        Class clazz = getClassForTableName(row.getTableName());
-        IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-        MappedClass mappedClass = mcm.getMappedClassByClassName(clazz.getName());
+    private boolean processInsertTable(UpdateTableRow row) throws Exception {
 
-//        TODO: uncomment and implement
-//        for(MappedFieldPerceroObject nextMappedField : mappedClass.externalizablePerceroObjectFields) {
-//            try {
-//                if (nextMappedField.getReverseMappedField() != null) {
-//                    IPerceroObject fieldValue = (IPerceroObject) nextMappedField.getValue(perceroObject);
-//                    if (fieldValue != null) {
-//                        ClassIDPair fieldPair = BaseDataObject.toClassIdPair(fieldValue);
-//
-//                        Collection<MappedField> classChangedFields = changedObjects.get(fieldPair);
-//                        if (classChangedFields == null) {
-//                            classChangedFields = new HashSet<MappedField>();
-//                            changedObjects.put(fieldPair, classChangedFields);
-//                        }
-//                        MappedField reverseMappedField = nextMappedField.getReverseMappedField();
-//                        classChangedFields.add(reverseMappedField);
-//                    }
-//                }
-//            } catch(Exception e) {
-//                log.error("Error in postCreateObject " + mappedClass.className + "." + nextMappedField.getField().getName(), e);
-//            }
-//        }
+        MappedClass mappedClass = getMappedClassForTableName(row.getTableName());
+
+        // if any client needs all of this class then the only choice we have is to push everything
+        if(accessManager.getNumClientsInterestedInWholeClass(mappedClass.className) > 0){
+            Set<String> allIds = getAllIdsForTable(row.getTableName());
+            for(String id : allIds)
+                postPutHelper.postPutObject(new ClassIDPair(id, mappedClass.className), null, null, true, null);
+        }
+
+        updateReferences(mappedClass.className);
 
         return true;
+    }
+
+    private MappedClass getMappedClassForTableName(String tableName){
+        Class clazz = getClassForTableName(tableName);
+        IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+        MappedClass mappedClass = mcm.getMappedClassByClassName(clazz.getName());
+        return mappedClass;
+    }
+
+    /**
+     * Finds all back references to this class and pushes updates to all of them.
+     * @param className
+     */
+    private void updateReferences(String className){
+        IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+        MappedClass mappedClass = mcm.getMappedClassByClassName(className);
+        // Go through each mapped field and push all objects of that associated type (just in case any has a reference to a new row
+        // in the updated table)
+        // --
+        // TODO: is this right? Is it enough to only check the relationships on this class or do we need to look
+        // through all of the mapped classes?
+        for(MappedFieldPerceroObject nextMappedField : mappedClass.externalizablePerceroObjectFields) {
+            try {
+                // Only care about it if it has a reverse relationship
+                MappedField mappedField = nextMappedField.getReverseMappedField();
+                if (mappedField != null) {
+                    // Find all of this type and push down an update to all
+                    Set<String> ids = accessManager.getClassAccessJournalIDs(mappedField.getMappedClass().className);
+                    processUpdates(mappedField.getMappedClass().className, ids);
+                }
+            } catch(Exception e) {
+                logger.error("Error in postCreateObject " + mappedClass.className + "." + nextMappedField.getField().getName(), e);
+            }
+        }
     }
 
     /**

@@ -2,6 +2,8 @@ package com.percero.agents.sync.jobs;
 
 import com.percero.example.Email;
 import com.percero.example.Person;
+import com.percero.test.utils.AuthUtil;
+import com.percero.test.utils.CleanerUtil;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -12,6 +14,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
@@ -27,6 +30,10 @@ public class UpdateTableProcessorTest {
     UpdateTableConnectionFactory connectionFactory;
     @Autowired
     UpdateTablePoller poller;
+    @Autowired
+    CleanerUtil cleanerUtil;
+    @Autowired
+    AuthUtil authUtil;
 
     String tableName = "update_table";
 
@@ -34,29 +41,13 @@ public class UpdateTableProcessorTest {
     public void before() throws Exception{
         // Disable the poller so it doesn't step on our toes
         poller.enabled = false;
+        cleanerUtil.cleanAll();
         try(Connection connection = connectionFactory.getConnection();
             Statement statement = connection.createStatement())
         {
+            // Truncate the update table
             String sql = "delete from " + tableName;
             statement.executeUpdate(sql);
-
-            // Add some fixture data
-            statement.executeUpdate("insert into " + tableName + "(tableName, rowId, type) values " +
-                    "('Email','1','UPDATE')," +
-                    "('Person','1','INSERT')," +
-                    "('Block','1','DELETE')");
-        }
-    }
-
-    @Test
-    public void test() throws Exception{
-        try(Connection connection = connectionFactory.getConnection();
-            Statement statement = connection.createStatement();)
-        {
-            String sql = "select count(*) as 'count' from " + tableName;
-            ResultSet resultSet = statement.executeQuery(sql);
-            Assert.assertTrue(resultSet.next());
-            Assert.assertEquals(3, resultSet.getInt("count"));
         }
     }
 
@@ -81,8 +72,22 @@ public class UpdateTableProcessorTest {
         Assert.assertNull(clazz);
     }
 
+    // Shared setup method
+    public void setupThreeRowsInUpdateTable() throws SQLException{
+        try(Connection connection = connectionFactory.getConnection();
+            Statement statement = connection.createStatement())
+        {
+            // Add some fixture data
+            statement.executeUpdate("insert into " + tableName + "(tableName, rowId, type) values " +
+                    "('Email','1','UPDATE')," +
+                    "('Person','1','INSERT')," +
+                    "('Block','1','DELETE')");
+        }
+    }
+
     @Test
     public void getRow() throws Exception {
+        setupThreeRowsInUpdateTable();
         UpdateTableProcessor processor = processorFactory.getProcessor(tableName);
         UpdateTableRow row = processor.getRow();
 
@@ -104,7 +109,9 @@ public class UpdateTableProcessorTest {
 
 
     @Test
-    public void process() throws Exception {
+    public void processMultipleRows() throws Exception {
+        setupThreeRowsInUpdateTable();
+
         UpdateTableProcessor processor = processorFactory.getProcessor(tableName);
         ProcessorResult result = processor.process();
         Assert.assertEquals(3, result.getTotal());
@@ -118,6 +125,16 @@ public class UpdateTableProcessorTest {
             Assert.assertTrue(resultSet.next());
             Assert.assertEquals(0, resultSet.getInt("count"));
         }
+    }
+
+    @Test
+    public void singleRowInsertAllList(){
+
+    }
+
+    @Test
+    public void singleRowInsertRefList(){
+
     }
 
 }

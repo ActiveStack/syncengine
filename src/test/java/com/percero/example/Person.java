@@ -115,6 +115,25 @@ public class Person extends BaseDataObject implements Serializable, IUserAnchor
         this.personRoles = value;
     }
 
+    @Externalize
+    @OneToMany(fetch=FetchType.LAZY, targetEntity=Email.class, mappedBy="person", cascade=javax.persistence.CascadeType.REMOVE)
+    private List<Email> emails;
+    public List<Email> getEmails() {
+        return this.emails;
+    }
+    public void setEmails(List<Email> value) {
+        this.emails = value;
+    }
+
+    @Externalize
+    @OneToMany(fetch=FetchType.LAZY, targetEntity=Circle.class, mappedBy="person", cascade=javax.persistence.CascadeType.REMOVE)
+    private List<Circle> circles;
+    public List<Circle> getCircles() {
+        return this.circles;
+    }
+    public void setCircles(List<Circle> value) {
+        this.circles = value;
+    }
 
     //////////////////////////////////////////////////////
     // JSON
@@ -212,8 +231,40 @@ public class Person extends BaseDataObject implements Serializable, IUserAnchor
                 }
             }
         }
-
         objectJson += "]";
+
+        objectJson += ",\"emails\":[";
+        if (getEmails() != null) {
+            int emailsCounter = 0;
+            for(Email email : getEmails()) {
+                if (emailsCounter > 0)
+                    objectJson += ",";
+                try {
+                    objectJson += email.toEmbeddedJson();
+                    emailsCounter++;
+                } catch(Exception e) {
+                    // Do nothing.
+                }
+            }
+        }
+        objectJson += "]";
+
+        objectJson += ",\"circles\":[";
+        if (getCircles() != null) {
+            int circlesCounter = 0;
+            for(Circle circle : getCircles()) {
+                if (circlesCounter > 0)
+                    objectJson += ",";
+                try {
+                    objectJson += circle.toEmbeddedJson();
+                    circlesCounter++;
+                } catch(Exception e) {
+                    // Do nothing.
+                }
+            }
+        }
+        objectJson += "]";
+
 
 
         return objectJson;
@@ -231,6 +282,8 @@ public class Person extends BaseDataObject implements Serializable, IUserAnchor
         setLastName(com.percero.serial.JsonUtils.getJsonString(jsonObject, "lastName"));
 
         this.personRoles = (List<PersonRole>) JsonUtils.getJsonListPerceroObject(jsonObject, "personRoles");
+        this.emails = (List<Email>) JsonUtils.getJsonListPerceroObject(jsonObject, "emails");
+        this.circles = (List<Circle>) JsonUtils.getJsonListPerceroObject(jsonObject, "circles");
     }
 
 }
