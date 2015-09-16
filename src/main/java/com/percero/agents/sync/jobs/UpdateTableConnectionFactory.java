@@ -36,7 +36,7 @@ public class UpdateTableConnectionFactory {
     }
 
     @Autowired
-    @Value("$pf{updateTable.username}")
+    @Value("$pf{updateTable.password}")
     private String password;
     public void setPassword(String val){
         this.password = val;

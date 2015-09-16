@@ -1,24 +1,36 @@
 package com.percero.agents.sync.jobs;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+
+import javax.persistence.Table;
+
+import org.apache.log4j.Logger;
+import org.joda.time.DateTime;
+
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.cache.CacheManager;
+import com.percero.agents.sync.helpers.PostCreateHelper;
 import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.helpers.PostPutHelper;
-import com.percero.agents.sync.metadata.*;
+import com.percero.agents.sync.metadata.IMappedClassManager;
+import com.percero.agents.sync.metadata.MappedClass;
+import com.percero.agents.sync.metadata.MappedClassManagerFactory;
+import com.percero.agents.sync.metadata.MappedField;
+import com.percero.agents.sync.metadata.MappedFieldPerceroObject;
 import com.percero.agents.sync.services.DataProviderManager;
 import com.percero.agents.sync.services.IDataProvider;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.framework.bl.IManifest;
 import com.percero.framework.vo.IPerceroObject;
-import org.apache.log4j.Logger;
-import org.joda.time.DateTime;
-
-import javax.persistence.Table;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.*;
 
 /**
  * Responsible for querying an update table and processing the rows.
@@ -33,6 +45,7 @@ public class UpdateTableProcessor {
     private UpdateTableConnectionFactory connectionFactory;
     private PostDeleteHelper postDeleteHelper;
     private PostPutHelper postPutHelper;
+    private PostCreateHelper postCreateHelper;
     private IManifest manifest;
     private CacheManager cacheManager;
     private DataProviderManager dataProviderManager;
@@ -43,6 +56,7 @@ public class UpdateTableProcessor {
                                 IManifest manifest,
                                 PostDeleteHelper postDeleteHelper,
                                 PostPutHelper postPutHelper,
+                                PostCreateHelper postCreateHelper,
                                 CacheManager cacheManager,
                                 DataProviderManager dataProviderManager,
                                 IAccessManager accessManager)
@@ -51,6 +65,7 @@ public class UpdateTableProcessor {
         this.connectionFactory  = connectionFactory;
         this.postDeleteHelper   = postDeleteHelper;
         this.postPutHelper      = postPutHelper;
+        this.postCreateHelper   = postCreateHelper;
         this.manifest           = manifest;
         this.cacheManager       = cacheManager;
         this.dataProviderManager= dataProviderManager;
@@ -186,7 +201,12 @@ public class UpdateTableProcessor {
      */
     private boolean processInsertSingle(UpdateTableRow row) throws Exception{
         Class clazz = getClassForTableName(row.getTableName());
-        postPutHelper.postPutObject(new ClassIDPair(row.getRowId(), clazz.getCanonicalName()), null, null, true, null);
+        IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+        MappedClass mappedClass = mcm.getMappedClassByClassName(clazz.getCanonicalName());
+        IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
+        IPerceroObject perceroObject = dataProvider.systemGetById(new ClassIDPair(row.getRowId(), clazz.getCanonicalName()), true);
+        
+		postCreateHelper.postCreateObject(perceroObject, null, null, true);
         updateReferences(clazz.getName());
         return true;
     }
