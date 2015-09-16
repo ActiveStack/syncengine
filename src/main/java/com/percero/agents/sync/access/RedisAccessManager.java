@@ -356,10 +356,10 @@ public class RedisAccessManager implements IAccessManager {
 			
 			// Update the UserDevice ClientID.
 			String userDeviceHashKey = RedisKeyUtils.userDeviceHash(userId);
-			Collection<Object> userDeviceKeys = cacheDataStore.getHashKeys(userDeviceHashKey);
-			Iterator<Object> itrUserDevices = userDeviceKeys.iterator();
+			Collection<String> userDeviceKeys = cacheDataStore.getHashKeys(userDeviceHashKey);
+			Iterator<String> itrUserDevices = userDeviceKeys.iterator();
 			while (itrUserDevices.hasNext()) {
-				String nextDeviceKey = (String) itrUserDevices.next();
+				String nextDeviceKey = itrUserDevices.next();
 				if (thePreviousClient.equals(cacheDataStore.getHashValue(userDeviceHashKey, nextDeviceKey))) {
 					cacheDataStore.addSetValue(RedisKeyUtils.deviceHash(nextDeviceKey), clientId);
 					cacheDataStore.setHashValue(userDeviceHashKey, nextDeviceKey, clientId);
@@ -514,12 +514,12 @@ public class RedisAccessManager implements IAccessManager {
 		// Delete Client's UserDevice.
 		if (validUser) {
 			String userDeviceHashKey = RedisKeyUtils.userDeviceHash(userId);
-			Collection<Object> userDeviceKeys = cacheDataStore.getHashKeys(userDeviceHashKey);
+			Collection<String> userDeviceKeys = cacheDataStore.getHashKeys(userDeviceHashKey);
 			int originalSize = userDeviceKeys.size();
 			int countRemoved = 0;
-			Iterator<Object> itrUserDevices = userDeviceKeys.iterator();
+			Iterator<String> itrUserDevices = userDeviceKeys.iterator();
 			while (itrUserDevices.hasNext()) {
-				String nextDeviceKey = (String) itrUserDevices.next();
+				String nextDeviceKey = itrUserDevices.next();
 				if (clientId.equals(cacheDataStore.getHashValue(userDeviceHashKey, nextDeviceKey))) {
 					// Since the client id being destroyed, the whole device history related to this client is also to be destroyed. 
 					//	However, as a safety precaution, set the expiration for the device hash.
@@ -688,10 +688,10 @@ public class RedisAccessManager implements IAccessManager {
 		}
 			
 		// Now check Hibernating clients to see if any of those need to be removed
-		Map<Object, Object> hibernatingClients = cacheDataStore.getHashEntries(RedisKeyUtils.clientsHibernated());
-		Iterator<Map.Entry<Object,Object>> itrHibernatingClientsEntries = hibernatingClients.entrySet().iterator();
+		Map<String, Object> hibernatingClients = cacheDataStore.getHashEntries(RedisKeyUtils.clientsHibernated());
+		Iterator<Map.Entry<String,Object>> itrHibernatingClientsEntries = hibernatingClients.entrySet().iterator();
 		while (itrHibernatingClientsEntries.hasNext()) {
-			Map.Entry<Object,Object> nextEntry = itrHibernatingClientsEntries.next();
+			Map.Entry<String,Object> nextEntry = itrHibernatingClientsEntries.next();
 			String nextHibernatingClientId = null;
 			try {
 				nextHibernatingClientId = (String) nextEntry.getKey();
@@ -1134,10 +1134,10 @@ public class RedisAccessManager implements IAccessManager {
 		String categoryKey = RedisKeyUtils.changeWatcherClass(category, subCategory);
 		
 		// Get all change watcher values associated with this object.
-		Set<Object> changeWatcherValueKeys = cacheDataStore.getHashKeys(categoryKey);
-		Iterator<Object> itrChangeWatcherValueKeys = changeWatcherValueKeys.iterator();
+		Set<String> changeWatcherValueKeys = cacheDataStore.getHashKeys(categoryKey);
+		Iterator<String> itrChangeWatcherValueKeys = changeWatcherValueKeys.iterator();
 		while (itrChangeWatcherValueKeys.hasNext()) {
-			String nextChangeWatcherValueKey = (String) itrChangeWatcherValueKeys.next();
+			String nextChangeWatcherValueKey = itrChangeWatcherValueKeys.next();
 			// If this is a RESULT key, then add it to the list to check.
 			if (nextChangeWatcherValueKey.endsWith(":" + RedisKeyUtils.RESULT)) {
 				int resultIndex = nextChangeWatcherValueKey.lastIndexOf(":" + RedisKeyUtils.RESULT);
@@ -1167,10 +1167,10 @@ public class RedisAccessManager implements IAccessManager {
 		}
 
 		String objectWatchedFieldKey = RedisKeyUtils.objectWatchedFields(category, subCategory);
-		Set<Object> objectWatcherValueKeys = cacheDataStore.getHashKeys(objectWatchedFieldKey);
-		Iterator<Object> itrObjectWatcherValueKeys = objectWatcherValueKeys.iterator();
+		Set<String> objectWatcherValueKeys = cacheDataStore.getHashKeys(objectWatchedFieldKey);
+		Iterator<String> itrObjectWatcherValueKeys = objectWatcherValueKeys.iterator();
 		while (itrObjectWatcherValueKeys.hasNext()) {
-			String nextObjectWatcherValueKey = (String) itrObjectWatcherValueKeys.next();
+			String nextObjectWatcherValueKey = itrObjectWatcherValueKeys.next();
 
 			// Get all fields for this object that are being watched and remove them.
 			String changeWatcherKey = (String) cacheDataStore.getHashValue(objectWatchedFieldKey, nextObjectWatcherValueKey);
@@ -1357,7 +1357,7 @@ public class RedisAccessManager implements IAccessManager {
 		
 		Collection<String> changeWatchers = null;
 		if (fieldWatcherKeys.size() > 0) {
-			changeWatchers = (Set<String>) cacheDataStore.getSetUnion(null, fieldWatcherKeys);
+			changeWatchers = (Set<String>) cacheDataStore.getSetUnion(noFieldWatcherKey, fieldWatcherKeys);
 		}
 		
 		return changeWatchers;
@@ -1374,10 +1374,10 @@ public class RedisAccessManager implements IAccessManager {
 		
 		for(int i=0; i<fieldKeys.length; i++) {
 			String nextKey = fieldKeys[i];
-			Set<Object> objectWatcherValueKeys = cacheDataStore.getHashKeys(nextKey);
-			Iterator<Object> itrObjectWatcherValueKeys = objectWatcherValueKeys.iterator();
+			Set<String> objectWatcherValueKeys = cacheDataStore.getHashKeys(nextKey);
+			Iterator<String> itrObjectWatcherValueKeys = objectWatcherValueKeys.iterator();
 			while (itrObjectWatcherValueKeys.hasNext()) {
-				String nextObjectWatcherValueKey = (String) itrObjectWatcherValueKeys.next();
+				String nextObjectWatcherValueKey = itrObjectWatcherValueKeys.next();
 	
 				// Get all fields for this object that are being watched and remove them.
 				String changeWatcherKey = (String) cacheDataStore.getHashValue(nextKey, nextObjectWatcherValueKey);

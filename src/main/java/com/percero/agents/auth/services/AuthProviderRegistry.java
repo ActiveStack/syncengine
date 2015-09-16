@@ -35,7 +35,7 @@ public class AuthProviderRegistry {
         if(providerMap.containsKey(provider.getID()))
             logger.warn("Non-unique auth provider ID: "+provider.getID());
 
-        providerMap.put(provider.getID(), provider);
+        providerMap.put(provider.getID().toLowerCase(), provider);
     }
 
     /**
@@ -44,7 +44,7 @@ public class AuthProviderRegistry {
      * @return
      */
     public IAuthProvider getProvider(String ID){
-        return providerMap.get(ID);
+        return providerMap.get(ID.toLowerCase());
     }
 
     /**
@@ -53,6 +53,6 @@ public class AuthProviderRegistry {
      * @return
      */
     public boolean hasProvider(String ID){
-        return providerMap.containsKey(ID);
+        return providerMap.containsKey(ID.toLowerCase());
     }
 }

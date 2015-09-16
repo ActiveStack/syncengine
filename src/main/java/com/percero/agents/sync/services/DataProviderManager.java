@@ -10,6 +10,15 @@ import org.springframework.util.StringUtils;
 
 @Component
 public class DataProviderManager implements IDataProviderManager {
+	
+	private static DataProviderManager instance = null;
+	public static DataProviderManager getInstance() {
+		return instance;
+	}
+	
+	public DataProviderManager() {
+		instance = this;
+	}
 
 	@Autowired
 	ApplicationContext appContext;

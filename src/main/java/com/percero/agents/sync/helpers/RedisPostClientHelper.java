@@ -64,10 +64,10 @@ public class RedisPostClientHelper {
 			// Timeout Client's UserDevice.
 //			Collection<String> userDeviceKeys = redisDataStore.keys(RedisKeyUtils.userDevice(userId, "*"));
 			// TODO: This expire no longer works!!!
-			Collection<Object> userDeviceKeys = cacheDataStore.getHashKeys(RedisKeyUtils.userDeviceHash(userId));
-			Iterator<Object> itrUserDevices = userDeviceKeys.iterator();
+			Collection<String> userDeviceKeys = cacheDataStore.getHashKeys(RedisKeyUtils.userDeviceHash(userId));
+			Iterator<String> itrUserDevices = userDeviceKeys.iterator();
 			while (itrUserDevices.hasNext()) {
-				String nextKey = (String) itrUserDevices.next();
+				String nextKey = itrUserDevices.next();
 				if (clientId.equals(cacheDataStore.getValue(nextKey))) {
 					cacheDataStore.expire(RedisKeyUtils.deviceHash(nextKey), userDeviceTimeout, TimeUnit.SECONDS);
 					cacheDataStore.expire(nextKey, userDeviceTimeout, TimeUnit.SECONDS);

@@ -121,7 +121,7 @@ public class AccessorService implements IAccessorService {
 				if (hasReadAccess) {
 					if (mappedClass.getReadQuery() != null && StringUtils.hasText(mappedClass.getReadQuery().getQuery())){
 						Query readFilter = s.createQuery(mappedClass.getReadQuery().getQuery());
-						mappedClass.getReadQuery().setQueryParameters(readFilter, theObject, userId);
+						mappedClass.getReadQuery().setQueryParameters(readFilter.getQueryString(), theObject, userId);
 						List readFilterResult = readFilter.list();
 						if (readFilterResult == null || readFilterResult.size() == 0)
 							hasReadAccess = false;
@@ -159,7 +159,7 @@ public class AccessorService implements IAccessorService {
 					if (hasReadAccess) {
 						if (mappedClass.getReadQuery() != null && StringUtils.hasText(mappedClass.getReadQuery().getQuery())){
 							Query readFilter = s.createQuery(mappedClass.getReadQuery().getQuery());
-							mappedClass.getReadQuery().setQueryParameters(readFilter, theObject, userId);
+							mappedClass.getReadQuery().setQueryParameters(readFilter.getQueryString(), theObject, userId);
 							List readFilterResult = readFilter.list();
 							if (readFilterResult == null || readFilterResult.size() == 0)
 								hasReadAccess = false;
@@ -214,7 +214,7 @@ public class AccessorService implements IAccessorService {
 					if (mappedClass != null) {
 						if (mappedClass.getUpdateQuery() != null && StringUtils.hasText(mappedClass.getUpdateQuery().getQuery())){
 							Query updateFilter = s.createQuery(mappedClass.getUpdateQuery().getQuery());
-							mappedClass.getUpdateQuery().setQueryParameters(updateFilter, theObject, userId);
+							mappedClass.getUpdateQuery().setQueryParameters(updateFilter.getQueryString(), theObject, userId);
 							List updateFilterResult = updateFilter.list();
 							if (updateFilterResult == null || updateFilterResult.size() == 0)
 								hasUpdateAccess = false;
@@ -269,7 +269,7 @@ public class AccessorService implements IAccessorService {
 					if (mappedClass != null) {
 						if (mappedClass.getCreateQuery() != null && StringUtils.hasText(mappedClass.getCreateQuery().getQuery())){
 							Query createFilter = s.createQuery(mappedClass.getCreateQuery().getQuery());
-							mappedClass.getCreateQuery().setQueryParameters(createFilter, theObject, userId);
+							mappedClass.getCreateQuery().setQueryParameters(createFilter.getQueryString(), theObject, userId);
 							List createFilterResult = createFilter.list();
 							if (createFilterResult == null || createFilterResult.size() == 0)
 								hasCreateAccess = false;
@@ -324,7 +324,7 @@ public class AccessorService implements IAccessorService {
 					if (mappedClass != null) {
 						if (mappedClass.getDeleteQuery() != null && StringUtils.hasText(mappedClass.getDeleteQuery().getQuery())){
 							Query deleteFilter = s.createQuery(mappedClass.getDeleteQuery().getQuery());
-							mappedClass.getDeleteQuery().setQueryParameters(deleteFilter, theObject, userId);
+							mappedClass.getDeleteQuery().setQueryParameters(deleteFilter.getQueryString(), theObject, userId);
 							List deleteFilterResult = deleteFilter.list();
 							if (deleteFilterResult == null || deleteFilterResult.size() == 0)
 								hasDeleteAccess = false;

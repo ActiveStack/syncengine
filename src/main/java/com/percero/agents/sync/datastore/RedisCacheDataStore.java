@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -236,8 +237,13 @@ public class RedisCacheDataStore implements ICacheDataStore {
 	 */
 	@Override
 	@Transactional
-	public Set<Object> getHashKeys( final String key ) {
-		return template.opsForHash().keys(key);
+	public Set<String> getHashKeys( final String key ) {
+		Set<Object> keysObjects = template.opsForHash().keys(key);
+		Set<String> results = new HashSet<String>(keysObjects.size());
+		for(Object nextKey : keysObjects) {
+			results.add((String)nextKey);
+		}
+		return results;
 	}
 	
 	/* (non-Javadoc)
@@ -245,8 +251,15 @@ public class RedisCacheDataStore implements ICacheDataStore {
 	 */
 	@Override
 	@Transactional
-	public Map<Object, Object> getHashEntries( final String key ) {
-		return template.opsForHash().entries(key);
+	public Map<String, Object> getHashEntries( final String key ) {
+		Map<Object, Object> entries = template.opsForHash().entries(key);
+		Map<String, Object> result = new HashMap<String, Object>();
+		Iterator<Entry<Object, Object>> itrEntries = entries.entrySet().iterator();
+		while (itrEntries.hasNext()) {
+			Entry<Object, Object> nextEntry = itrEntries.next();
+			result.put((String) nextEntry.getKey(), nextEntry.getValue());
+		}
+		return result;
 	}
 	
 	/* (non-Javadoc)
@@ -263,7 +276,7 @@ public class RedisCacheDataStore implements ICacheDataStore {
 	 */
 	@Override
 	@Transactional
-	public void deleteHashKey( final String key, final Object hashKey ) {
+	public void deleteHashKey( final String key, final String hashKey ) {
 		template.opsForHash().delete(key, hashKey);
 	}
 	

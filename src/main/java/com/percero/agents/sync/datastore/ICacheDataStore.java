@@ -45,10 +45,10 @@ public interface ICacheDataStore {
 	public abstract Long lpushListValue(String key, Object value);
 
 	@Transactional
-	public abstract List<Object> listAll(String key);
+	public abstract List<? extends Object> listAll(String key);
 
 	@Transactional
-	public abstract List<Object> listRange(String key, Long start, Long end);
+	public abstract List<? extends Object> listRange(String key, Long start, Long end);
 
 	@Transactional
 	public abstract Object listIndex(String key, Long index);
@@ -60,16 +60,16 @@ public interface ICacheDataStore {
 	public abstract Object getHashValue(String key, String hashKey);
 
 	@Transactional
-	public abstract Set<Object> getHashKeys(String key);
+	public abstract Set<String> getHashKeys(String key);
 
 	@Transactional
-	public abstract Map<Object, Object> getHashEntries(String key);
+	public abstract Map<String, Object> getHashEntries(String key);
 
 	@Transactional
 	public abstract Long getHashSize(String key);
 
 	@Transactional
-	public abstract void deleteHashKey(String key, Object hashKey);
+	public abstract void deleteHashKey(String key, String hashKey);
 
 	@Transactional
 	public abstract void setHashValue(String key, String hashKey, Object value);

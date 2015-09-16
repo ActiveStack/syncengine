@@ -1,5 +1,6 @@
 package com.percero.agents.sync.services;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,6 +31,7 @@ import org.hibernate.Transaction;
 import org.hibernate.criterion.Criterion;
 import org.hibernate.criterion.MatchMode;
 import org.hibernate.criterion.Restrictions;
+import org.hibernate.impl.SessionFactoryImpl;
 import org.hibernate.impl.SessionImpl;
 import org.hibernate.type.Type;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +53,7 @@ import com.percero.agents.sync.metadata.MappedField;
 import com.percero.agents.sync.metadata.MappedFieldList;
 import com.percero.agents.sync.metadata.MappedFieldMap;
 import com.percero.agents.sync.metadata.MappedFieldPerceroObject;
+import com.percero.agents.sync.metadata.MappedQuery;
 import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.agents.sync.vo.ClassIDPairs;
@@ -94,17 +97,16 @@ public class SyncAgentDataProvider implements IDataProvider {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	// TODO: @Transactional(readOnly=true)
-	public PerceroList<IPerceroObject> getAllByName(Object aName, Integer pageNumber, Integer pageSize, Boolean returnTotal, String userId) throws Exception {
+	public PerceroList<IPerceroObject> getAllByName(String className, Integer pageNumber, Integer pageSize, Boolean returnTotal, String userId) throws Exception {
 		Session s = appSessionFactory.openSession();
 		try {
 			returnTotal = true;
-			String aClassName = aName.toString();
 			Query countQuery = null;
 			Query query = null;
-			Class theClass = MappedClass.forName(aName.toString());
+			Class theClass = MappedClass.forName(className);
 
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-			MappedClass mappedClass = mcm.getMappedClassByClassName(aClassName);
+			MappedClass mappedClass = mcm.getMappedClassByClassName(className);
 			boolean isValidReadQuery = false;
 			if (mappedClass != null) {
 				if (mappedClass.getReadQuery() != null && StringUtils.hasText(mappedClass.getReadQuery().getQuery())) {
@@ -121,10 +123,10 @@ public class SyncAgentDataProvider implements IDataProvider {
 			 */
 			if(mappedClass.getReadAllQuery() != null && mappedClass.getReadAllQuery().getQuery() != null && !mappedClass.getReadAllQuery().getQuery().isEmpty()){
 				if((mappedClass.getReadAllQuery() instanceof JpqlQuery)){
-					throw new IllegalArgumentException("Illegal query type on:"+aClassName+". readAllQueries must be plain SQL. JPQL, HQL not supported yet. ");
+					throw new IllegalArgumentException("Illegal query type on:"+className+". readAllQueries must be plain SQL. JPQL, HQL not supported yet. ");
 				}
 				
-				log.debug("Using readAllQuery: "+aClassName);
+				log.debug("Using readAllQuery: "+className);
 				String selectQueryString = mappedClass.getReadAllQuery().getQuery();
 				
 				String countQueryString = "select count(*) from ("+selectQueryString+") as U";
@@ -145,8 +147,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 				if (theClass != null) {
 				String countQueryString = "";
 				if (returnTotal)
-					countQueryString = "SELECT COUNT(getAllResult.ID) FROM " + aClassName + " getAllResult";
-				String queryString = "SELECT getAllResult FROM " + aClassName + " getAllResult";
+					countQueryString = "SELECT COUNT(getAllResult.ID) FROM " + className + " getAllResult";
+				String queryString = "SELECT getAllResult FROM " + className + " getAllResult";
 
 				// If the Read Query/Filter uses the ID, then we need to check against each ID here.
 				if (isValidReadQuery) {
@@ -168,8 +170,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 						countQuery = s.createQuery(countQueryFilterString);
 					}
 					query = s.createQuery(queryFilterString);
-					mappedClass.getReadQuery().setQueryParameters(query, null, userId);
-					mappedClass.getReadQuery().setQueryParameters(countQuery, null, userId);
+					mappedClass.getReadQuery().setQueryParameters(query.getQueryString(), null, userId);
+					mappedClass.getReadQuery().setQueryParameters(countQuery.getQueryString(), null, userId);
 				}
 				else {
 					queryString += " ORDER BY getAllResult.ID";
@@ -188,7 +190,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 
 			if (query != null) {
 				
-				log.debug("Get ALL: "+aClassName);	
+				log.debug("Get ALL: "+className);	
 				long t1 = new Date().getTime();
 				List<?> list = query.list();
 				long t2 = new Date().getTime();
@@ -267,7 +269,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 					countQueryFilterString = countQueryString + " WHERE (" + countQueryFilterString + ") > 0";
 					
 					countQuery = s.createQuery(countQueryFilterString);
-					mappedClass.getReadQuery().setQueryParameters(countQuery, null, userId);
+					mappedClass.getReadQuery().setQueryParameters(countQuery.getQueryString(), null, userId);
 				}
 				else {
 					countQueryString += " ORDER BY ID";
@@ -293,28 +295,29 @@ public class SyncAgentDataProvider implements IDataProvider {
 		return 0;
 	}
 
-	public List<Object> runQuery(MappedClass mappedClass, String queryName, Object[] queryArguments, String userId) {
-		Session s = appSessionFactory.openSession();
-		try {
-			if (mappedClass != null) {
-				for(IMappedQuery nextQuery : mappedClass.queries)
-				{
-					if (queryName.equalsIgnoreCase(nextQuery.getQueryName()))
-					{
-						Query readFilter = s.createQuery(nextQuery.getQuery());
-						nextQuery.setQueryParameters(readFilter, queryArguments, userId, queryArguments, (SessionImpl)s);
-						return processQueryResults(mappedClass.className + "_" + queryName, readFilter, readFilter.list());
-					}
-				}
-			}
-		} catch (Exception e) {
-			log.error("Unable to runQuery", e);
-		} finally {
-			if (s != null && s.isOpen())
-				s.close();
-		}
-
-		return null;
+	public List<Object> runQuery(MappedClass mappedClass, String queryName, Object[] queryArguments, String userId) throws SyncException {
+		throw new SyncException(SyncException.METHOD_UNSUPPORTED, SyncException.METHOD_UNSUPPORTED_CODE);
+//		Session s = appSessionFactory.openSession();
+//		try {
+//			if (mappedClass != null) {
+//				for(IMappedQuery nextQuery : mappedClass.queries)
+//				{
+//					if (queryName.equalsIgnoreCase(nextQuery.getQueryName()))
+//					{
+//						Query readFilter = s.createQuery(nextQuery.getQuery());
+//						nextQuery.setQueryParameters(readFilter.getQueryString(), queryArguments, userId, queryArguments, (SessionImpl)s);
+//						return processQueryResults(mappedClass.className + "_" + queryName, readFilter, readFilter.list());
+//					}
+//				}
+//			}
+//		} catch (Exception e) {
+//			log.error("Unable to runQuery", e);
+//		} finally {
+//			if (s != null && s.isOpen())
+//				s.close();
+//		}
+//
+//		return null;
 	}
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -415,7 +418,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 					if (s == null)
 						s = appSessionFactory.openSession();
 					Query readFilter = s.createQuery(mappedClass.getReadQuery().getQuery());
-					mappedClass.getReadQuery().setQueryParameters(readFilter, result, userId);
+					mappedClass.getReadQuery().setQueryParameters(readFilter.getQueryString(), result, userId);
 					Number readFilterResult = (Number) readFilter.uniqueResult();
 					if (readFilterResult == null || readFilterResult.intValue() <= 0)
 						hasAccess = false;
@@ -444,7 +447,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 		return null;
 	}
 	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes" })
 	public IPerceroObject systemGetById(ClassIDPair classIdPair) {
 		Session s = null;
 		try {
@@ -670,7 +673,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 					if (mappedClass != null) {
 						if (mappedClass.getReadQuery() != null && StringUtils.hasText(mappedClass.getReadQuery().getQuery())){
 							Query readFilter = s.createQuery(mappedClass.getReadQuery().getQuery());
-							mappedClass.getReadQuery().setQueryParameters(readFilter, parent, userId);
+							mappedClass.getReadQuery().setQueryParameters(readFilter.getQueryString(), parent, userId);
 							Number readFilterResult = (Number) readFilter.uniqueResult();
 							if (readFilterResult == null || readFilterResult.intValue() <= 0)
 								hasAccess = false;
@@ -706,7 +709,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 				if (mappedClass != null) {
 					if (mappedClass.getDeleteQuery() != null && StringUtils.hasText(mappedClass.getDeleteQuery().getQuery())){
 						Query deleteFilter = s.createQuery(mappedClass.getDeleteQuery().getQuery());
-						mappedClass.getDeleteQuery().setQueryParameters(deleteFilter, parent, userId);
+						mappedClass.getDeleteQuery().setQueryParameters(deleteFilter.getQueryString(), parent, userId);
 						Number deleteFilterResult = (Number) deleteFilter.uniqueResult();
 						if (deleteFilterResult == null || deleteFilterResult.intValue() <= 0)
 							hasAccess = false;
@@ -774,7 +777,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 									IPerceroObject nextCachedResult = itrCachedResults.next();
 									if (isValidReadQuery) {
 										Query readFilter = s.createQuery(mappedClass.getReadQuery().getQuery());
-										mappedClass.getReadQuery().setQueryParameters(readFilter, nextCachedResult, userId);
+										mappedClass.getReadQuery().setQueryParameters(readFilter.getQueryString(), nextCachedResult, userId);
 										Number readFilterResult = (Number) readFilter.uniqueResult();
 										if (readFilterResult == null || readFilterResult.intValue() <= 0)
 											hasAccess = false;
@@ -851,7 +854,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 							queryFilterString = queryString + " AND (" + queryFilterString + ") > 0";
 	
 							query = s.createQuery(queryFilterString);
-							mappedClass.getReadQuery().setQueryParameters(query, null, userId);
+							mappedClass.getReadQuery().setQueryParameters(query.getQueryString(), null, userId);
 						}
 						else {
 							query = s.createQuery(queryString);
@@ -947,7 +950,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 							if (mappedClass != null) {
 								if (mappedClass.getReadQuery() != null && StringUtils.hasText(mappedClass.getReadQuery().getQuery())){
 									Query readFilter = s.createQuery(mappedClass.getReadQuery().getQuery());
-									mappedClass.getReadQuery().setQueryParameters(readFilter, result, userId);
+									mappedClass.getReadQuery().setQueryParameters(readFilter.getQueryString(), result, userId);
 									Number readFilterResult = (Number) readFilter.uniqueResult();
 									if (readFilterResult == null || readFilterResult.intValue() <= 0)
 										hasAccess = false;
@@ -973,7 +976,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 
 	// TODO: Add permissions check.
 	@SuppressWarnings({ "unchecked" })
-	public List<IPerceroObject> findByExample(IPerceroObject theQueryObject, List<String> excludeProperties, String userId) {
+	public List<IPerceroObject> findByExample(IPerceroObject theQueryObject, List<String> excludeProperties, String userId, Boolean shellOnly) {
 		Session s = appSessionFactory.openSession();
 		try {
 			Criteria criteria = s.createCriteria(theQueryObject.getClass());
@@ -1107,9 +1110,9 @@ public class SyncAgentDataProvider implements IDataProvider {
 						}
 					}
 				}
-				Iterator<MappedField> itrToOneFields = mappedClass.toOneFields.iterator();
+				Iterator<MappedFieldPerceroObject> itrToOneFields = mappedClass.toOneFields.iterator();
 				while(itrToOneFields.hasNext()) {
-					MappedField nextMappedField = itrToOneFields.next();
+					MappedFieldPerceroObject nextMappedField = itrToOneFields.next();
 					Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
 					if (fieldObject != null) {
 						if (fieldObject instanceof IPerceroObject) {
@@ -1198,8 +1201,16 @@ public class SyncAgentDataProvider implements IDataProvider {
 			if (mappedClass.getCreateQuery() != null && StringUtils.hasText(mappedClass.getCreateQuery().getQuery())){
 				Session s = appSessionFactory.openSession();
 				try {
+					IMappedQuery createQuery = mappedClass.getCreateQuery();
 					Query createFilter = s.createQuery(mappedClass.getCreateQuery().getQuery());
-					mappedClass.getCreateQuery().setQueryParameters(createFilter, perceroObject, userId);
+					if (createQuery instanceof JpqlQuery) {
+						createFilter = ((JpqlQuery)createFilter).createQuery(perceroObject, userId, null, (SessionImpl) s);
+					}
+					else {
+						String createFilterString = mappedClass.getCreateQuery().setQueryParameters(createFilter.getQueryString(), perceroObject, userId);
+						createFilter = s.createQuery(createFilterString);
+					}
+					
 					Number createFilterResult = (Number) createFilter.uniqueResult();
 					if (createFilterResult == null || createFilterResult.intValue() <= 0)
 						hasAccess = false;
@@ -1224,7 +1235,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 	////////////////////////////////////////////////////
 	//	PUT
 	////////////////////////////////////////////////////
-	public IPerceroObject putObject(IPerceroObject perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields, String userId) throws SyncException {
+	public <T extends IPerceroObject> T putObject(T perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields, String userId) throws SyncException {
 		boolean hasAccess = true;
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 		MappedClass mappedClass = mcm.getMappedClassByClassName(perceroObject.getClass().getName());
@@ -1233,7 +1244,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 				Session s = appSessionFactory.openSession();
 				try {
 					Query updateFilter = s.createQuery(mappedClass.getUpdateQuery().getQuery());
-					mappedClass.getUpdateQuery().setQueryParameters(updateFilter, perceroObject, userId);
+					mappedClass.getUpdateQuery().setQueryParameters(updateFilter.getQueryString(), perceroObject, userId);
 					Number updateFilterResult = (Number) updateFilter.uniqueResult();
 					if (updateFilterResult == null || updateFilterResult.intValue() <= 0)
 						hasAccess = false;
@@ -1247,7 +1258,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 
 		if (hasAccess) {
-			return systemPutObject(perceroObject, changedFields);
+			return (T) systemPutObject(perceroObject, changedFields);
 		} else {
 			return null;
 		}
@@ -1349,9 +1360,9 @@ public class SyncAgentDataProvider implements IDataProvider {
 							}
 						}
 					}
-					Iterator<MappedField> itrToOneFields = mappedClass.toOneFields.iterator();
+					Iterator<MappedFieldPerceroObject> itrToOneFields = mappedClass.toOneFields.iterator();
 					while(itrToOneFields.hasNext()) {
-						MappedField nextMappedField = itrToOneFields.next();
+						MappedFieldPerceroObject nextMappedField = itrToOneFields.next();
 						Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
 						if (fieldObject != null) {
 							if (fieldObject instanceof IPerceroObject) {
@@ -1412,7 +1423,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			if (mappedClass != null) {
 				if (mappedClass.getDeleteQuery() != null && StringUtils.hasText(mappedClass.getDeleteQuery().getQuery())){
 					Query deleteFilter = s.createQuery(mappedClass.getDeleteQuery().getQuery());
-					mappedClass.getDeleteQuery().setQueryParameters(deleteFilter, perceroObject, userId);
+					mappedClass.getDeleteQuery().setQueryParameters(deleteFilter.getQueryString(), perceroObject, userId);
 					Number deleteFilterResult = (Number) deleteFilter.uniqueResult();
 					if (deleteFilterResult == null || deleteFilterResult.intValue() <= 0)
 						hasAccess = false;
@@ -1488,9 +1499,9 @@ public class SyncAgentDataProvider implements IDataProvider {
 						}
 					}
 				}
-				Iterator<MappedField> itrToOneFields = mappedClass.toOneFields.iterator();
+				Iterator<MappedFieldPerceroObject> itrToOneFields = mappedClass.toOneFields.iterator();
 				while(itrToOneFields.hasNext()) {
-					MappedField nextMappedField = itrToOneFields.next();
+					MappedFieldPerceroObject nextMappedField = itrToOneFields.next();
 					Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
 					if (fieldObject != null) {
 						if (fieldObject instanceof IPerceroObject) {
@@ -1684,5 +1695,55 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 		
 		return result;
+	}
+
+
+	public List<IPerceroObject> getAllByRelationship(MappedField mappedField, ClassIDPair targetClassIdPair, Boolean shellOnly, String userId) throws SyncException {
+//		throw new SyncException(SyncException.METHOD_UNSUPPORTED, SyncException.METHOD_UNSUPPORTED_CODE);
+		try {
+			IPerceroObject exampleObject = (IPerceroObject) mappedField.getMappedClass().clazz.newInstance();
+			IPerceroObject targetObject = (IPerceroObject) Class.forName(targetClassIdPair.getClassName()).newInstance();
+			targetObject.setID(targetClassIdPair.getID());
+			mappedField.getSetter().invoke(exampleObject, targetObject);
+			return findByExample(exampleObject, null, userId, shellOnly);
+		} catch (InstantiationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvocationTargetException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return null;
+		
+	}
+
+	@Override
+	public List<IPerceroObject> findAllRelatedObjects(
+			IPerceroObject perceroObject, MappedField mappedField,
+			Boolean shellOnly, String userId) throws SyncException {
+		throw new SyncException(SyncException.METHOD_UNSUPPORTED, SyncException.METHOD_UNSUPPORTED_CODE);
+	}
+
+	@Override
+	public IPerceroObject cleanObject(IPerceroObject perceroObject,
+			String userId) throws SyncException {
+		throw new SyncException(SyncException.METHOD_UNSUPPORTED, SyncException.METHOD_UNSUPPORTED_CODE);
+	}
+
+	@Override
+	public List<IPerceroObject> cleanObject(
+			List<IPerceroObject> perceroObjects, String userId)
+			throws SyncException {
+		throw new SyncException(SyncException.METHOD_UNSUPPORTED, SyncException.METHOD_UNSUPPORTED_CODE);
 	}
 }

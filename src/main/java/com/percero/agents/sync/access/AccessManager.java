@@ -938,7 +938,7 @@ public class AccessManager implements IAccessManager {
 					boolean hasAccess = true;
 					// If the Read Query/Filter uses the ID, then we need to check against each ID here.
 					if (isValidReadQuery) {
-						mappedClass.getReadQuery().setQueryParameters(query, classId, nextUserId);
+						mappedClass.getReadQuery().setQueryParameters(query.getQueryString(), classId, nextUserId);
 						Number readFilterResult = (Number) query.uniqueResult();
 						if (readFilterResult == null || readFilterResult.intValue() <= 0)
 							hasAccess = false;

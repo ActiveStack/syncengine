@@ -96,6 +96,11 @@
 	<bean id="accessManager" class="com.percero.agents.sync.access.RedisAccessManager" />
 
 	<!-- Create RabbitMQ boilerplate objects needed by the worker -->
+		<!-- 
+	<rabbit:connection-factory id="rabbitConnectionFactory"
+		addresses="$pf{gateway.rabbitmq.addresses}"
+		username="$pf{gateway.rabbitmq.login}" password="$pf{gateway.rabbitmq.password}" />
+		 -->
 	<rabbit:connection-factory id="rabbitConnectionFactory"
 		host="$pf{gateway.rabbitmq.host}" port="$pf{gateway.rabbitmq.port}"
 		username="$pf{gateway.rabbitmq.login}" password="$pf{gateway.rabbitmq.password}" />

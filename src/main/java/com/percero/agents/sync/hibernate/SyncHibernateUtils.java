@@ -613,7 +613,7 @@ public class SyncHibernateUtils {
 				if (isValidReadQuery) {
 					// There is a ReadQuery, so process that.
 					Query readFilter = s.createQuery(mappedClass.getReadQuery().getQuery());
-					mappedClass.getReadQuery().setQueryParameters(readFilter, ob, userId);
+					mappedClass.getReadQuery().setQueryParameters(readFilter.getQueryString(), ob, userId);
 					Number readFilterResult = (Number) readFilter.uniqueResult();
 					if (readFilterResult == null || readFilterResult.intValue() <= 0)
 						hasAccess = false;
@@ -639,7 +639,7 @@ public class SyncHibernateUtils {
 					ob = getShell(ob);
 					// There is a ReadQuery, so process that.
 					Query readFilter = s.createQuery(mappedField.getReadQuery().getQuery());
-					mappedField.getReadQuery().setQueryParameters(readFilter, ob, userId);
+					mappedField.getReadQuery().setQueryParameters(readFilter.getQueryString(), ob, userId);
 					Number readFilterResult = (Number) readFilter.uniqueResult();
 					if (readFilterResult == null || readFilterResult.intValue() <= 0)
 						hasAccess = false;

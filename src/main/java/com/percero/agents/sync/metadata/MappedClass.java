@@ -216,7 +216,7 @@ public class MappedClass implements IMappedClass {
 	IDataProvider dataProvider = null;
 	public IDataProvider getDataProvider() {
 		if (dataProvider == null) {
-			dataProvider = DataProviderManager.dataProviderManager.getDataProviderByName(dataProviderName);
+			dataProvider = DataProviderManager.getInstance().getDataProviderByName(dataProviderName);
 		}
 		return dataProvider;
 	}

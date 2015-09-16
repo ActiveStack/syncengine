@@ -18,20 +18,24 @@ public interface IDataAccessObject<T extends IPerceroObject> {
 	Boolean hasUpdateAccess(ClassIDPair classIdPair, String userId);
 	Boolean hasDeleteAccess(ClassIDPair classIdPair, String userId);
 
-	PerceroList<T> getAll(Integer pageNumber, Integer pageSize, Boolean returnTotal, String userId) throws Exception;
+	PerceroList<T> getAll(Integer pageNumber, Integer pageSize, Boolean returnTotal, String userId, Boolean shellOnly) throws Exception;
+	Integer countAll(String userId) throws SyncException;
 
-	List<T> getAllByRelationship(MappedField mappedField, ClassIDPair targetClassIdPair, Boolean shellOnly, String userId) throws SyncException;
+	List<T> retrieveAllByRelationship(MappedField mappedField, ClassIDPair targetClassIdPair, Boolean shellOnly, String userId) throws SyncException;
 
-	List<T> findByExample(T theQueryObject, List<String> excludeProperties) throws SyncException;
+	List<T> findByExample(T theQueryObject, List<String> excludeProperties, String userId, Boolean shellOnly) throws SyncException;
 
 	T retrieveObject(ClassIDPair classIdPair, String userId, Boolean shellOnly) throws SyncException;
 	
 	List<T> retrieveObjects(ClassIDPairs classIdPairs, String userId, Boolean shellOnly) throws SyncException;
 	
-	Boolean createObject(T percero, String userIdObject) throws SyncException;
+	T createObject(T percero, String userIdObject) throws SyncException;
 	
-	Boolean updateObject(T perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields, String userId) throws SyncException;
+	T updateObject(T perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields, String userId) throws SyncException;
 	
-	Boolean deleteObject(ClassIDPair classIdPair, String userIdObject) throws SyncException;
+	Boolean deleteObject(ClassIDPair classIdPair, String userId) throws SyncException;
 
+	List<Object> runQuery(String queryName, Object[] queryArguments, String userId) throws SyncException;
+	T cleanObjectForUser(T perceroObject,
+			String userId);
 }
