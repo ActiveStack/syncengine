@@ -2,7 +2,6 @@ package com.convergys.pulse.service;
 
 import com.percero.agents.auth.services.IAuthProvider;
 import com.percero.agents.auth.vo.BasicAuthCredential;
-import com.convergys.pulse.vo.PulseUserInfo;
 import com.percero.agents.auth.vo.ServiceIdentifier;
 import com.percero.agents.auth.vo.ServiceUser;
 import com.percero.serial.map.SafeObjectMapper;
@@ -18,8 +17,6 @@ import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.SingleClientConnManager;
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import javax.net.ssl.SSLContext;
@@ -64,26 +61,8 @@ public class PulseHttpAuthProvider implements IAuthProvider {
          * <boolean xmlns="http://schemas.microsoft.com/2003/10/Serialization/">true</boolean>
          */
         if(body.contains("true")){
-            endpoint = hostPortAndContext+"/retrieve_user";
-            params = new HashMap<String, String>();
-            params.put("userName", cred.getUsername());
-
-            body = makeRequest(endpoint, params);
-            logger.info(body);
-
-            try {
-                PulseUserInfo pulseUserInfo = objectMapper.readValue(body, PulseUserInfo.class);
-                result = new ServiceUser();
-                result.setId(pulseUserInfo.getEmployeeId());
-                result.setFirstName(pulseUserInfo.getUserLogin());
-                result.setAreRoleNamesAccurate(true);
-                result.getIdentifiers().add(new ServiceIdentifier("pulseUserLogin", pulseUserInfo.getUserLogin()));
-                // Uncomment this line when we start getting non-static employeeIds... or never, it shouldn't matter
-                // result.getIdentifiers().add(new ServiceIdentifier("pulseEmployeeId", pulseUserInfo.getEmployeeId()));
-            }
-            catch(JsonMappingException jme){ logger.warn(jme.getMessage(), jme); }
-            catch(JsonParseException jpe){ logger.warn(jpe.getMessage(), jpe); }
-            catch(IOException ioe){ logger.warn(ioe.getMessage(), ioe); }
+            result = new ServiceUser();
+            result.getIdentifiers().add(new ServiceIdentifier("email", cred.getUsername()));
         }
 
         return result;
