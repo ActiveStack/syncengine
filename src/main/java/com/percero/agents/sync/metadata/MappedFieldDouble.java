@@ -21,6 +21,12 @@ public class MappedFieldDouble extends MappedField {
 		double doubleValue = ((Double) getGetter().invoke(anObject)).doubleValue();
 		output.writeDouble(doubleValue);
 	}
+
+	@Override
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		Double value = (Double) getValue(anObject);
+		return (value != null && value.doubleValue() != 0.0);
+	}
 	
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,
 	IllegalAccessException, InvocationTargetException {

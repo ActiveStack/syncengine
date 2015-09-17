@@ -36,6 +36,13 @@ public class ClassIDPairs implements Externalizable {
 		className = value;
 	}
 	
+	public void addId(String id) {
+		if (ids == null) {
+			ids = new ArrayList<String>(1);
+		}
+		ids.add(id);
+	}
+
 	public void readExternal(ObjectInput input) {
 		try {
 			setClassName(input.readUTF());

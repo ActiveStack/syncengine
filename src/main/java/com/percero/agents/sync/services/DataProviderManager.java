@@ -10,6 +10,15 @@ import org.springframework.util.StringUtils;
 
 @Component
 public class DataProviderManager implements IDataProviderManager {
+	
+	private static DataProviderManager instance = null;
+	public static DataProviderManager getInstance() {
+		return instance;
+	}
+	
+	public DataProviderManager() {
+		instance = this;
+	}
 
 	@Autowired
 	ApplicationContext appContext;
@@ -38,10 +47,15 @@ public class DataProviderManager implements IDataProviderManager {
 
 		if (!dataProvidersByName.containsKey(aName)) {
 			// Attempt to get the bean from the ApplicationContext.
-			IDataProvider dataProvider = (IDataProvider) appContext.getBean(aName);
-			dataProvider.initialize();
-			addDataProvider(dataProvider);
-			return dataProvider;
+			try {
+				IDataProvider dataProvider = (IDataProvider) appContext.getBean(aName);
+				dataProvider.initialize();
+				addDataProvider(dataProvider);
+				return dataProvider;
+			} catch(Exception e) {
+				// If no data provider is found, then assume the default.
+				return defaultDataProvider;
+			}
 		} else
 			return dataProvidersByName.get(aName);
 	}

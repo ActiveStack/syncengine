@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -84,7 +82,7 @@ public class PostPutHelper {
 		
 		// Now run past the ChangeWatcher.
 		
-		if (changedFields == null) {
+		if (changedFields == null || changedFields.isEmpty()) {
 			accessManager.checkChangeWatchers(pair, null, null);
 		}
 		else {
@@ -132,7 +130,7 @@ public class PostPutHelper {
 				PushUpdateResponse pushUpdateResponse = new PushUpdateResponse();
 				pushUpdateResponse.setObjectList(new ArrayList<BaseDataObject>());
 				
-				BaseDataObject object = dataProvider.systemGetById(classIdPair);
+				BaseDataObject object = (BaseDataObject) dataProvider.findById(classIdPair, null);
 				if (object != null) {
 					pushUpdateResponse.getObjectList().add(object);
 

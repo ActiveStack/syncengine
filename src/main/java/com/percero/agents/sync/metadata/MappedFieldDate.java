@@ -21,6 +21,12 @@ public class MappedFieldDate extends MappedField {
 		jsonObject.addProperty(getField().getName(), gson.toJson(timestamp));
 	}
 	
+	@Override
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		Date value = (Date) getValue(anObject);
+		return (value != null && value.getTime() > 0);
+	}
+	
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,
 	IllegalAccessException, InvocationTargetException {
 		Date valueA = (Date) getValue(objectA);

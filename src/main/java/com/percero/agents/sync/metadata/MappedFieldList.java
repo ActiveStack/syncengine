@@ -44,6 +44,13 @@ public class MappedFieldList extends MappedField {
 		output.writeObject(objectArray);
 	}
 	
+	@SuppressWarnings("rawtypes")
+	@Override
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		List value = (List) getValue(anObject);
+		return (value != null && !value.isEmpty());
+	}
+	
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,
 	IllegalAccessException, InvocationTargetException {
 		List valueA = (List) getValue(objectA);

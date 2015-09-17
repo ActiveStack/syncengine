@@ -3,10 +3,12 @@ package com.percero.agents.sync.services;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.hibernate.Session;
 import org.springframework.stereotype.Component;
 
+import com.percero.agents.sync.exceptions.SyncException;
 import com.percero.agents.sync.metadata.MappedClass;
 import com.percero.agents.sync.metadata.MappedField;
 import com.percero.agents.sync.vo.ClassIDPair;
@@ -153,11 +155,7 @@ public class RedisDataProvider implements IDataProvider {
 		return null;**/
 	}
 
-	public IPerceroObject systemGetById(ClassIDPair classIdPair) {
-		return null;
-	}
-
-	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String clientId) {
+	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String clientId, Boolean ignoreCache) {
 /*		List<IPerceroObject> result = null;
 
 		try {
@@ -266,7 +264,7 @@ public class RedisDataProvider implements IDataProvider {
 		return null;
 	}
 
-	public IPerceroObject createObject(IPerceroObject perceroObject, String userId) {
+	public <T extends IPerceroObject> T createObject(T perceroObject, String userId) throws SyncException {
 		// TODO Auto-generated method stub
 		return null;
 	}
@@ -276,7 +274,8 @@ public class RedisDataProvider implements IDataProvider {
 	////////////////////////////////////////////////////
 	//	PUT
 	////////////////////////////////////////////////////
-	public IPerceroObject putObject(IPerceroObject perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields, String userId) {
+	public <T extends IPerceroObject> T putObject(T perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields, String userId) throws SyncException {
+//	public IPerceroObject putObject(IPerceroObject perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields, String userId) {
 /*		try {
 			Object result = JOhm.save(perceroObject);
 			return perceroObject;
@@ -357,6 +356,74 @@ public class RedisDataProvider implements IDataProvider {
 	}
 
 	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject) {
+		return null;
+	}
+
+	@Override
+	public PerceroList<IPerceroObject> getAllByName(String className,
+			Integer pageNumber, Integer pageSize, Boolean returnTotal,
+			String userId) throws Exception {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public IPerceroObject findById(ClassIDPair classIdPair, String userId,
+			Boolean ignoreCache) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<IPerceroObject> findByExample(IPerceroObject theQueryObject,
+			List<String> excludeProperties, String userId, Boolean shellOnly)
+			throws SyncException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<IPerceroObject> findAllRelatedObjects(
+			IPerceroObject perceroObject, MappedField mappedField,
+			Boolean shellOnly, String userId) throws SyncException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<IPerceroObject> getAllByRelationship(MappedField mappedField,
+			ClassIDPair targetClassIdPair, Boolean shellOnly, String userId)
+			throws SyncException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public IPerceroObject cleanObject(IPerceroObject perceroObject,
+			String userId) throws SyncException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<IPerceroObject> cleanObject(
+			List<IPerceroObject> perceroObjects, String userId)
+			throws SyncException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Set<ClassIDPair> getAllClassIdPairsByName(String className)
+			throws Exception {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs,
+			String userId) {
+		// TODO Auto-generated method stub
 		return null;
 	}
 }

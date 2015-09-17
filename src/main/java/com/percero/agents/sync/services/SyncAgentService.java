@@ -12,6 +12,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.PostConstruct;
@@ -27,9 +29,9 @@ import org.springframework.util.StringUtils;
 
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.access.RedisKeyUtils;
-import com.percero.agents.sync.cw.IChangeWatcherHelper;
 import com.percero.agents.sync.cw.IChangeWatcherHelperFactory;
-import com.percero.agents.sync.datastore.RedisDataStore;
+import com.percero.agents.sync.cw.IChangeWatcherValueHelper;
+import com.percero.agents.sync.datastore.ICacheDataStore;
 import com.percero.agents.sync.events.SyncEvent;
 import com.percero.agents.sync.exceptions.ClientException;
 import com.percero.agents.sync.exceptions.SyncDataException;
@@ -87,9 +89,9 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	}
 
 	@Autowired
-	RedisDataStore redisDataStore;
-	public void setRedisDataStore(RedisDataStore value) {
-		redisDataStore = value;
+	ICacheDataStore cacheDataStore;
+	public void setCacheDataStore(ICacheDataStore value) {
+		cacheDataStore = value;
 	}
 	
 	@Autowired
@@ -252,37 +254,36 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		if (!isValidClient)
 			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
 
-		String dataId = (String) redisDataStore.listIndex(RedisKeyUtils.dataRecord());
+		String dataId = (String) cacheDataStore.listIndex(RedisKeyUtils.dataRecord());
 
 		if (dataId == null) {
 			dataId = UUID.randomUUID().toString();
-			redisDataStore.lpushListValue(RedisKeyUtils.dataRecord(), dataId);
+			cacheDataStore.lpushListValue(RedisKeyUtils.dataRecord(), dataId);
 		}
 		
 		return dataId;
 	}
 	
 	
-	public PerceroList<IPerceroObject> getAllByName(Object aName, Boolean returnTotal, String clientId) throws Exception {
-		return getAllByName(aName, null, null, returnTotal, clientId);
+	public PerceroList<IPerceroObject> getAllByName(String className, Boolean returnTotal, String clientId) throws Exception {
+		return getAllByName(className, null, null, returnTotal, clientId);
 	}
 
 	@SuppressWarnings("rawtypes")
-	public PerceroList<IPerceroObject> getAllByName(Object aName, Integer pageNumber, Integer pageSize, Boolean returnTotal, String clientId) throws Exception {
+	public PerceroList<IPerceroObject> getAllByName(String className, Integer pageNumber, Integer pageSize, Boolean returnTotal, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
 			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
 		
-		String aClassName = aName.toString();
-		Class theClass = MappedClass.forName(aClassName);
+		Class theClass = MappedClass.forName(className);
 
 		// Get the MappedClass and determine which DataProvider provides data for this object.
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-		MappedClass mappedClass = mcm.getMappedClassByClassName(aName.toString());
+		MappedClass mappedClass = mcm.getMappedClassByClassName(className);
 		
 		IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
 		String userId = accessManager.getClientUserId(clientId);
-		PerceroList<IPerceroObject> result = dataProvider.getAllByName(aName, pageNumber, pageSize, returnTotal, userId);
+		PerceroList<IPerceroObject> result = dataProvider.getAllByName(className, pageNumber, pageSize, returnTotal, userId);
 		
 		if (result != null) {
 			// Register an Zero ID object to indicate that this user wants updates to ALL objects of this type.
@@ -379,18 +380,16 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		return result;
 	}
 
-	public Object getChangeWatcher(ClassIDPair classIdPair, String fieldName, String[] params, String clientId) throws Exception {
+	public Object getChangeWatcherValue(ClassIDPair classIdPair, String fieldName, String[] params, String clientId) throws Exception {
 		Object result = null;
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
 			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
 		
-		if (changeWatcherHelperFactory != null)
-		{
-			IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(classIdPair.getClassName());
-			result = cwh.get(fieldName, classIdPair, params, clientId);
-		}
+		// Only ChangeWatcherValueHelper's have the "get" function.
+		IChangeWatcherValueHelper cwh = (IChangeWatcherValueHelper) changeWatcherHelperFactory.getHelper(classIdPair.getClassName());
+		result = cwh.get(fieldName, classIdPair, params, clientId);
 		
 		return result;
 	}
@@ -413,20 +412,20 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			if (mappedClass != null) {
 				String userId = accessManager.getClientUserId(clientId);
 				IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-				return dataProvider.findByExample((IPerceroObject) theQueryObject, excludeProperties, userId);
+				return dataProvider.findByExample((IPerceroObject) theQueryObject, excludeProperties, userId, false);
 			}
 		}
 		
 		return null;
 	}
 
-	public List<IPerceroObject> systemFindByExample(Object theQueryObject, List<String> excludeProperties) {
+	public List<IPerceroObject> systemFindByExample(Object theQueryObject, List<String> excludeProperties) throws SyncException {
 		if (theQueryObject instanceof IPerceroObject) {
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 			MappedClass mappedClass = mcm.getMappedClassByClassName(theQueryObject.getClass().getCanonicalName());
 			if (mappedClass != null) {
 				IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-				return dataProvider.systemFindByExample((IPerceroObject) theQueryObject, excludeProperties);
+				return dataProvider.findByExample((IPerceroObject) theQueryObject, excludeProperties, null, false);
 			}
 		}
 		
@@ -446,7 +445,11 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			String userId = accessManager.getClientUserId(clientId);
 			
 			IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-			IPerceroObject result = dataProvider.findUnique((IPerceroObject) theQueryObject, userId);
+			List<IPerceroObject> results = dataProvider.findByExample((IPerceroObject) theQueryObject, null, userId, false);
+			IPerceroObject result = null;
+			if (results != null && !results.isEmpty()) {
+				result = results.get(0);
+			}
 			
 			if (result != null) {
 				postGetHelper.postGetObject(result, userId, clientId);
@@ -475,7 +478,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			String userId = accessManager.getClientUserId(clientId);
 			
 			IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-			List<IPerceroObject> result = dataProvider.searchByExample((IPerceroObject) theQueryObject, excludeProperties, userId);
+			List<IPerceroObject> result = dataProvider.findByExample((IPerceroObject) theQueryObject, excludeProperties, userId, false);
 			
 			if (result != null && result.size() > 0)
 				postGetHelper.postGetObject(result, userId, clientId);
@@ -517,7 +520,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		MappedClass mappedClass = mcm.getMappedClassByClassName(aClassName);
 		
 		IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-		IPerceroObject result = dataProvider.systemGetById(new ClassIDPair(anId, aClassName));
+		IPerceroObject result = dataProvider.findById(new ClassIDPair(anId, aClassName), null);
 		
 		return result;
 	}
@@ -528,12 +531,13 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		MappedClass mappedClass = mcm.getMappedClassByClassName(cip.getClassName());
 		
 		IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-		IPerceroObject result = dataProvider.systemGetById(cip);
+		IPerceroObject result = dataProvider.findById(cip, null);
 		
 		return result;
 	}
 	
-	public <T extends IPerceroObject> T systemGetByObject(IPerceroObject perceroObject) {//throws Exception {
+	@SuppressWarnings("unchecked")
+	public <T extends IPerceroObject> T systemGetByObject(T perceroObject) {//throws Exception {
 		// Get the MappedClass and determine which DataProvider provides data for this object.
 		if (perceroObject == null || !StringUtils.hasText(perceroObject.getID())) {
 			return null;
@@ -543,7 +547,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		MappedClass mappedClass = mcm.getMappedClassByClassName(className);
 		
 		IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-		T result = dataProvider.systemGetById(new ClassIDPair(perceroObject.getID(), className));
+		T result = (T) dataProvider.findById(new ClassIDPair(perceroObject.getID(), className), null);
 		
 		return result;
 	}
@@ -559,7 +563,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	 * @return List<HistoricalObject>
 	 * @throws Exception
 	 */
-	public List<Object> getHistory(ClassIDPair classIdPair, String clientId) throws Exception {
+	public List<? extends Object> getHistory(ClassIDPair classIdPair, String clientId) throws Exception {
 		return getHistory(classIdPair.getClassName(), classIdPair.getID(), clientId);
 	}
 	
@@ -575,7 +579,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	 * @return List<HistoricalObject>
 	 * @throws Exception
 	 */
-	public List<Object> getHistory(String aClassName, String anId, String clientId) throws Exception {
+	public List<? extends Object> getHistory(String aClassName, String anId, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
 			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
@@ -590,7 +594,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		if (hasReadAccess) {
 			// Get the Historical Objects.
-			return redisDataStore.listAll(RedisKeyUtils.historicalObject(aClassName, anId));
+			return cacheDataStore.listAll(RedisKeyUtils.historicalObject(aClassName, anId));
 		}
 		
 		return null;
@@ -647,7 +651,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			// Get the most recent ObjectModJournal, only if the UpdateDate is set.
 			if (updateDate != null) {
 				try {
-					objectModJournal = (ObjectModJournal) redisDataStore.listIndex(RedisKeyUtils.objectModJournal(perceroObject.getClass().getName(), perceroObject.getID()));
+					objectModJournal = (ObjectModJournal) cacheDataStore.listIndex(RedisKeyUtils.objectModJournal(perceroObject.getClass().getName(), perceroObject.getID()));
 				} catch(Exception e) {
 					log.warn("Unable to retrieve most recent objectModJournal", e);
 				}
@@ -694,7 +698,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						newModJournal.setClassID(result.getID());
 						newModJournal.setClassName(result.getClass().getName());
 						
-						redisDataStore.lpushListValue(RedisKeyUtils.objectModJournal(perceroObject.getClass().getCanonicalName(), perceroObject.getID()), newModJournal);
+						cacheDataStore.lpushListValue(RedisKeyUtils.objectModJournal(perceroObject.getClass().getCanonicalName(), perceroObject.getID()), newModJournal);
 						
 						// Also store historical record, if necessary.
 						// Get the Current object if this is a BaseHistoryObject.
@@ -709,7 +713,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 							historyObject.setObjectChangerId(userId);
 							historyObject.setObjectData(safeObjectMapper.writeValueAsString(result));
 							
-							redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
+							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
 						}
 
 						if (taskExecutor != null && false) {
@@ -757,7 +761,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		try {
 			// Get the most recent ObjectModJournal.
 			try {
-				objectModJournal = (ObjectModJournal) redisDataStore.listIndex(RedisKeyUtils.objectModJournal(perceroObject.getClass().getName(), perceroObject.getID()));
+				objectModJournal = (ObjectModJournal) cacheDataStore.listIndex(RedisKeyUtils.objectModJournal(perceroObject.getClass().getName(), perceroObject.getID()));
 			} catch(Exception e) {
 				log.warn("Unable to retrieve most recent objectModJournal", e);
 			}
@@ -784,7 +788,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
 				changedFields = dataProvider.getChangedMappedFields(perceroObject);
 				if (changedFields == null || changedFields.size() > 0) {
-					result = dataProvider.systemPutObject(perceroObject, changedFields);
+					result = dataProvider.putObject(perceroObject, changedFields, null);
 					
 					if (result != null) {
 						// Now record the updated object.
@@ -797,7 +801,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						newModJournal.setClassName(result.getClass().getName());
 						newModJournal.setDateModified(updateDate);
 						
-						redisDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
+						cacheDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
 						
 						// Also store historical record, if necessary.
 						// Get the Current object if this is a BaseHistoryObject.
@@ -812,7 +816,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 							historyObject.setObjectChangerId(userId);
 							historyObject.setObjectData(safeObjectMapper.writeValueAsString(result));
 							
-							redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
+							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
 	
 							//syncSession.save(historyObject);
 						}
@@ -875,7 +879,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 					newModJournal.setClassName(result.getClass().getName());
 					
 					try {
-						redisDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
+						cacheDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
 					} catch(Exception e) {
 						log.error("Unable to save mod journal to redis cache", e);
 					}
@@ -894,7 +898,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						historyObject.setObjectData(safeObjectMapper.writeValueAsString(result));
 						
 						try {
-							redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
+							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
 						} catch(Exception e) {
 							log.error("Unable to save history object to redis cache", e);
 						}
@@ -929,7 +933,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		return response;
 	}
 	
-	public <T extends IPerceroObject> T systemCreateObject(IPerceroObject perceroObject, String userId) throws SyncException {
+	public <T extends IPerceroObject> T systemCreateObject(T perceroObject, String userId) throws SyncException {
 		
 		log.debug("Create: " + perceroObject.getClass().getName() + ": " + perceroObject.getID());
 		
@@ -938,7 +942,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 				MappedClass mappedClass = mcm.getMappedClassByClassName(perceroObject.getClass().getName());
 				IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-				T result = dataProvider.systemCreateObject(perceroObject);
+				T result = dataProvider.createObject(perceroObject, null);
 				
 				if (result != null) {
 					Date updateDate = new Date();
@@ -956,7 +960,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 					newModJournal.setClassName(result.getClass().getName());
 					
 					try {
-						redisDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
+						cacheDataStore.lpushListValue(RedisKeyUtils.objectModJournal(result.getClass().getCanonicalName(), result.getID()), newModJournal);
 					} catch(Exception e) {
 						log.error("Unable to save mod journal to redis cache", e);
 					}
@@ -975,7 +979,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						historyObject.setObjectData(safeObjectMapper.writeValueAsString(result));
 						
 						try {
-							redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
+							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
 						} catch(Exception e) {
 							log.error("Unable to save history object to redis cache", e);
 						}
@@ -1037,7 +1041,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				hasAccess = dataProvider.getDeleteAccess(theClassIdPair, userId);
 
 				if (hasAccess) {
-					IPerceroObject perceroObject = dataProvider.systemGetById(theClassIdPair);
+					IPerceroObject perceroObject = dataProvider.findById(theClassIdPair, null);
 					if (perceroObject == null) {
 						response.setIsSuccessful(true);
 						return response;
@@ -1080,7 +1084,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		if (mappedClass != null) {
 			IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
 			
-			perceroObject = (IPerceroObject) dataProvider.systemGetById(new ClassIDPair(perceroObject.getID(), perceroObject.getClass().getCanonicalName()));
+			perceroObject = (IPerceroObject) dataProvider.findById(new ClassIDPair(perceroObject.getID(), perceroObject.getClass().getCanonicalName()), null);
 			
 			if (perceroObject == null) {
 				return true;
@@ -1092,17 +1096,13 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				MappedField nextRemoveMappedFieldRef = nextEntry.getKey();
 				try {
 					MappedField nextMappedField = nextEntry.getValue();
-//			for(MappedField nextRemoveMappedFieldRef : mappedClass.cascadeRemoveFieldReferences.keySet()) {
-//				try {
-//					// nextRemoveMappedFieldRef points to mappedClass, so need to find all objects of that type that point to this particular
-//					//	instance perceroObejct of mappedClass.
-//					MappedField nextMappedField = mappedClass.cascadeRemoveFieldReferences.get(nextRemoveMappedFieldRef);
 					if (nextMappedField == null) {
 						// There is no direct link from mappedClass, so need to get all by example.
 						IPerceroObject tempObject = (IPerceroObject) nextRemoveMappedFieldRef.getMappedClass().clazz.newInstance();
 						nextRemoveMappedFieldRef.getSetter().invoke(tempObject, perceroObject);
 						IDataProvider dataProviderRef = dataProviderManager.getDataProviderByName(nextRemoveMappedFieldRef.getMappedClass().dataProviderName);
-						List<IPerceroObject> referencingObjects = dataProviderRef.systemFindByExample(tempObject, null);
+						List<IPerceroObject> referencingObjectsNew = dataProviderRef.findAllRelatedObjects(perceroObject, nextMappedField, false, null);
+						List<IPerceroObject> referencingObjects = dataProviderRef.findByExample(tempObject, null, null, false);
 						Iterator<IPerceroObject> itrReferencingObjects = referencingObjects.iterator();
 						while (itrReferencingObjects.hasNext()) {
 							IPerceroObject nextReferencingObject = itrReferencingObjects.next();
@@ -1114,7 +1114,8 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						IPerceroObject tempObject = (IPerceroObject) nextRemoveMappedFieldRef.getMappedClass().clazz.newInstance();
 						nextRemoveMappedFieldRef.getSetter().invoke(tempObject, perceroObject);
 						IDataProvider dataProviderRef = dataProviderManager.getDataProviderByName(nextRemoveMappedFieldRef.getMappedClass().dataProviderName);
-						List<IPerceroObject> referencingObjects = dataProviderRef.systemFindByExample(tempObject, null);
+						List<IPerceroObject> referencingObjectsNew = dataProviderRef.findAllRelatedObjects(perceroObject, nextMappedField, false, null);
+						List<IPerceroObject> referencingObjects = dataProviderRef.findByExample(tempObject, null, null, false);
 						Iterator<IPerceroObject> itrReferencingObjects = referencingObjects.iterator();
 						while (itrReferencingObjects.hasNext()) {
 							IPerceroObject nextReferencingObject = itrReferencingObjects.next();
@@ -1135,17 +1136,13 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				MappedField nextToNullMappedFieldRef = nextEntry.getKey();
 				try {
 					MappedField nextMappedField = nextEntry.getValue();
-//			for(MappedField nextToNullMappedFieldRef : mappedClass.nulledOnRemoveFieldReferences.keySet()) {
-//				try {
-//					// nextRemoveMappedFieldRef points to mappedClass, so need to find all objects of that type that point to this particular
-//					//	instance perceroObejct of mappedClass.
-//					MappedField nextMappedField = mappedClass.nulledOnRemoveFieldReferences.get(nextToNullMappedFieldRef);
 					if (nextMappedField == null) {
 						// There is no direct link from mappedClass, so need to get all by example.
 						IPerceroObject tempObject = (IPerceroObject) nextToNullMappedFieldRef.getMappedClass().clazz.newInstance();
 						nextToNullMappedFieldRef.getSetter().invoke(tempObject, perceroObject);
 						IDataProvider dataProviderRef = dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName);
-						List<IPerceroObject> referencingObjects = dataProviderRef.systemFindByExample(tempObject, null);
+						List<IPerceroObject> referencingObjectsNew = dataProviderRef.findAllRelatedObjects(perceroObject, nextMappedField, false, null);
+						List<IPerceroObject> referencingObjects = dataProviderRef.findByExample(tempObject, null, null, false);
 						Iterator<IPerceroObject> itrReferencingObjects = referencingObjects.iterator();
 						while (itrReferencingObjects.hasNext()) {
 							IPerceroObject nextReferencingObject = itrReferencingObjects.next();
@@ -1158,7 +1155,8 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						IPerceroObject tempObject = (IPerceroObject) nextToNullMappedFieldRef.getMappedClass().clazz.newInstance();
 						nextToNullMappedFieldRef.getSetter().invoke(tempObject, perceroObject);
 						IDataProvider dataProviderRef = dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName);
-						List<IPerceroObject> referencingObjects = dataProviderRef.systemFindByExample(tempObject, null);
+						List<IPerceroObject> referencingObjectsNew = dataProviderRef.findAllRelatedObjects(perceroObject, nextMappedField, false, null);
+						List<IPerceroObject> referencingObjects = dataProviderRef.findByExample(tempObject, null, null, false);
 						Iterator<IPerceroObject> itrReferencingObjects = referencingObjects.iterator();
 						while (itrReferencingObjects.hasNext()) {
 							IPerceroObject nextReferencingObject = itrReferencingObjects.next();
@@ -1172,34 +1170,10 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				}
 			}
 			
-			Iterator<MappedField> itrToOneFieldsToUpdate = mappedClass.toOneFields.iterator();
-			while (itrToOneFieldsToUpdate.hasNext()) {
-				MappedField nextToOneField = itrToOneFieldsToUpdate.next();
-				if (nextToOneField instanceof MappedFieldPerceroObject) {
-					MappedFieldPerceroObject nextPerceroObjectField = (MappedFieldPerceroObject) nextToOneField;
-					IPerceroObject toOneObject = (IPerceroObject) nextPerceroObjectField.getGetter().invoke(perceroObject);
-					if (toOneObject != null) {
-						// Remove this object from the cache.
-						// TODO: ?
-					}
-				}
-			}
-							
-			Iterator<MappedField> itrToManyFieldsToUpdate = mappedClass.toManyFields.iterator();
-			while (itrToManyFieldsToUpdate.hasNext()) {
-				MappedField nextToManyField = itrToManyFieldsToUpdate.next();
-				if (nextToManyField instanceof MappedFieldPerceroObject) {
-					MappedFieldPerceroObject nextPerceroObjectField = (MappedFieldPerceroObject) nextToManyField;
-					// TODO: ?
-				}
-				else if (nextToManyField instanceof MappedFieldList) {
-					MappedFieldList nextListField = (MappedFieldList) nextToManyField;
-					// TODO: ?
-				}
-			}
+			Map<ClassIDPair, MappedField> objectsToUpdate = mappedClass.getRelatedClassIdPairMappedFieldMap(perceroObject, false);
 			
 			// If the result has been set to false, it means that deletion/update of one of the related objects failed.
-			if (result && dataProvider.systemDeleteObject(perceroObject)) {
+			if (result && dataProvider.deleteObject(BaseDataObject.toClassIdPair(perceroObject), null)) {
 				// Also store historical record, if necessary.
 				if (storeHistory && (perceroObject instanceof IHistoryObject))
 				{
@@ -1213,7 +1187,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						historyObject.setObjectChangerId(userId);
 						historyObject.setObjectData(safeObjectMapper.writeValueAsString(perceroObject));
 						
-						redisDataStore.lpushListValue(RedisKeyUtils.historicalObject(perceroObject.getClass().getCanonicalName(), perceroObject.getID()), historyObject);
+						cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(perceroObject.getClass().getCanonicalName(), perceroObject.getID()), historyObject);
 					} catch(Exception e) {
 						log.warn("Unable to save HistoricalObject in deleteObject", e);
 					}
@@ -1225,6 +1199,16 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 					postDeleteHelper.postDeleteObject(perceroObject, userId, clientId, pushToUser);
 				}
 				
+				Iterator<Entry<ClassIDPair, MappedField>> itrObjectsToUpdate = objectsToUpdate.entrySet().iterator();
+				while (itrObjectsToUpdate.hasNext()) {
+					Entry<ClassIDPair, MappedField> nextObjectToUpdate = itrObjectsToUpdate.next();
+					Map<ClassIDPair, Collection<MappedField>> changedFields = new HashMap<ClassIDPair, Collection<MappedField>>();
+					Collection<MappedField> changedMappedFields = new ArrayList<MappedField>(1);
+					changedMappedFields.add(nextObjectToUpdate.getValue());
+					changedFields.put(nextObjectToUpdate.getKey(), changedMappedFields);
+					postPutHelper.postPutObject(nextObjectToUpdate.getKey(), userId, clientId, true, changedFields);
+				}
+				
 				result = true;
 			}
 			else {
@@ -1234,6 +1218,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 
 		return result;
 	}
+	
 
 	public void updatesReceived(ClassIDPair[] theObjects, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);

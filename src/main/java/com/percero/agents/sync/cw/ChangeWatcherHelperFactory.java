@@ -34,16 +34,23 @@ public class ChangeWatcherHelperFactory implements IChangeWatcherHelperFactory, 
 	public ChangeWatcherHelperFactory() {
 		currentInstance = this;
 	}
+	
+	public void registerChangeWatcherHelper(String category, IChangeWatcherHelper changeWatcherHelper) {
+		IChangeWatcherHelper existingHelper = helperCache.get(category);
+		if (existingHelper == null) {
+			helperCache.put(category, changeWatcherHelper);
+		}
+	}
 
 	private Map<String, IChangeWatcherHelper> helperCache = new HashMap<String, IChangeWatcherHelper>();
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public IChangeWatcherHelper getHelper(String className) {
-		IChangeWatcherHelper helper = helperCache.get(className);
+	public IChangeWatcherHelper getHelper(String category) {
+		IChangeWatcherHelper helper = helperCache.get(category);
 		
 		if (helper == null) {
 			// Get the appropriate Helper Component.
 			try {
-				Class clazz = MappedClass.forName(className);
+				Class clazz = MappedClass.forName(category);
 				while (clazz != null) {
 					try {
 						// Get the class name only.
@@ -55,7 +62,7 @@ public class ChangeWatcherHelperFactory implements IChangeWatcherHelperFactory, 
 						//String helperClassName = (new StringBuilder(className).append("CWHelper")).toString();
 						helper = (IChangeWatcherHelper) context.getBean(StringUtils.uncapitalize(theClassName) + "CWHelper", MappedClass.forName(helperClassName));
 						if (helper != null) {
-							helperCache.put(className, helper);
+							helperCache.put(category, helper);
 							return helper;
 						}
 					} catch(Exception e) {
@@ -65,7 +72,7 @@ public class ChangeWatcherHelperFactory implements IChangeWatcherHelperFactory, 
 					clazz = clazz.getSuperclass();
 				}
 			} catch(Exception e) {
-				log.error("Unable to get ChangeWatcherHelper for " + className, e);
+				log.error("Unable to get ChangeWatcherHelper for " + category, e);
 			}
 			
 			return null;

@@ -32,6 +32,10 @@ public class SyncDataException extends SyncException{
 		super(name, code);
 	}
 	
+	public SyncDataException(Exception e) {
+		super(e);
+	}
+	
 	public SyncDataException() {
 		super();
 	}

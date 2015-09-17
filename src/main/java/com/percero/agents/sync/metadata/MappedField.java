@@ -24,6 +24,7 @@ public class MappedField {
 	private Method getter;
 	private Method setter;
 	private String columnName;
+	private String joinColumnName;
 	private Boolean useLazyLoading = true;
 	public List<IMappedQuery> queries = new ArrayList<IMappedQuery>();
 	private Boolean hasReadAccessRights = false;
@@ -89,6 +90,14 @@ public class MappedField {
 
 	public void setColumnName(String columnName) {
 		this.columnName = columnName;
+	}
+	
+	public String getJoinColumnName() {
+		return joinColumnName;
+	}
+	
+	public void setJoinColumnName(String joinColumnName) {
+		this.joinColumnName = joinColumnName;
 	}
 	
 	public Boolean getUseLazyLoading() {
@@ -159,6 +168,11 @@ public class MappedField {
 			IllegalAccessException, InvocationTargetException {
 		Object result = getGetter().invoke(anObject);
 		return result;
+	}
+	
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		Object value = getValue(anObject);
+		return (value != null);
 	}
 	
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,

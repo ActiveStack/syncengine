@@ -2,7 +2,6 @@ package com.percero.agents.sync.helpers;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
@@ -12,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.access.RedisKeyUtils;
-import com.percero.agents.sync.datastore.RedisDataStore;
+import com.percero.agents.sync.datastore.ICacheDataStore;
 
 @Component
 public class RedisPostClientHelper {
@@ -20,7 +19,7 @@ public class RedisPostClientHelper {
 	private static final Logger log = Logger.getLogger(RedisPostClientHelper.class);
 	
 	@Autowired
-	private RedisDataStore redisDataStore;
+	private ICacheDataStore cacheDataStore;
 	
 	@Autowired
 	IAccessManager accessManager;
@@ -34,11 +33,11 @@ public class RedisPostClientHelper {
 	@Transactional
 	public void postClient(String clientId) throws Exception {
 		// Get the client's userId.
-		String userId = (String) redisDataStore.getValue(RedisKeyUtils.client(clientId));
+		String userId = (String) cacheDataStore.getValue(RedisKeyUtils.client(clientId));
 		
 		if (userId != null && userId.length() > 0) {
 			// Timeout Client's User ID.
-			redisDataStore.expire(RedisKeyUtils.client(clientId), userDeviceTimeout, TimeUnit.SECONDS);
+			cacheDataStore.expire(RedisKeyUtils.client(clientId), userDeviceTimeout, TimeUnit.SECONDS);
 			
 			// Remove from NonPersistent Clients
 			//redisDataStore.removeSetValue(RedisKeyUtils.clientsNonPersistent(), clientId);
@@ -47,13 +46,13 @@ public class RedisPostClientHelper {
 			//redisDataStore.removeSetValue(RedisKeyUtils.clientsPersistent(), clientId);
 			
 			// Timeout Client User
-			redisDataStore.expire(RedisKeyUtils.clientUser(userId), userDeviceTimeout, TimeUnit.SECONDS);
+			cacheDataStore.expire(RedisKeyUtils.clientUser(userId), userDeviceTimeout, TimeUnit.SECONDS);
 			
 			// Timeout UpdateJournals for this Client.
-			redisDataStore.expire(RedisKeyUtils.updateJournal(clientId), userDeviceTimeout, TimeUnit.SECONDS);
+			cacheDataStore.expire(RedisKeyUtils.updateJournal(clientId), userDeviceTimeout, TimeUnit.SECONDS);
 			
 			// Timeout DeleteJournals for this Client.
-			redisDataStore.expire(RedisKeyUtils.deleteJournal(clientId), userDeviceTimeout, TimeUnit.SECONDS);
+			cacheDataStore.expire(RedisKeyUtils.deleteJournal(clientId), userDeviceTimeout, TimeUnit.SECONDS);
 			
 //			// Timeout TransactionJournals for this Client.
 //			Collection<String> transJournalKeys = redisDataStore.keys(RedisKeyUtils.transactionJournal(clientId, "*"));
@@ -65,13 +64,13 @@ public class RedisPostClientHelper {
 			// Timeout Client's UserDevice.
 //			Collection<String> userDeviceKeys = redisDataStore.keys(RedisKeyUtils.userDevice(userId, "*"));
 			// TODO: This expire no longer works!!!
-			Collection<Object> userDeviceKeys = redisDataStore.getHashKeys(RedisKeyUtils.userDeviceHash(userId));
-			Iterator<Object> itrUserDevices = userDeviceKeys.iterator();
+			Collection<String> userDeviceKeys = cacheDataStore.getHashKeys(RedisKeyUtils.userDeviceHash(userId));
+			Iterator<String> itrUserDevices = userDeviceKeys.iterator();
 			while (itrUserDevices.hasNext()) {
-				String nextKey = (String) itrUserDevices.next();
-				if (clientId.equals(redisDataStore.getValue(nextKey))) {
-					redisDataStore.expire(RedisKeyUtils.deviceHash(nextKey), userDeviceTimeout, TimeUnit.SECONDS);
-					redisDataStore.expire(nextKey, userDeviceTimeout, TimeUnit.SECONDS);
+				String nextKey = itrUserDevices.next();
+				if (clientId.equals(cacheDataStore.getValue(nextKey))) {
+					cacheDataStore.expire(RedisKeyUtils.deviceHash(nextKey), userDeviceTimeout, TimeUnit.SECONDS);
+					cacheDataStore.expire(nextKey, userDeviceTimeout, TimeUnit.SECONDS);
 				}
 			}
 		}

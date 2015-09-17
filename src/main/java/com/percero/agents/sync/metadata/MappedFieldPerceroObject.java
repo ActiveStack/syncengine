@@ -17,6 +17,21 @@ public class MappedFieldPerceroObject extends MappedField {
 
 	private static final Logger log = Logger.getLogger(MappedFieldPerceroObject.class);
 	
+	private Boolean targetEntity = null;
+	public Boolean isTargetEntity() {
+		if (targetEntity == null) {
+			targetEntity = this.getMappedClass().getTargetMappedFields().contains(this);
+		}
+		return targetEntity;
+	}
+	
+	private Boolean sourceEntity = null;
+	public Boolean isSourceEntity() {
+		if (sourceEntity == null) {
+			sourceEntity = this.getMappedClass().getSourceMappedFields().contains(this);
+		}
+		return sourceEntity;
+	}
 
 	@Override
 	public void writeJsonField(JsonObject jsonObject, Object anObject)
@@ -68,10 +83,21 @@ public class MappedFieldPerceroObject extends MappedField {
 		output.writeObject(classIdPair);
 	}
 	
+	public IPerceroObject getPerceroObjectValue(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		IPerceroObject result = (IPerceroObject) getValue(anObject);
+		return result;
+	}
+	
+	@Override
+	public Boolean isValueSetForQuery(Object anObject) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+		IPerceroObject value = getPerceroObjectValue(anObject);
+		return (value != null && StringUtils.hasText(value.getID()));
+	}
+	
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,
 	IllegalAccessException, InvocationTargetException {
-		IPerceroObject valueA = (IPerceroObject) getValue(objectA);
-		IPerceroObject valueB = (IPerceroObject) getValue(objectB);
+		IPerceroObject valueA = getPerceroObjectValue(objectA);
+		IPerceroObject valueB = getPerceroObjectValue(objectB);
 		
 		if (valueA == null && valueB == null)
 			return true;

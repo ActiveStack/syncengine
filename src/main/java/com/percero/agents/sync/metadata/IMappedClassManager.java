@@ -1,7 +1,10 @@
 package com.percero.agents.sync.metadata;
 
+import java.util.Collection;
+
 public interface IMappedClassManager {
 
-	public void addMappedClass(MappedClass theMappedClass);
-	public MappedClass getMappedClassByClassName(String aClassName);
+	void addMappedClass(MappedClass theMappedClass);
+	MappedClass getMappedClassByClassName(String aClassName);
+	Collection<MappedClass> getAllMappedClasses();
 }

@@ -870,6 +870,16 @@ public class AccessManager implements IAccessManager {
 		return result;
 	}
 
+	@Override
+	public Set<String> getClassAccessJournalIDs(String className) {
+		return null;
+	}
+
+	@Override
+	public long getNumClientsInterestedInWholeClass(String className) {
+		return 0;
+	}
+
 	@SuppressWarnings("unchecked")
 	public Map<String, Collection<String>> getClientAccessess(Collection<ClassIDPair> classIdPairs) throws Exception {
 		Map<String, Collection<String>> result = new HashMap<String, Collection<String>>();
@@ -938,7 +948,7 @@ public class AccessManager implements IAccessManager {
 					boolean hasAccess = true;
 					// If the Read Query/Filter uses the ID, then we need to check against each ID here.
 					if (isValidReadQuery) {
-						mappedClass.getReadQuery().setQueryParameters(query, classId, nextUserId);
+						mappedClass.getReadQuery().setQueryParameters(query.getQueryString(), classId, nextUserId);
 						Number readFilterResult = (Number) query.uniqueResult();
 						if (readFilterResult == null || readFilterResult.intValue() <= 0)
 							hasAccess = false;
@@ -1255,6 +1265,34 @@ public class AccessManager implements IAccessManager {
 			String deviceId) {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	@Override
+	public void updateWatcherFields(String category, String subCategory,
+			String fieldName, Collection<String> fieldsToWatch, String[] params) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void addWatcherField(String category, String subCategory,
+			String fieldName, Collection<String> collection, String[] params) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void addWatcherField(String category, String subCategory,
+			String fieldName, Collection<String> collection) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void updateWatcherFields(String category, String subCategory,
+			String fieldName, Collection<String> fieldsToWatch) {
+		// TODO Auto-generated method stub
+		
 	}
 
 	/* (non-Javadoc)
