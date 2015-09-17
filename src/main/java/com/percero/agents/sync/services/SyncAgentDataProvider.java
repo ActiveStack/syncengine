@@ -31,7 +31,6 @@ import org.hibernate.Transaction;
 import org.hibernate.criterion.Criterion;
 import org.hibernate.criterion.MatchMode;
 import org.hibernate.criterion.Restrictions;
-import org.hibernate.impl.SessionFactoryImpl;
 import org.hibernate.impl.SessionImpl;
 import org.hibernate.type.Type;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +38,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.percero.agents.sync.access.RedisKeyUtils;
+import com.percero.agents.sync.cache.CacheManager;
 import com.percero.agents.sync.datastore.ICacheDataStore;
 import com.percero.agents.sync.exceptions.SyncDataException;
 import com.percero.agents.sync.exceptions.SyncException;
@@ -53,7 +53,6 @@ import com.percero.agents.sync.metadata.MappedField;
 import com.percero.agents.sync.metadata.MappedFieldList;
 import com.percero.agents.sync.metadata.MappedFieldMap;
 import com.percero.agents.sync.metadata.MappedFieldPerceroObject;
-import com.percero.agents.sync.metadata.MappedQuery;
 import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.agents.sync.vo.ClassIDPairs;
@@ -69,21 +68,24 @@ public class SyncAgentDataProvider implements IDataProvider {
 	// TODO: Better manage Hibernate Sessions (opening and closing).
 
 	private static final Logger log = Logger.getLogger(SyncAgentDataProvider.class);
-	
+
 	public void initialize()
 	{
 		// Do nothing.
 	}
-	
+
 	public String getName() {
 		return "syncAgent";
 	}
-	
+
 	@Autowired
 	ICacheDataStore cacheDataStore;
 	
 	@Autowired
 	Long cacheTimeout = Long.valueOf(60 * 60 * 24 * 14);	// Two weeks
+
+	@Autowired
+	CacheManager cacheManager;
 
 	@Autowired
 	ObjectMapper safeObjectMapper;
@@ -93,7 +95,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 	public void setAppSessionFactory(SessionFactory value) {
 		appSessionFactory = value;
 	}
-	
+
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	// TODO: @Transactional(readOnly=true)
@@ -118,33 +120,32 @@ public class SyncAgentDataProvider implements IDataProvider {
 			 * readAllQuery optimization
 			 * You can now define a readAllQuery on a class to imporove it's initial download time
 			 * for briefcase mode.
-			 * 
+			 *
 			 * Only supports plain SQL for now
 			 */
 			if(mappedClass.getReadAllQuery() != null && mappedClass.getReadAllQuery().getQuery() != null && !mappedClass.getReadAllQuery().getQuery().isEmpty()){
 				if((mappedClass.getReadAllQuery() instanceof JpqlQuery)){
 					throw new IllegalArgumentException("Illegal query type on:"+className+". readAllQueries must be plain SQL. JPQL, HQL not supported yet. ");
 				}
-				
 				log.debug("Using readAllQuery: "+className);
 				String selectQueryString = mappedClass.getReadAllQuery().getQuery();
-				
+
 				String countQueryString = "select count(*) from ("+selectQueryString+") as U";
-				
+
 				// Add the limit clause
 				if (pageSize != null && pageNumber != null && pageSize.intValue() > 0) {
 					int offset = pageSize.intValue() * pageNumber.intValue();
 					selectQueryString += " limit "+pageSize+" OFFSET "+offset;
 				}
-				
+
 				query = s.createSQLQuery(selectQueryString).addEntity(theClass);
 				countQuery = s.createSQLQuery(countQueryString);
-				
+
 				query.setParameter("userId", userId);
 				countQuery.setParameter("userId", userId);
 			}
-			else 
-				if (theClass != null) {
+			else
+			if (theClass != null) {
 				String countQueryString = "";
 				if (returnTotal)
 					countQueryString = "SELECT COUNT(getAllResult.ID) FROM " + className + " getAllResult";
@@ -189,8 +190,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 			}
 
 			if (query != null) {
-				
 				log.debug("Get ALL: "+className);	
+
 				long t1 = new Date().getTime();
 				List<?> list = query.list();
 				long t2 = new Date().getTime();
@@ -198,10 +199,10 @@ public class SyncAgentDataProvider implements IDataProvider {
 				PerceroList<IPerceroObject> result = new PerceroList<IPerceroObject>( (List<IPerceroObject>) SyncHibernateUtils.cleanObject(list, s, userId) );
 				long t3 = new Date().getTime();
 				log.debug("Clean Time: "+(t3-t2));
-				
+
 				result.setPageNumber(pageNumber);
 				result.setPageSize(pageSize);
-				
+
 				if (returnTotal && pageSize != null && pageNumber != null && pageSize.intValue() > 0){
 					result.setTotalLength(((Number)countQuery.uniqueResult()).intValue());
 					log.debug("Total Obs: "+result.getTotalLength());
@@ -224,13 +225,40 @@ public class SyncAgentDataProvider implements IDataProvider {
 	}
 
 	@SuppressWarnings({ "rawtypes" })
+	public Set<ClassIDPair> getAllClassIdPairsByName(String className) throws Exception {
+		Set<ClassIDPair> results = new HashSet<ClassIDPair>();
+		
+		Session s = appSessionFactory.openSession();
+		try {
+			Query query = null;
+			
+			String queryString = "SELECT ID FROM " + className;
+			query = s.createQuery(queryString);
+		
+			List queryResults = query.list();
+			Iterator itrQueryResults = queryResults.iterator();
+			while (itrQueryResults.hasNext()) {
+				String nextId = (String) itrQueryResults.next();
+				results.add(new ClassIDPair(nextId, className));
+			}
+			
+		} catch (Exception e) {
+			log.error("Unable to getAllClassIdPairsByName", e);
+		} finally {
+			s.close();
+		}
+		
+		return results;
+	}
+	
+	@SuppressWarnings({ "rawtypes" })
 	// TODO: @Transactional(readOnly=true)
 	public Integer countAllByName(String aClassName, String userId) throws Exception {
 		Session s = appSessionFactory.openSession();
 		try {
 			Query countQuery = null;
 			Class theClass = MappedClass.forName(aClassName);
-			
+
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 			MappedClass mappedClass = mcm.getMappedClassByClassName(aClassName);
 			boolean isValidReadQuery = false;
@@ -239,22 +267,22 @@ public class SyncAgentDataProvider implements IDataProvider {
 					isValidReadQuery = true;
 				}
 			}
-			
+
 			if(mappedClass.getReadAllQuery() != null && mappedClass.getReadAllQuery().getQuery() != null && !mappedClass.getReadAllQuery().getQuery().isEmpty()){
 				if((mappedClass.getReadAllQuery() instanceof JpqlQuery)){
 					throw new IllegalArgumentException("Illegal query type on:"+aClassName+". readAllQueries must be plain SQL. JPQL, HQL not supported yet. ");
 				}
-				
+
 				String selectQueryString = mappedClass.getReadAllQuery().getQuery();
-				
+
 				String countQueryString = "select count(*) from ("+selectQueryString+") as U";
-				
+
 				countQuery = s.createSQLQuery(countQueryString);
 				countQuery.setParameter("userId", userId);
 			}
 			else if (theClass != null) {
 				String countQueryString = "SELECT COUNT(getAllResult.ID) FROM " + aClassName + " getAllResult";
-				
+
 				// If the Read Query/Filter uses the ID, then we need to check against each ID here.
 				if (isValidReadQuery) {
 					String queryFilterString = mappedClass.getReadQuery().getQuery();
@@ -267,7 +295,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 					}
 					String countQueryFilterString = queryFilterString;
 					countQueryFilterString = countQueryString + " WHERE (" + countQueryFilterString + ") > 0";
-					
+
 					countQuery = s.createQuery(countQueryFilterString);
 					mappedClass.getReadQuery().setQueryParameters(countQuery.getQueryString(), null, userId);
 				}
@@ -276,7 +304,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 					countQuery = s.createQuery(countQueryString);
 				}
 			}
-			
+
 			if (countQuery != null) {
 //				log.debug(countQuery.toString());
 				Integer result = ((Number)countQuery.uniqueResult()).intValue();
@@ -285,13 +313,13 @@ public class SyncAgentDataProvider implements IDataProvider {
 			else {
 				return null;
 			}
-			
+
 		} catch (Exception e) {
 			log.error("Unable to countAllByName", e);
 		} finally {
 			s.close();
 		}
-		
+
 		return 0;
 	}
 
@@ -319,33 +347,33 @@ public class SyncAgentDataProvider implements IDataProvider {
 //
 //		return null;
 	}
-	
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	protected static List<Object> processQueryResults(String resultClassName, Query updateFilter, List updateFilterResult) throws Exception {
 		String[] returnAliases = updateFilter.getReturnAliases();
 		Type[] returnTypes = updateFilter.getReturnTypes();
-		
+
 		String[] fieldNames = new String[returnAliases.length];
 		String[] getMethodNames = new String[returnAliases.length];
 		String[] setMethodNames = new String[returnAliases.length];
 		Class[] fieldClasses = new Class[returnAliases.length];
-		
+
 		Class clazz = null;
 		ClassPool pool = null;
 		CtClass evalClass = null;
-		
+
 		if (returnAliases.length > 1) {
 			try {
 				clazz = MappedClass.forName(resultClassName);
 			} catch(Exception e) {
 				// Class must not yet exist, so let's create it.
 			}
-			
+
 			if (clazz == null) {
 				pool = ClassPool.getDefault();
 				evalClass = pool.makeClass(resultClassName);
 			}
-				
+
 			// Create a new Class based on the result set.
 			for(int i = 0; i < returnAliases.length; i++) {
 				Type nextType = returnTypes[i];
@@ -358,29 +386,29 @@ public class SyncAgentDataProvider implements IDataProvider {
 					// Do nothing. Simply means the field name is not a Number.
 				}
 				String nextUpperFieldName = nextFieldName.substring(0, 1).toUpperCase() + nextFieldName.substring(1);
-				
+
 				fieldNames[i] = nextFieldName;
 				getMethodNames[i] = "get" + nextUpperFieldName;
 				setMethodNames[i] = "set" + nextUpperFieldName;
 				fieldClasses[i] = nextType.getReturnedClass();
-				
+
 				if (evalClass != null) {
 					evalClass.addField(CtField.make("private " + fieldClasses[i].getCanonicalName() + " " + nextFieldName + ";", evalClass));
 					evalClass.addMethod(CtMethod.make("public void " + setMethodNames[i] + "(" + fieldClasses[i].getCanonicalName() + " value) {this." + nextFieldName + " = value;}", evalClass));
 					evalClass.addMethod(CtMethod.make("public " + nextTypeCanonicalName +" " + getMethodNames[i] + "() {return this." + nextFieldName + ";}", evalClass));
 				}
 			}
-			
+
 			if (clazz == null && evalClass != null) {
 				clazz = evalClass.toClass();
 			}
 		}
-			
+
 		List results = new ArrayList();
 
 		// Now populate the newly created objects.
 		for(Object nextResult : (List<Object[]>)updateFilterResult) {
-			
+
 			if (nextResult instanceof Object[]) {
 				Object nextObject = clazz.newInstance();
 				for(int i = 0; i < returnAliases.length; i++) {
@@ -388,17 +416,21 @@ public class SyncAgentDataProvider implements IDataProvider {
 					Method setMethod = clazz.getDeclaredMethod(setMethodNames[i], formalParams);
 					setMethod.invoke(nextObject, ((Object[])nextResult)[i]);
 				}
-				
+
 				results.add(nextObject);
 			} else
 				results.add(nextResult);
 		}
-		
+
 		return results;
 	}
-	
-	//@SuppressWarnings({ "rawtypes", "unchecked" })
+
+	@Override
 	public IPerceroObject findById(ClassIDPair classIdPair, String userId) {
+		return findById(classIdPair, userId, false);
+	}
+	@Override
+	public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache) {
 		boolean hasReadQuery = false;
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 		MappedClass mappedClass = mcm.getMappedClassByClassName(classIdPair.getClassName());
@@ -411,8 +443,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 		Session s = null;
 		try {
 			boolean hasAccess = true;
-			IPerceroObject result = systemGetById(classIdPair);
-			
+			IPerceroObject result = systemGetById(classIdPair, ignoreCache);
+
 			if (result != null) {
 				if (hasReadQuery) {
 					if (s == null)
@@ -447,20 +479,28 @@ public class SyncAgentDataProvider implements IDataProvider {
 		return null;
 	}
 	
-	@SuppressWarnings({ "rawtypes" })
 	public IPerceroObject systemGetById(ClassIDPair classIdPair) {
+		return systemGetById(classIdPair, false);
+	}
+
+	@SuppressWarnings({ "rawtypes" })
+	public IPerceroObject systemGetById(ClassIDPair classIdPair, boolean ignoreCache) {
 		Session s = null;
 		try {
 			Class theClass = MappedClass.forName(classIdPair.getClassName().toString());
-			
+
 			if (theClass != null) {
-				IPerceroObject result = retrieveFromRedisCache(classIdPair);
+				IPerceroObject result = null;
+
+				if(!ignoreCache)
+					result = retrieveFromRedisCache(classIdPair);
+
 				String key = null;
 
 				if (result == null) {
 					s = appSessionFactory.openSession();
 					result = (IPerceroObject) s.get(theClass, classIdPair.getID());
-					
+
 					// Now put the object in the cache.
 					if (result != null) {
 						key = RedisKeyUtils.classIdPair(result.getClass().getCanonicalName(), result.getID());
@@ -481,7 +521,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 				if (cacheTimeout > 0 && key != null) {
 					cacheDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
 				}
-				
+
 				return result;
 			} else {
 				return null;
@@ -502,7 +542,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			if (theClass != null) {
 				IPerceroObject result = retrieveFromRedisCache(classIdPair);
 				String key = null;
-				
+
 				if (result == null) {
 					if (s == null || !s.isOpen()) {
 						s = appSessionFactory.openSession();
@@ -511,7 +551,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 						sessionAlreadyOpen = true;
 					}
 					result = (IPerceroObject) s.get(theClass, classIdPair.getID());
-					
+
 					// Now put the object in the cache.
 					if (result != null) {
 						key = RedisKeyUtils.classIdPair(result.getClass().getCanonicalName(), result.getID());
@@ -526,12 +566,12 @@ public class SyncAgentDataProvider implements IDataProvider {
 				else {
 					key = RedisKeyUtils.classIdPair(result.getClass().getCanonicalName(), result.getID());
 				}
-				
+
 				// (Re)Set the expiration.
 				if (cacheTimeout > 0 && key != null) {
 					cacheDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
 				}
-				
+
 				return result;
 			} else {
 				return null;
@@ -548,7 +588,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 		return null;
 	}
-	
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private IPerceroObject retrieveFromRedisCache(ClassIDPair classIdPair) throws Exception {
 		IPerceroObject result = null;
@@ -556,7 +596,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 			Class theClass = MappedClass.forName(classIdPair.getClassName());
 			MappedClass mc = mcm.getMappedClassByClassName(classIdPair.getClassName());
-			
+
 			String key = RedisKeyUtils.classIdPair(classIdPair.getClassName(), classIdPair.getID());
 			String jsonObjectString = (String) cacheDataStore.getValue(key);
 			if (jsonObjectString != null) {
@@ -582,20 +622,20 @@ public class SyncAgentDataProvider implements IDataProvider {
 					}
 				}
 			}
-	}
-		
+		}
+
 		return result;
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Map<String, IPerceroObject> retrieveFromRedisCache(ClassIDPairs classIdPairs, Boolean pleaseSetTimeout) throws Exception {
 		Map<String, IPerceroObject> result = new HashMap<String, IPerceroObject>(classIdPairs.getIds().size());
-		
+
 		if (cacheTimeout > 0) {
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 			Class theClass = MappedClass.forName(classIdPairs.getClassName());
 			MappedClass mc = mcm.getMappedClassByClassName(classIdPairs.getClassName());
-			
+
 			Set<String> keys = new HashSet<String>(classIdPairs.getIds().size());
 			Iterator<String> itrIds = classIdPairs.getIds().iterator();
 			while (itrIds.hasNext()) {
@@ -615,7 +655,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 					keys.add(nextKey);
 				}
 			}
-			
+
 //			String key = RedisKeyUtils.classIdPair(classIdPair.getClassName(), classIdPair.getID());
 			List<Object> jsonObjectStrings = cacheDataStore.getValues(keys);
 			Iterator<Object> itrJsonObjectStrings = jsonObjectStrings.iterator();
@@ -631,7 +671,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 						IPerceroObject nextPerceroObject = (IPerceroObject) safeObjectMapper.readValue(jsonObjectString, theClass);
 						result.put( nextPerceroObject.getID(), nextPerceroObject);
 					}
-					
+
 				}
 //				else {
 //					// Check MappedClass' child classes.
@@ -647,26 +687,26 @@ public class SyncAgentDataProvider implements IDataProvider {
 //					}
 //				}
 			}
-			
+
 			if (pleaseSetTimeout) {
 				cacheDataStore.expire(keys, cacheTimeout, TimeUnit.SECONDS);
 			}
 		}
-		
+
 		return result;
 	}
-	
+
 	@SuppressWarnings({ "rawtypes" })
 	public Boolean getReadAccess(ClassIDPair classIdPair, String userId) {
 		Session s = appSessionFactory.openSession();
 		try {
 			Class theClass = MappedClass.forName(classIdPair.getClassName().toString());
-			
+
 			if (theClass != null) {
 				IPerceroObject parent = (IPerceroObject) s.get(theClass, classIdPair.getID());
-				
+
 				boolean hasAccess = (parent != null);
-				
+
 				if (hasAccess) {
 					IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 					MappedClass mappedClass = mcm.getMappedClassByClassName(classIdPair.getClassName());
@@ -680,7 +720,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 						}
 					}
 				}
-				
+
 				return hasAccess;
 			}
 		} catch (Exception e) {
@@ -690,19 +730,19 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 		return false;
 	}
-	
+
 	@SuppressWarnings({ "rawtypes" })
 	public Boolean getDeleteAccess(ClassIDPair classIdPair, String userId) {
 		Session s = appSessionFactory.openSession();
 		try {
 			Class theClass = MappedClass.forName(classIdPair.getClassName().toString());
-			
+
 			if (theClass != null) {
 				IPerceroObject parent = (IPerceroObject) s.get(theClass, classIdPair.getID());
-				
+
 				if (parent == null)
 					return true;
-				
+
 				boolean hasAccess = true;
 				IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 				MappedClass mappedClass = mcm.getMappedClassByClassName(classIdPair.getClassName());
@@ -715,7 +755,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 							hasAccess = false;
 					}
 				}
-				
+
 				return hasAccess;
 			}
 		} catch (Exception e) {
@@ -725,11 +765,16 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 		return false;
 	}
-	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+
+	@Override
 	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId) {
+		return findByIds(classIdPairs, userId, false);
+	}
+	@Override
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId, Boolean ignoreCache) {
 		List<IPerceroObject> result = null;
-		
+
 		boolean hasAccess = true;
 		Class theClass = null;
 		try {
@@ -738,7 +783,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			log.error("Unable to get Class from class name " + classIdPairs.getClassName(), e2);
 			return result;
 		}
-		
+
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 		MappedClass mappedClass = mcm.getMappedClassByClassName(classIdPairs.getClassName());
 		boolean isValidReadQuery = false;
@@ -756,14 +801,17 @@ public class SyncAgentDataProvider implements IDataProvider {
 
 				try {
 					// Attempt to get as many from the cache as possible...
-					Map<String, IPerceroObject> cachedObjects = retrieveFromRedisCache(classIdPairs, true);
-					
-					if (!cachedObjects.isEmpty()) {
+					Map<String, IPerceroObject> cachedObjects = null;
+					if (!ignoreCache) {
+						cachedObjects = retrieveFromRedisCache(classIdPairs, true);
+					}
+
+					if (cachedObjects != null && !cachedObjects.isEmpty()) {
 						result = new ArrayList<IPerceroObject>(cachedObjects.size());
 						List<IPerceroObject> cachedResults = new ArrayList<IPerceroObject>(cachedObjects.size());
 						cachedResults.addAll(cachedObjects.values());
 						idsSet.removeAll(cachedObjects.keySet());
-						
+
 						// If there is a read query, we need to check each object through that query.
 						if (isValidReadQuery) {
 							Session s = null;
@@ -771,7 +819,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 								// Need to clean each result for the user.
 								// TODO: Need to figure out how to NOT open the Session if we don't have to.  The problem lies in the SyncHibernateUtils.cleanObject function
 								s = appSessionFactory.openSession();
-								
+
 								Iterator<IPerceroObject> itrCachedResults = cachedResults.iterator();
 								while (itrCachedResults.hasNext()) {
 									IPerceroObject nextCachedResult = itrCachedResults.next();
@@ -782,7 +830,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 										if (readFilterResult == null || readFilterResult.intValue() <= 0)
 											hasAccess = false;
 									}
-			
+
 									if (hasAccess) {
 										result.add( (IPerceroObject) SyncHibernateUtils.cleanObject(nextCachedResult, s, userId) );
 									}
@@ -804,7 +852,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 									// TODO: Need to figure out how to NOT open the Session if we don't have to.  The problem lies in the SyncHibernateUtils.cleanObject function
 									// TODO: Maybe only clean relationships that are in mappedClass.readAccessRightsFieldReferences?
 									s = appSessionFactory.openSession();
-									
+
 									Iterator<IPerceroObject> itrCachedResults = cachedResults.iterator();
 									while (itrCachedResults.hasNext()) {
 										IPerceroObject nextCachedResult = itrCachedResults.next();
@@ -830,7 +878,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 					// We errored out here, but we can still try and retrieve from the database.
 					log.error("Error retrieving objects from redis cache, attempting to retrieve from database", e1);
 				}
-				
+
 				// Now get the rest from the database.
 				if (!idsSet.isEmpty()) {
 					String queryString = "SELECT findByIdsResult FROM " + classIdPairs.getClassName() + " findByIdsResult WHERE findByIdsResult.ID IN (:idsSet)";
@@ -852,18 +900,18 @@ public class SyncAgentDataProvider implements IDataProvider {
 								queryFilterString = queryFilterString.replaceAll(":ID", "findByIdsResult.ID");
 							}
 							queryFilterString = queryString + " AND (" + queryFilterString + ") > 0";
-	
+
 							query = s.createQuery(queryFilterString);
 							mappedClass.getReadQuery().setQueryParameters(query.getQueryString(), null, userId);
 						}
 						else {
 							query = s.createQuery(queryString);
 						}
-						
+
 						query.setParameterList("idsSet", idsSet);
 						List<Object> queryResult = query.list();
 						List<IPerceroObject> cleanedDatabaseObjects = (List<IPerceroObject>) SyncHibernateUtils.cleanObject(queryResult, s, userId);
-						
+
 						// Need to put results into cache.
 						if (cacheTimeout > 0) {
 							Map<String, String> mapJsonObjectStrings = new HashMap<String, String>(cleanedDatabaseObjects.size());
@@ -871,16 +919,16 @@ public class SyncAgentDataProvider implements IDataProvider {
 							while (itrDatabaseObjects.hasNext()) {
 								IPerceroObject nextDatabaseObject = itrDatabaseObjects.next();
 								String nextCacheKey = RedisKeyUtils.classIdPair(nextDatabaseObject.getClass().getCanonicalName(), nextDatabaseObject.getID());
-								
+
 								mapJsonObjectStrings.put(nextCacheKey, ((BaseDataObject)nextDatabaseObject).toJson());
 							}
-							
+
 							// Store the objects in redis.
 							cacheDataStore.setValues(mapJsonObjectStrings);
 							// (Re)Set the expiration.
 							cacheDataStore.expire(mapJsonObjectStrings.keySet(), cacheTimeout, TimeUnit.SECONDS);
 						}
-						
+
 						if (result == null) {
 							result = cleanedDatabaseObjects;
 						}
@@ -908,7 +956,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 		Session s = appSessionFactory.openSession();
 		try {
 			Class objectClass = theQueryObject.getClass();
-			
+
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 			MappedClass mappedClass = mcm.getMappedClassByClassName(objectClass.getName());
 			if (mappedClass != null) {
@@ -997,7 +1045,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 
 		return null;
 	}
-	
+
 	@SuppressWarnings({ "unchecked" })
 	public List<IPerceroObject> systemFindByExample(IPerceroObject theQueryObject, List<String> excludeProperties) {
 		Session s = appSessionFactory.openSession();
@@ -1007,23 +1055,23 @@ public class SyncAgentDataProvider implements IDataProvider {
 			BaseDataObjectPropertySelector propertySelector = new BaseDataObjectPropertySelector(excludeProperties);
 			example.setPropertySelector(propertySelector);
 			criteria.add(example);
-			
+
 			List<IPerceroObject> result = criteria.list();
 			result = (List<IPerceroObject>) SyncHibernateUtils.cleanObject(result, s);
-			
+
 			return (List<IPerceroObject>) result;
 		} catch (Exception e) {
 			log.error("Unable to findByExample", e);
 		} finally {
 			s.close();
 		}
-		
+
 		return null;
 	}
 
 	@SuppressWarnings("unchecked")
 	public List<IPerceroObject> searchByExample(IPerceroObject theQueryObject,
-			List<String> excludeProperties, String userId) {
+												List<String> excludeProperties, String userId) {
 		Session s = appSessionFactory.openSession();
 		try {
 			Criteria criteria = s.createCriteria(theQueryObject.getClass());
@@ -1035,7 +1083,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 
 			List<IPerceroObject> result = criteria.list();
 			result = (List<IPerceroObject>) SyncHibernateUtils.cleanObject(result, s, userId);
-			
+
 			return result;
 		} catch (Exception e) {
 			log.error("Unable to searchByExample", e);
@@ -1050,7 +1098,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 	public IPerceroObject systemCreateObject(IPerceroObject perceroObject)
 			throws SyncException {
 		Session s = appSessionFactory.openSession();
-		
+
 		try {
 			// Make sure object has an ID.
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -1067,14 +1115,14 @@ public class SyncAgentDataProvider implements IDataProvider {
 					return perceroObject;
 				}
 			}
-	
+
 			Transaction tx = s.beginTransaction();
 			tx.begin();
 			s.save(perceroObject);
 			tx.commit();
-	
+
 			s.refresh(perceroObject);
-	
+
 			perceroObject = (IPerceroObject) SyncHibernateUtils.cleanObject(perceroObject, s);
 			deepCleanObject(perceroObject, mappedClass, s, null);
 
@@ -1131,26 +1179,26 @@ public class SyncAgentDataProvider implements IDataProvider {
 						}
 					}
 				}
-				
+
 				if (!keysToDelete.isEmpty()) {
 					cacheDataStore.deleteKeys(keysToDelete);
 					// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
 					//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 				}
 			}
-			
+
 			return perceroObject;
 		}
 		catch(PropertyValueException pve) {
 			log.error("Error creating object", pve);
-			
+
 			SyncDataException sde = new SyncDataException(SyncDataException.MISSING_REQUIRED_FIELD, SyncDataException.MISSING_REQUIRED_FIELD_CODE, "Missing required field " + pve.getPropertyName());
 			sde.fieldName = pve.getPropertyName();
 			throw sde;
 		}
 		catch(Exception e) {
 			log.error("Error creating object", e);
-			
+
 			SyncDataException sde = new SyncDataException(SyncDataException.CREATE_OBJECT_ERROR, SyncDataException.CREATE_OBJECT_ERROR_CODE);
 			throw sde;
 		}
@@ -1160,7 +1208,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			}
 		}
 	}
-	
+
 	private void deepCleanObject(IPerceroObject perceroObject, MappedClass mappedClass, Session s, String userId) {
 		if (!(perceroObject instanceof IRootObject)) {
 			for(MappedField nextMappedField : mappedClass.externalizableFields) {
@@ -1193,6 +1241,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public IPerceroObject createObject(IPerceroObject perceroObject, String userId) throws SyncException {
 		boolean hasAccess = true;
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -1230,11 +1279,12 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 	}
 
-	
+
 
 	////////////////////////////////////////////////////
 	//	PUT
 	////////////////////////////////////////////////////
+	@SuppressWarnings("unchecked")
 	public <T extends IPerceroObject> T putObject(T perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields, String userId) throws SyncException {
 		boolean hasAccess = true;
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -1264,7 +1314,6 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public IPerceroObject systemPutObject(IPerceroObject perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields) throws SyncException {
 		Session s = null;
 
@@ -1289,113 +1338,14 @@ public class SyncAgentDataProvider implements IDataProvider {
 
 			((BaseDataObject)perceroObject).setIsClean(false);
 			perceroObject = (IPerceroObject) SyncHibernateUtils.cleanObject(perceroObject, s);
-			
+
 			// Now update the cache.
-			// TODO: Field-level updates could be REALLY useful here.  Would avoid A TON of UNNECESSARY work...
-			if (cacheTimeout > 0) {
-				// TODO: Also need to update the caches of anything object that is related to this object.
-				String key = RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID());
-				if (cacheDataStore.hasKey(key)) {
-					cacheDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
-				}
-				
-				// Iterate through each changed object and reset the cache for that object.
-				if (changedFields != null) {
-//					Iterator<Map.Entry<ClassIDPair, Collection<MappedField>>> itrChangedFieldEntrySet = changedFields.entrySet().iterator();
-//					Set<String> keysToDelete = new HashSet<String>();
-//					while (itrChangedFieldEntrySet.hasNext()) {
-//						Map.Entry<ClassIDPair, Collection<MappedField>> nextEntry = itrChangedFieldEntrySet.next();
-//						ClassIDPair thePair = nextEntry.getKey();
-//						if (!thePair.comparePerceroObject(perceroObject)) {
-//							String nextKey = RedisKeyUtils.classIdPair(thePair.getClassName(), thePair.getID());
-//							keysToDelete.add(nextKey);
-//						}
-//					}
-					Iterator<ClassIDPair> itrChangedFieldKeyset = changedFields.keySet().iterator();
-					Set<String> keysToDelete = new HashSet<String>();
-					while (itrChangedFieldKeyset.hasNext()) {
-						ClassIDPair thePair = itrChangedFieldKeyset.next();
-						if (!thePair.comparePerceroObject(perceroObject)) {
-							String nextKey = RedisKeyUtils.classIdPair(thePair.getClassName(), thePair.getID());
-							keysToDelete.add(nextKey);
-						}
-					}
-					
-					if (!keysToDelete.isEmpty()) {
-						cacheDataStore.deleteKeys(keysToDelete);
-						// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-						//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-					}
-				}
-				else {
-					// No changedFields?  We should never get here?
-					IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-					MappedClass mappedClass = mcm.getMappedClassByClassName(perceroObject.getClass().getName());
-					Iterator<MappedField> itrToManyFields = mappedClass.toManyFields.iterator();
-					while(itrToManyFields.hasNext()) {
-						MappedField nextMappedField = itrToManyFields.next();
-						Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
-						if (fieldObject != null) {
-							if (fieldObject instanceof IPerceroObject) {
-								String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-								if (cacheDataStore.hasKey(nextKey)) {
-									cacheDataStore.deleteKey(nextKey);
-									// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-									//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-								}
-							}
-							else if (fieldObject instanceof Collection) {
-								Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
-								while(itrFieldObject.hasNext()) {
-									Object nextListObject = itrFieldObject.next();
-									if (nextListObject instanceof IPerceroObject) {
-										String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-										if (cacheDataStore.hasKey(nextKey)) {
-											cacheDataStore.deleteKey(nextKey);
-											// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-											//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-										}
-									}
-								}
-							}
-						}
-					}
-					Iterator<MappedFieldPerceroObject> itrToOneFields = mappedClass.toOneFields.iterator();
-					while(itrToOneFields.hasNext()) {
-						MappedFieldPerceroObject nextMappedField = itrToOneFields.next();
-						Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
-						if (fieldObject != null) {
-							if (fieldObject instanceof IPerceroObject) {
-								String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-								if (cacheDataStore.hasKey(nextKey)) {
-									cacheDataStore.deleteKey(nextKey);
-									// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-									//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-								}
-							}
-							else if (fieldObject instanceof Collection) {
-								Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
-								while(itrFieldObject.hasNext()) {
-									Object nextListObject = itrFieldObject.next();
-									if (nextListObject instanceof IPerceroObject) {
-										String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-										if (cacheDataStore.hasKey(nextKey)) {
-											cacheDataStore.deleteKey(nextKey);
-											// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-											//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+			cacheManager.updateCachedObject(perceroObject, changedFields);
 
 			return perceroObject;
 		} catch (Exception e) {
 			log.error("Error putting object", e);
-			
+
 			SyncDataException sde = new SyncDataException(SyncDataException.UPDATE_OBJECT_ERROR, SyncDataException.UPDATE_OBJECT_ERROR_CODE);
 			throw sde;
 		} finally {
@@ -1403,7 +1353,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 	}
 
-	
+
 
 	////////////////////////////////////////////////////
 	//	DELETE
@@ -1416,7 +1366,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			if (perceroObject == null) {
 				return true;
 			}
-			
+
 			boolean hasAccess = true;
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 			MappedClass mappedClass = mcm.getMappedClassByClassName(theClassIdPair.getClassName());
@@ -1433,7 +1383,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 			if (hasAccess) {
 				if (systemDeleteObject(perceroObject)) {
 					return true;
-				} 
+				}
 				else {
 					return true;
 				}
@@ -1449,7 +1399,6 @@ public class SyncAgentDataProvider implements IDataProvider {
 		}
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public Boolean systemDeleteObject(IPerceroObject perceroObject) throws SyncException {
 		Boolean result = false;
 		Session s = appSessionFactory.openSession();
@@ -1461,77 +1410,19 @@ public class SyncAgentDataProvider implements IDataProvider {
 			// Make sure all associated objects are loaded.
 			// Clean the object before deletion because otherwise it will fail.
 			perceroObject = (IPerceroObject) SyncHibernateUtils.cleanObject(perceroObjectToDelete, s);
-			
+
 			Transaction tx = s.beginTransaction();
 			tx.begin();
 			s.delete(perceroObjectToDelete);
 			tx.commit();
 
-			// Now delete from cache.
-			// Now update the cache.
-			// TODO: Field-level updates could be REALLY useful here.  Would avoid A TON of UNNECESSARY work...
-			if (cacheTimeout > 0) {
-				Set<String> keysToDelete = new HashSet<String>();
-
-				String key = RedisKeyUtils.classIdPair(SyncHibernateUtils.getShell(perceroObject).getClass().getCanonicalName(), perceroObject.getID());
-				keysToDelete.add(key);
-
-				IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-				MappedClass mappedClass = mcm.getMappedClassByClassName(SyncHibernateUtils.getShell(perceroObject).getClass().getName());
-				Iterator<MappedField> itrToManyFields = mappedClass.toManyFields.iterator();
-				while(itrToManyFields.hasNext()) {
-					MappedField nextMappedField = itrToManyFields.next();
-					Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
-					if (fieldObject != null) {
-						if (fieldObject instanceof IPerceroObject) {
-							String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-							keysToDelete.add(nextKey);
-						}
-						else if (fieldObject instanceof Collection) {
-							Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
-							while(itrFieldObject.hasNext()) {
-								Object nextListObject = itrFieldObject.next();
-								if (nextListObject instanceof IPerceroObject) {
-									String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-									keysToDelete.add(nextKey);
-								}
-							}
-						}
-					}
-				}
-				Iterator<MappedFieldPerceroObject> itrToOneFields = mappedClass.toOneFields.iterator();
-				while(itrToOneFields.hasNext()) {
-					MappedFieldPerceroObject nextMappedField = itrToOneFields.next();
-					Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
-					if (fieldObject != null) {
-						if (fieldObject instanceof IPerceroObject) {
-							String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-							keysToDelete.add(nextKey);
-						}
-						else if (fieldObject instanceof Collection) {
-							Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
-							while(itrFieldObject.hasNext()) {
-								Object nextListObject = itrFieldObject.next();
-								if (nextListObject instanceof IPerceroObject) {
-									String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-									keysToDelete.add(nextKey);
-								}
-							}
-						}
-					}
-				}
-				
-				if (!keysToDelete.isEmpty()) {
-					cacheDataStore.deleteKeys(keysToDelete);
-					// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-					//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-				}
-			}
+			// Now delete from cache and update related objects.
+			cacheManager.handleDeletedObject(perceroObject, SyncHibernateUtils.getShell(perceroObject).getClass().getName(), false);
 
 			result = true;
 		} catch (Exception e) {
 			log.error("Error deleting object", e);
-			
+
 			SyncDataException sde = new SyncDataException(SyncDataException.DELETE_OBJECT_ERROR, SyncDataException.DELETE_OBJECT_ERROR_CODE);
 			throw sde;
 		} finally {
@@ -1561,14 +1452,14 @@ public class SyncAgentDataProvider implements IDataProvider {
 			}
 		}
 	}
-	
-	
+
+
 	@SuppressWarnings("rawtypes")
 	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject) {
 		Map<ClassIDPair, Collection<MappedField>> result = new HashMap<ClassIDPair, Collection<MappedField>>();
 		Collection<MappedField> baseObjectResult = null;
 		ClassIDPair basePair = new ClassIDPair(newObject.getID(), newObject.getClass().getCanonicalName());
-		
+
 		String className = newObject.getClass().getCanonicalName();
 		IPerceroObject oldObject = systemGetById(new ClassIDPair(newObject.getID(), className));
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -1584,12 +1475,12 @@ public class SyncAgentDataProvider implements IDataProvider {
 						result.put(basePair, baseObjectResult);
 					}
 					baseObjectResult.add(nextMappedField);
-					
+
 					// If this is a relationship field, then need to grab the old and new values.
 					if (nextMappedField.getReverseMappedField() != null) {
 						if (nextMappedField instanceof MappedFieldPerceroObject) {
 							MappedFieldPerceroObject nextMappedFieldPerceroObject = (MappedFieldPerceroObject) nextMappedField;
-							
+
 							IPerceroObject oldReversePerceroObject = (IPerceroObject) nextMappedFieldPerceroObject.getGetter().invoke(oldObject);
 							if (oldReversePerceroObject != null) {
 								ClassIDPair oldReversePair = new ClassIDPair(oldReversePerceroObject.getID(), oldReversePerceroObject.getClass().getCanonicalName());
@@ -1600,7 +1491,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 								}
 								oldReverseChangedFields.add(nextMappedField.getReverseMappedField());
 							}
-							
+
 							IPerceroObject newReversePerceroObject = (IPerceroObject) nextMappedFieldPerceroObject.getGetter().invoke(newObject);
 							if (newReversePerceroObject != null) {
 								ClassIDPair newReversePair = new ClassIDPair(newReversePerceroObject.getID(), newReversePerceroObject.getClass().getCanonicalName());
@@ -1614,22 +1505,22 @@ public class SyncAgentDataProvider implements IDataProvider {
 						}
 						else if (nextMappedField instanceof MappedFieldList) {
 							MappedFieldList nextMappedFieldList = (MappedFieldList) nextMappedField;
-							
+
 							List oldReverseList = (List) nextMappedFieldList.getGetter().invoke(oldObject);
 							if (oldReverseList == null)
 								oldReverseList = new ArrayList();
-							
+
 							List newReverseList = (List) nextMappedFieldList.getGetter().invoke(newObject);
 							if (newReverseList == null)
 								newReverseList = new ArrayList();
-							
+
 							// Compare each item in the lists.
 							Collection oldChangedList = retrieveObjectsNotInCollection(oldReverseList, newReverseList);
 							Iterator itrOldChangedList = oldChangedList.iterator();
 							while (itrOldChangedList.hasNext()) {
 								BaseDataObject nextOldChangedObject = (BaseDataObject) itrOldChangedList.next();
 								ClassIDPair nextOldReversePair = BaseDataObject.toClassIdPair(nextOldChangedObject);
-								
+
 								// Old object is not in new list, so add to list of changed fields.
 								Collection<MappedField> changedFields = result.get(nextOldReversePair);
 								if (changedFields == null) {
@@ -1644,7 +1535,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 							while (itrNewChangedList.hasNext()) {
 								BaseDataObject nextNewChangedObject = (BaseDataObject) itrNewChangedList.next();
 								ClassIDPair nextNewReversePair = BaseDataObject.toClassIdPair(nextNewChangedObject);
-								
+
 								// Old object is not in new list, so add to list of changed fields.
 								Collection<MappedField> changedFields = result.get(nextNewReversePair);
 								if (changedFields == null) {
@@ -1661,10 +1552,10 @@ public class SyncAgentDataProvider implements IDataProvider {
 				baseObjectResult.add(nextMappedField);
 			}
 		}
-		
+
 		return result;
 	}
-	
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Collection retrieveObjectsNotInCollection(Collection baseList, Collection compareToList) {
 		Collection result = new HashSet();
@@ -1676,24 +1567,24 @@ public class SyncAgentDataProvider implements IDataProvider {
 			BaseDataObject nextBasePerceroObject = (BaseDataObject) itrBaseList.next();
 			ClassIDPair nextBasePair = BaseDataObject.toClassIdPair(nextBasePerceroObject);
 			nextBasePerceroObject = (BaseDataObject) systemGetById(nextBasePair);
-			
+
 			itrCompareToList = compareToList.iterator();
 			matchFound = false;
 			while (itrCompareToList.hasNext()) {
 				BaseDataObject nextCompareToPerceroObject = (BaseDataObject) itrCompareToList.next();
 				nextCompareToPerceroObject = (BaseDataObject) systemGetById(BaseDataObject.toClassIdPair(nextCompareToPerceroObject));
-				
+
 				if (nextBasePerceroObject.getClass() == nextCompareToPerceroObject.getClass() && nextBasePerceroObject.getID().equalsIgnoreCase(nextCompareToPerceroObject.getID())) {
 					matchFound = true;
 					break;
 				}
 			}
-			
+
 			if (!matchFound) {
 				result.add(nextBasePerceroObject);
 			}
 		}
-		
+
 		return result;
 	}
 

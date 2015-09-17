@@ -270,6 +270,11 @@ public class RedisCacheDataStore implements ICacheDataStore {
 	public Long getHashSize( final String key ) {
 		return template.opsForHash().size(key);
 	}
+
+	@Transactional
+	public Long getSetSize( final String key ) {
+		return template.opsForSet().size(key);
+	}
 	
 	/* (non-Javadoc)
 	 * @see com.percero.agents.sync.datastore.IRedisCacheDataStore#deleteHashKey(java.lang.String, java.lang.Object)

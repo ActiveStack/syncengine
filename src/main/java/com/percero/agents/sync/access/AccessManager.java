@@ -870,6 +870,16 @@ public class AccessManager implements IAccessManager {
 		return result;
 	}
 
+	@Override
+	public Set<String> getClassAccessJournalIDs(String className) {
+		return null;
+	}
+
+	@Override
+	public long getNumClientsInterestedInWholeClass(String className) {
+		return 0;
+	}
+
 	@SuppressWarnings("unchecked")
 	public Map<String, Collection<String>> getClientAccessess(Collection<ClassIDPair> classIdPairs) throws Exception {
 		Map<String, Collection<String>> result = new HashMap<String, Collection<String>>();

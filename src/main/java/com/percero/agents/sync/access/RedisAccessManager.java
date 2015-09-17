@@ -565,8 +565,7 @@ public class RedisAccessManager implements IAccessManager {
 	 * This function checks to see if a User has no more UserDevices. If they do not have
 	 * 	any, then it removes all the User's entries in ALL AccessJournal sets.
 	 * 
-	 * @param userId
-	 * @param clientId
+    	 * @param clientId
 	 */
 	@SuppressWarnings("unchecked")
 	@Transactional
@@ -577,6 +576,18 @@ public class RedisAccessManager implements IAccessManager {
 		
 		// Now remove the Client's AccessJournal key.
 		cacheDataStore.deleteKey(clientAccessJournalsKey);
+
+        // Check to see if each Object's access journal set is empty and if so remove it
+        // from the class access journal set
+        for(String caj : clientAccessJournals){
+            if(cacheDataStore.getSetIsEmpty(RedisKeyUtils.ACCESS_JOURNAL_PREFIX+caj)){
+                String[] parts = caj.split(":");
+                String className = parts[0];
+                String ID = parts[1];
+                String classAccessJournalKey = RedisKeyUtils.classAccessJournal(className);
+                cacheDataStore.removeSetValue(classAccessJournalKey, ID);
+            }
+        }
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -830,6 +841,13 @@ public class RedisAccessManager implements IAccessManager {
 			String clientAccessJournalKey = RedisKeyUtils.clientAccessJournal(clientId);
 			cacheDataStore.addSetValue(clientAccessJournalKey, RedisKeyUtils.objectId(className, classId));
 			
+            // Add to the class's AccessJournals set
+            if(classId != null && !classId.isEmpty() && !classId.equals("0")) {
+                log.info("Adding to class AccessJournals: "+classId);
+                String classAccessJournalKey = RedisKeyUtils.classAccessJournal(className);
+                cacheDataStore.addSetValue(classAccessJournalKey, classId);
+            }
+
 			// Need to add the ClientID to the Object's AccessJournal set.
 			return cacheDataStore.addSetValue(key, clientId);
 		} catch(Exception e) {
@@ -879,6 +897,14 @@ public class RedisAccessManager implements IAccessManager {
 
 		return result;
 	}
+
+    public Set<String> getClassAccessJournalIDs(String className){
+        return (Set<String>) cacheDataStore.getSetValue(RedisKeyUtils.classAccessJournal(className));
+    }
+
+    public long getNumClientsInterestedInWholeClass(String className){
+        return cacheDataStore.getSetSize(RedisKeyUtils.accessJournal(className,"0"));
+    }
 
 	public List<String> checkUserListAccessRights(Collection<Object> clientIdList, String className, String classId) throws Exception {
 		List<String> result = new ArrayList<String>();
@@ -983,6 +1009,9 @@ public class RedisAccessManager implements IAccessManager {
 //			}
 //		}
 
+        String classAccessJournalKey = RedisKeyUtils.classAccessJournal(classIdPair.getClassName());
+        cacheDataStore.removeSetValue(classAccessJournalKey, classIdPair.getID());
+        
 		// Now delete the AccessJournal record.
 		cacheDataStore.deleteKey(accessJournalKey);
 	}

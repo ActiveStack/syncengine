@@ -153,6 +153,8 @@ public interface IAccessManager {
 	 * @throws Exception
 	 */
 	public List<String> getObjectAccessJournals(String className, String classId) throws Exception;
+	Set<String> getClassAccessJournalIDs(String className);
+    long getNumClientsInterestedInWholeClass(String className);
 
 	public void removeAccessJournalsByObject(ClassIDPair classIdPair);
 	
