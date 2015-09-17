@@ -21,7 +21,6 @@ import org.joda.time.DateTime;
 
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.cache.CacheManager;
-import com.percero.agents.sync.helpers.PostCreateHelper;
 import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.helpers.PostPutHelper;
 import com.percero.agents.sync.metadata.IMappedClassManager;
@@ -73,11 +72,16 @@ public class UpdateTableProcessor {
         this.dataProviderManager= dataProviderManager;
         this.accessManager      = accessManager;
         
-        insertTasks(100, "9");
+        insertTasks(1000, "9");
     }
+    
+    private static Boolean tasksInserted = false;
     
     
     private void insertTasks(int numTasks, String ownerId) {
+    	if (tasksInserted) {
+    		return;
+    	}
         try(Connection conn = connectionFactory.getConnection();
                 Statement statement = conn.createStatement())
             {
@@ -94,6 +98,8 @@ public class UpdateTableProcessor {
 	
 	                int numUpdated = statement.executeUpdate(sql);
                 }
+                
+                tasksInserted = true;
 
             } catch(SQLException e){
                 logger.warn(e.getMessage(), e);
