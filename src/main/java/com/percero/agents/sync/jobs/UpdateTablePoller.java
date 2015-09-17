@@ -1,10 +1,6 @@
 package com.percero.agents.sync.jobs;
 
-import com.mchange.v2.c3p0.ComboPooledDataSource;
-import com.percero.agents.sync.helpers.PostDeleteHelper;
-import com.percero.framework.bl.IManifest;
 import org.apache.log4j.Logger;
-import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -33,7 +29,7 @@ public class UpdateTablePoller {
     /**
      * Run every minute
      */
-    @Scheduled(fixedDelay=10000, initialDelay=10000)
+    @Scheduled(fixedDelay=5000, initialDelay=10000)	// Every 5 seconds
     public void pollUpdateTables(){
         if(enabled)
             for(String tableName : tableNames){

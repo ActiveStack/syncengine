@@ -898,7 +898,8 @@ public class RedisAccessManager implements IAccessManager {
 		return result;
 	}
 
-    public Set<String> getClassAccessJournalIDs(String className){
+    @SuppressWarnings("unchecked")
+	public Set<String> getClassAccessJournalIDs(String className){
         return (Set<String>) cacheDataStore.getSetValue(RedisKeyUtils.classAccessJournal(className));
     }
 
