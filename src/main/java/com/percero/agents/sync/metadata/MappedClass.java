@@ -49,6 +49,8 @@ import com.percero.agents.sync.metadata.annotations.RelationshipInterface;
 import com.percero.agents.sync.metadata.annotations.RelationshipInterfaces;
 import com.percero.agents.sync.services.DataProviderManager;
 import com.percero.agents.sync.services.IDataProvider;
+import com.percero.agents.sync.vo.BaseDataObject;
+import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.framework.bl.IManifest;
 import com.percero.framework.bl.ManifestHelper;
 import com.percero.framework.metadata.IMappedClass;
@@ -1243,6 +1245,132 @@ public class MappedClass implements IMappedClass {
 		}
 	}
 	
+	
+	
+	
+	/***************************************
+	 * Helper Methods
+	 ***************************************/
+	public Map<ClassIDPair, MappedField> getRelatedClassIdPairMappedFieldMap(IPerceroObject perceroObject, Boolean isShellObject) throws Exception {
+		Map<ClassIDPair, MappedField> results = new HashMap<ClassIDPair, MappedField>();
+		
+		Iterator<MappedFieldPerceroObject> itrToOneFieldsToUpdate = toOneFields.iterator();
+		while (itrToOneFieldsToUpdate.hasNext()) {
+			MappedFieldPerceroObject nextToOneField = itrToOneFieldsToUpdate.next();
+			
+			// If no reverse mapped field, then nothing to do.
+			if (nextToOneField.getReverseMappedField() != null) {
+				
+				// If no PerceroObject, then we need to retrieve ALL objects of this type.
+				if (perceroObject == null) {
+					MappedClass reverseMappedClass = nextToOneField.getReverseMappedField().getMappedClass();
+					IDataProvider reverseDataProvider = reverseMappedClass.getDataProvider();
+					List<IPerceroObject> relatedObjects = reverseDataProvider.getAllByName(reverseMappedClass.className, null, null, false, null);
+					Iterator<IPerceroObject> itrRelatedObjects = relatedObjects.iterator();
+					while (itrRelatedObjects.hasNext()) {
+						IPerceroObject nextRelatedObject = itrRelatedObjects.next();
+						results.put(BaseDataObject.toClassIdPair(nextRelatedObject), nextToOneField.getReverseMappedField());
+					}
+				}
+				else if (isShellObject) {
+					// If this is a Shell Object, then we need to ask the IDataProvider to get the related objects.
+					List<IPerceroObject> relatedObjects = getDataProvider().findAllRelatedObjects(perceroObject, nextToOneField, true, null);
+					Iterator<IPerceroObject> itrRelatedObjects = relatedObjects.iterator();
+					while (itrRelatedObjects.hasNext()) {
+						IPerceroObject nextRelatedObject = itrRelatedObjects.next();
+						results.put(BaseDataObject.toClassIdPair(nextRelatedObject), nextToOneField.getReverseMappedField());
+					}
+				}
+				else {
+					IPerceroObject toOneObject = (IPerceroObject) nextToOneField.getGetter().invoke(perceroObject);
+					if (toOneObject != null) {
+						results.put(BaseDataObject.toClassIdPair(toOneObject), nextToOneField.getReverseMappedField());
+					}
+				}
+			}
+		}
+		
+		Iterator<MappedField> itrToManyFieldsToUpdate = toManyFields.iterator();
+		while (itrToManyFieldsToUpdate.hasNext()) {
+			MappedField nextToManyField = itrToManyFieldsToUpdate.next();
+			if (nextToManyField instanceof MappedFieldPerceroObject) {
+				MappedFieldPerceroObject nextPerceroObjectField = (MappedFieldPerceroObject) nextToManyField;
+				
+				if (nextPerceroObjectField.getReverseMappedField() != null) {
+
+					// If no PerceroObject, then we need to retrieve ALL objects of this type.
+					if (perceroObject == null) {
+						MappedClass reverseMappedClass = nextToManyField.getReverseMappedField().getMappedClass();
+						IDataProvider reverseDataProvider = reverseMappedClass.getDataProvider();
+						List<IPerceroObject> relatedObjects = reverseDataProvider.getAllByName(reverseMappedClass.className, null, null, false, null);
+						Iterator<IPerceroObject> itrRelatedObjects = relatedObjects.iterator();
+						while (itrRelatedObjects.hasNext()) {
+							IPerceroObject nextRelatedObject = itrRelatedObjects.next();
+							results.put(BaseDataObject.toClassIdPair(nextRelatedObject), nextToManyField.getReverseMappedField());
+						}
+					}
+					else if (isShellObject) {
+						// If this is a Shell Object, then we need to ask the IDataProvider to get the related objects.
+						List<IPerceroObject> relatedObjects = getDataProvider().findAllRelatedObjects(perceroObject, nextToManyField, true, null);
+						Iterator<IPerceroObject> itrRelatedObjects = relatedObjects.iterator();
+						while (itrRelatedObjects.hasNext()) {
+							IPerceroObject nextRelatedObject = itrRelatedObjects.next();
+							results.put(BaseDataObject.toClassIdPair(nextRelatedObject), nextToManyField.getReverseMappedField());
+						}
+					}
+					else {
+						IPerceroObject toOneObject = (IPerceroObject) nextPerceroObjectField.getGetter().invoke(perceroObject);
+						if (toOneObject != null) {
+							results.put(BaseDataObject.toClassIdPair(toOneObject), nextPerceroObjectField.getReverseMappedField());
+						}
+					}
+				}
+			}
+			else if (nextToManyField instanceof MappedFieldList) {
+				MappedFieldList nextListField = (MappedFieldList) nextToManyField;
+				
+				if (nextListField.getReverseMappedField() != null) {
+
+					// If no PerceroObject, then we need to retrieve ALL objects of this type.
+					if (perceroObject == null) {
+						MappedClass reverseMappedClass = nextToManyField.getReverseMappedField().getMappedClass();
+						IDataProvider reverseDataProvider = reverseMappedClass.getDataProvider();
+						List<IPerceroObject> relatedObjects = reverseDataProvider.getAllByName(reverseMappedClass.className, null, null, false, null);
+						Iterator<IPerceroObject> itrRelatedObjects = relatedObjects.iterator();
+						while (itrRelatedObjects.hasNext()) {
+							IPerceroObject nextRelatedObject = itrRelatedObjects.next();
+							results.put(BaseDataObject.toClassIdPair(nextRelatedObject), nextToManyField.getReverseMappedField());
+						}
+					}
+					else if (isShellObject) {
+						// If this is a Shell Object, then we need to ask the IDataProvider to get the related objects.
+						List<IPerceroObject> relatedObjects = getDataProvider().findAllRelatedObjects(perceroObject, nextToManyField, true, null);
+						Iterator<IPerceroObject> itrRelatedObjects = relatedObjects.iterator();
+						while (itrRelatedObjects.hasNext()) {
+							IPerceroObject nextRelatedObject = itrRelatedObjects.next();
+							results.put(BaseDataObject.toClassIdPair(nextRelatedObject), nextToManyField.getReverseMappedField());
+						}
+					}
+					else {
+						List<IPerceroObject> listObjects = (List<IPerceroObject>) nextListField.getGetter().invoke(perceroObject);
+						if (listObjects != null && !listObjects.isEmpty()) {
+							Iterator<IPerceroObject> itrListObjects = listObjects.iterator();
+							while (itrListObjects.hasNext()) {
+								IPerceroObject nextListObject = itrListObjects.next();
+								results.put(BaseDataObject.toClassIdPair(nextListObject), nextListField.getReverseMappedField());
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		return results;
+	}
+
+	
+
+	
 	/***************************************
 	 * Static Helper Methods
 	 ***************************************/
@@ -1296,4 +1424,6 @@ public class MappedClass implements IMappedClass {
 		}
 	}
 
+
+	
 }

@@ -5,7 +5,6 @@ import org.springframework.stereotype.Component;
 
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.cache.CacheManager;
-import com.percero.agents.sync.helpers.PostCreateHelper;
 import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.helpers.PostPutHelper;
 import com.percero.agents.sync.services.DataProviderManager;
@@ -31,9 +30,6 @@ public class UpdateTableProcessorFactory {
     PostPutHelper postPutHelper;
 
     @Autowired
-    PostCreateHelper postCreateHelper;
-    
-    @Autowired
     CacheManager cacheManager;
 
     @Autowired
@@ -44,6 +40,6 @@ public class UpdateTableProcessorFactory {
 
     public UpdateTableProcessor getProcessor(String tableName){
         return new UpdateTableProcessor(tableName, connectionFactory, manifest,
-                postDeleteHelper, postPutHelper, postCreateHelper, cacheManager, dataProviderManager, accessManager);
+                postDeleteHelper, postPutHelper, cacheManager, dataProviderManager, accessManager);
     }
 }

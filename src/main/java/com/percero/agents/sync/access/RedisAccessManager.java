@@ -842,7 +842,7 @@ public class RedisAccessManager implements IAccessManager {
 			cacheDataStore.addSetValue(clientAccessJournalKey, RedisKeyUtils.objectId(className, classId));
 			
             // Add to the class's AccessJournals set
-            if(classId != null && !classId.isEmpty() && !classId.equals("0")) {
+            if(classId != null && !classId.isEmpty()) { // && !classId.equals("0")) {
                 log.info("Adding to class AccessJournals: "+classId);
                 String classAccessJournalKey = RedisKeyUtils.classAccessJournal(className);
                 cacheDataStore.addSetValue(classAccessJournalKey, classId);

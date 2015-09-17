@@ -12,6 +12,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.PostConstruct;
@@ -1094,16 +1096,12 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				MappedField nextRemoveMappedFieldRef = nextEntry.getKey();
 				try {
 					MappedField nextMappedField = nextEntry.getValue();
-//			for(MappedField nextRemoveMappedFieldRef : mappedClass.cascadeRemoveFieldReferences.keySet()) {
-//				try {
-//					// nextRemoveMappedFieldRef points to mappedClass, so need to find all objects of that type that point to this particular
-//					//	instance perceroObejct of mappedClass.
-//					MappedField nextMappedField = mappedClass.cascadeRemoveFieldReferences.get(nextRemoveMappedFieldRef);
 					if (nextMappedField == null) {
 						// There is no direct link from mappedClass, so need to get all by example.
 						IPerceroObject tempObject = (IPerceroObject) nextRemoveMappedFieldRef.getMappedClass().clazz.newInstance();
 						nextRemoveMappedFieldRef.getSetter().invoke(tempObject, perceroObject);
 						IDataProvider dataProviderRef = dataProviderManager.getDataProviderByName(nextRemoveMappedFieldRef.getMappedClass().dataProviderName);
+						List<IPerceroObject> referencingObjectsNew = dataProviderRef.findAllRelatedObjects(perceroObject, nextMappedField, false, null);
 						List<IPerceroObject> referencingObjects = dataProviderRef.findByExample(tempObject, null, null, false);
 						Iterator<IPerceroObject> itrReferencingObjects = referencingObjects.iterator();
 						while (itrReferencingObjects.hasNext()) {
@@ -1116,6 +1114,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						IPerceroObject tempObject = (IPerceroObject) nextRemoveMappedFieldRef.getMappedClass().clazz.newInstance();
 						nextRemoveMappedFieldRef.getSetter().invoke(tempObject, perceroObject);
 						IDataProvider dataProviderRef = dataProviderManager.getDataProviderByName(nextRemoveMappedFieldRef.getMappedClass().dataProviderName);
+						List<IPerceroObject> referencingObjectsNew = dataProviderRef.findAllRelatedObjects(perceroObject, nextMappedField, false, null);
 						List<IPerceroObject> referencingObjects = dataProviderRef.findByExample(tempObject, null, null, false);
 						Iterator<IPerceroObject> itrReferencingObjects = referencingObjects.iterator();
 						while (itrReferencingObjects.hasNext()) {
@@ -1137,16 +1136,12 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				MappedField nextToNullMappedFieldRef = nextEntry.getKey();
 				try {
 					MappedField nextMappedField = nextEntry.getValue();
-//			for(MappedField nextToNullMappedFieldRef : mappedClass.nulledOnRemoveFieldReferences.keySet()) {
-//				try {
-//					// nextRemoveMappedFieldRef points to mappedClass, so need to find all objects of that type that point to this particular
-//					//	instance perceroObejct of mappedClass.
-//					MappedField nextMappedField = mappedClass.nulledOnRemoveFieldReferences.get(nextToNullMappedFieldRef);
 					if (nextMappedField == null) {
 						// There is no direct link from mappedClass, so need to get all by example.
 						IPerceroObject tempObject = (IPerceroObject) nextToNullMappedFieldRef.getMappedClass().clazz.newInstance();
 						nextToNullMappedFieldRef.getSetter().invoke(tempObject, perceroObject);
 						IDataProvider dataProviderRef = dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName);
+						List<IPerceroObject> referencingObjectsNew = dataProviderRef.findAllRelatedObjects(perceroObject, nextMappedField, false, null);
 						List<IPerceroObject> referencingObjects = dataProviderRef.findByExample(tempObject, null, null, false);
 						Iterator<IPerceroObject> itrReferencingObjects = referencingObjects.iterator();
 						while (itrReferencingObjects.hasNext()) {
@@ -1160,6 +1155,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						IPerceroObject tempObject = (IPerceroObject) nextToNullMappedFieldRef.getMappedClass().clazz.newInstance();
 						nextToNullMappedFieldRef.getSetter().invoke(tempObject, perceroObject);
 						IDataProvider dataProviderRef = dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName);
+						List<IPerceroObject> referencingObjectsNew = dataProviderRef.findAllRelatedObjects(perceroObject, nextMappedField, false, null);
 						List<IPerceroObject> referencingObjects = dataProviderRef.findByExample(tempObject, null, null, false);
 						Iterator<IPerceroObject> itrReferencingObjects = referencingObjects.iterator();
 						while (itrReferencingObjects.hasNext()) {
@@ -1174,31 +1170,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				}
 			}
 			
-			Iterator<MappedFieldPerceroObject> itrToOneFieldsToUpdate = mappedClass.toOneFields.iterator();
-			while (itrToOneFieldsToUpdate.hasNext()) {
-				MappedFieldPerceroObject nextToOneField = itrToOneFieldsToUpdate.next();
-				if (nextToOneField instanceof MappedFieldPerceroObject) {
-					MappedFieldPerceroObject nextPerceroObjectField = (MappedFieldPerceroObject) nextToOneField;
-					IPerceroObject toOneObject = (IPerceroObject) nextPerceroObjectField.getGetter().invoke(perceroObject);
-					if (toOneObject != null) {
-						// Remove this object from the cache.
-						// TODO: ?
-					}
-				}
-			}
-							
-			Iterator<MappedField> itrToManyFieldsToUpdate = mappedClass.toManyFields.iterator();
-			while (itrToManyFieldsToUpdate.hasNext()) {
-				MappedField nextToManyField = itrToManyFieldsToUpdate.next();
-				if (nextToManyField instanceof MappedFieldPerceroObject) {
-					MappedFieldPerceroObject nextPerceroObjectField = (MappedFieldPerceroObject) nextToManyField;
-					// TODO: ?
-				}
-				else if (nextToManyField instanceof MappedFieldList) {
-					MappedFieldList nextListField = (MappedFieldList) nextToManyField;
-					// TODO: ?
-				}
-			}
+			Map<ClassIDPair, MappedField> objectsToUpdate = mappedClass.getRelatedClassIdPairMappedFieldMap(perceroObject, false);
 			
 			// If the result has been set to false, it means that deletion/update of one of the related objects failed.
 			if (result && dataProvider.deleteObject(BaseDataObject.toClassIdPair(perceroObject), null)) {
@@ -1227,6 +1199,16 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 					postDeleteHelper.postDeleteObject(perceroObject, userId, clientId, pushToUser);
 				}
 				
+				Iterator<Entry<ClassIDPair, MappedField>> itrObjectsToUpdate = objectsToUpdate.entrySet().iterator();
+				while (itrObjectsToUpdate.hasNext()) {
+					Entry<ClassIDPair, MappedField> nextObjectToUpdate = itrObjectsToUpdate.next();
+					Map<ClassIDPair, Collection<MappedField>> changedFields = new HashMap<ClassIDPair, Collection<MappedField>>();
+					Collection<MappedField> changedMappedFields = new ArrayList<MappedField>(1);
+					changedMappedFields.add(nextObjectToUpdate.getValue());
+					changedFields.put(nextObjectToUpdate.getKey(), changedMappedFields);
+					postPutHelper.postPutObject(nextObjectToUpdate.getKey(), userId, clientId, true, changedFields);
+				}
+				
 				result = true;
 			}
 			else {
@@ -1236,6 +1218,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 
 		return result;
 	}
+	
 
 	public void updatesReceived(ClassIDPair[] theObjects, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);

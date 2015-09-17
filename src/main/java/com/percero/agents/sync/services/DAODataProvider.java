@@ -130,6 +130,24 @@ public class DAODataProvider implements IDataProvider {
 		return results;
 	}
 
+	@SuppressWarnings("unchecked")
+	public Set<ClassIDPair> getAllClassIdPairsByName(String className) throws Exception {
+		IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(className);
+		PerceroList<IPerceroObject> allObjects = dao.getAll(null, null, false, null, true);
+		
+		Set<ClassIDPair> results = new HashSet<ClassIDPair>(allObjects == null ? 0 : allObjects.size());
+		
+		if (allObjects != null && !allObjects.isEmpty()) {
+			Iterator<? extends IPerceroObject> itrResults = allObjects.iterator();
+			while (itrResults.hasNext()) {
+				IPerceroObject nextResult = itrResults.next();
+				results.add(BaseDataObject.toClassIdPair(nextResult));
+			}
+		}
+		
+		return results;
+	}
+	
 	@SuppressWarnings({ "unchecked" })
 	// TODO: @Transactional(readOnly=true)
 	public Integer countAllByName(String className, String userId) throws Exception {
@@ -223,11 +241,17 @@ public class DAODataProvider implements IDataProvider {
 		return results;
 	}
 	
-	@SuppressWarnings("unchecked")
 	public IPerceroObject findById(ClassIDPair classIdPair, String userId) {
+		return findById(classIdPair, userId, false);
+	}
+	@SuppressWarnings("unchecked")
+	public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache) {
 
 		try {
-			IPerceroObject result = retrieveFromRedisCache(classIdPair);
+			IPerceroObject result = null;
+			if (!ignoreCache) {
+				result = retrieveFromRedisCache(classIdPair);
+			}
 	
 			if (result == null) {
 	
@@ -420,8 +444,11 @@ public class DAODataProvider implements IDataProvider {
 		return dao.hasDeleteAccess(classIdPair, userId);
 	}
 	
-	@SuppressWarnings({ })
 	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId) {
+		return findByIds(classIdPairs, userId, false);
+	}
+	@SuppressWarnings({ })
+	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId, Boolean ignoreCache) {
 		IDataAccessObject<? extends IPerceroObject> dao = DAORegistry.getInstance().getDataAccessObject(classIdPairs.getClassName());
 		List<IPerceroObject> results = new ArrayList<IPerceroObject>();
 		
@@ -434,17 +461,20 @@ public class DAODataProvider implements IDataProvider {
 			idsToFind.addAll(classIdPairs.getIds());
 			classIdPairsCopy.setIds(idsToFind);
 
-			Map<String, IPerceroObject> cachedResults = retrieveFromRedisCache(classIdPairs, true);
-			if (cachedResults != null &&!cachedResults.isEmpty()) {
-				// Add the cached results
-				
-				Iterator<IPerceroObject> itrCachedResults = cachedResults.values().iterator();
-				while (itrCachedResults.hasNext()) {
-					IPerceroObject nextCachedResult = itrCachedResults.next();
-					if (nextCachedResult != null) {
-						idsToFind.remove(nextCachedResult.getID());
-						results.add(nextCachedResult);
-						setObjectExpiration(nextCachedResult);
+			Map<String, IPerceroObject> cachedResults = null;
+			if (!ignoreCache) {
+				cachedResults = retrieveFromRedisCache(classIdPairs, true);
+				if (cachedResults != null &&!cachedResults.isEmpty()) {
+					// Add the cached results
+					
+					Iterator<IPerceroObject> itrCachedResults = cachedResults.values().iterator();
+					while (itrCachedResults.hasNext()) {
+						IPerceroObject nextCachedResult = itrCachedResults.next();
+						if (nextCachedResult != null) {
+							idsToFind.remove(nextCachedResult.getID());
+							results.add(nextCachedResult);
+							setObjectExpiration(nextCachedResult);
+						}
 					}
 				}
 			}
@@ -1033,6 +1063,7 @@ public class DAODataProvider implements IDataProvider {
 	 */
 	
 //	@Override
+	@SuppressWarnings("unchecked")
 	public List<IPerceroObject> findAllRelatedObjects(IPerceroObject perceroObject, MappedField mappedField, Boolean shellOnly, String userId) throws SyncException {
 		List<IPerceroObject> result = new ArrayList<IPerceroObject>();
 		
@@ -1040,24 +1071,66 @@ public class DAODataProvider implements IDataProvider {
 			// No valid ID on the object, so can't search for it.
 			return result;
 		}
-		
-		// The reverse mapped field should be the MappedField on the target object, the one that this MUST be the data provider for.
-		MappedField reverseMappedField = mappedField.getReverseMappedField();
-		if (reverseMappedField == null) {
-			// No reverse mapped field, meaning there is nothing to do.
-			return result;
+
+		if (mappedField.getMappedClass().getSourceMappedFields().contains(mappedField)) {
+			// This object is the source.
+			IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(mappedField.getMappedClass().className);
+			IPerceroObject thisObject = dao.retrieveObject(BaseDataObject.toClassIdPair(perceroObject), userId, false);
+			IPerceroObject relatedObject;
+			try {
+				relatedObject = (IPerceroObject) mappedField.getGetter().invoke(thisObject);
+			} catch (Exception e) {
+				throw new SyncException(e);
+			}
+			if (relatedObject != null) {
+				if (!shellOnly) {
+					MappedClass relatedMappedClass = MappedClassManagerFactory.getMappedClassManager().getMappedClassByClassName(relatedObject.getClass().getCanonicalName());
+					relatedObject = relatedMappedClass.getDataProvider().findById(BaseDataObject.toClassIdPair(relatedObject), userId);
+				}
+				result.add(relatedObject);
+			}
+			result.add(relatedObject);
 		}
-		
-		IDataProvider dataProvider = dataProviderManager.getDataProviderByName(reverseMappedField.getMappedClass().dataProviderName);
-		result = dataProvider.getAllByRelationship(reverseMappedField, BaseDataObject.toClassIdPair(perceroObject), shellOnly, userId);
+		else {
+			// This object is the target.
+			// The reverse mapped field should be the MappedField on the target object, the one that this MUST be the data provider for.
+			MappedField reverseMappedField = mappedField.getReverseMappedField();
+			if (reverseMappedField == null) {
+				// No reverse mapped field, meaning there is nothing to do.
+				return result;
+			}
+			
+			IDataProvider dataProvider = reverseMappedField.getMappedClass().getDataProvider();
+			result = dataProvider.getAllByRelationship(reverseMappedField, BaseDataObject.toClassIdPair(perceroObject), shellOnly, userId);
+		}
 		
 		return result;
 	}
 		
 	@SuppressWarnings("unchecked")
 	public List<IPerceroObject> getAllByRelationship(MappedField mappedField, ClassIDPair targetClassIdPair, Boolean shellOnly, String userId) throws SyncException {
-		IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(mappedField.getMappedClass().className);
-		return dao.retrieveAllByRelationship(mappedField, targetClassIdPair, shellOnly, userId);
+		if (mappedField.getMappedClass().getSourceMappedFields().contains(mappedField)) {
+			// This object is the source.
+			IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(mappedField.getMappedClass().className);
+			return dao.retrieveAllByRelationship(mappedField, targetClassIdPair, shellOnly, userId);
+		}
+		else {
+			// This object is the target.
+			if (mappedField.getReverseMappedField() != null) {
+				IDataProvider dataProvider = mappedField.getReverseMappedField().getMappedClass().getDataProvider();
+				try {
+					IPerceroObject targetObject = (IPerceroObject) Class.forName(targetClassIdPair.getClassName()).newInstance();
+					return dataProvider.findAllRelatedObjects(targetObject, mappedField.getReverseMappedField(), shellOnly, userId);
+				} catch(Exception e) {
+					throw new SyncException(e);
+				}
+			}
+			else {
+				return new ArrayList<IPerceroObject>(0);
+			}
+		}
+
+		
 	}
 	
 	

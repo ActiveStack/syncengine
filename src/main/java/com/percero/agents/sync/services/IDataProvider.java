@@ -3,6 +3,7 @@ package com.percero.agents.sync.services;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.percero.agents.sync.exceptions.SyncException;
 import com.percero.agents.sync.metadata.MappedClass;
@@ -20,8 +21,11 @@ public interface IDataProvider {
 	
 	public Integer countAllByName(String className, String userId) throws Exception;
 	public PerceroList<IPerceroObject> getAllByName(String className, Integer pageNumber, Integer pageSize, Boolean returnTotal, String userId) throws Exception;
+	public Set<ClassIDPair> getAllClassIdPairsByName(String className) throws Exception;
 	public List<Object> runQuery(MappedClass mappedClass, String queryName, Object[] queryArguments, String clientId) throws SyncException;
+	public IPerceroObject findById(ClassIDPair classIdPair, String userId);
 	public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache);
+	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId);
 	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId, Boolean ignoreCache);
 //	public IPerceroObject findUnique(IPerceroObject theQueryObject, String userId);
 	public List<IPerceroObject> findByExample(IPerceroObject theQueryObject, List<String> excludeProperties, String userId, Boolean shellOnly) throws SyncException;

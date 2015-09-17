@@ -3,6 +3,7 @@ package com.percero.agents.sync.services;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.hibernate.Session;
 import org.springframework.stereotype.Component;
@@ -408,6 +409,20 @@ public class RedisDataProvider implements IDataProvider {
 	public List<IPerceroObject> cleanObject(
 			List<IPerceroObject> perceroObjects, String userId)
 			throws SyncException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Set<ClassIDPair> getAllClassIdPairsByName(String className)
+			throws Exception {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs,
+			String userId) {
 		// TODO Auto-generated method stub
 		return null;
 	}

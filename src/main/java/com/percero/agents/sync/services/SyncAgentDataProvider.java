@@ -1,6 +1,5 @@
 package com.percero.agents.sync.services;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1589,40 +1588,75 @@ public class SyncAgentDataProvider implements IDataProvider {
 	}
 
 
-	public List<IPerceroObject> getAllByRelationship(MappedField mappedField, ClassIDPair targetClassIdPair, Boolean shellOnly, String userId) throws SyncException {
-//		throw new SyncException(SyncException.METHOD_UNSUPPORTED, SyncException.METHOD_UNSUPPORTED_CODE);
-		try {
-			IPerceroObject exampleObject = (IPerceroObject) mappedField.getMappedClass().clazz.newInstance();
-			IPerceroObject targetObject = (IPerceroObject) Class.forName(targetClassIdPair.getClassName()).newInstance();
-			targetObject.setID(targetClassIdPair.getID());
-			mappedField.getSetter().invoke(exampleObject, targetObject);
-			return findByExample(exampleObject, null, userId, shellOnly);
-		} catch (InstantiationException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InvocationTargetException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		return null;
-		
-	}
-
 	@Override
 	public List<IPerceroObject> findAllRelatedObjects(
 			IPerceroObject perceroObject, MappedField mappedField,
 			Boolean shellOnly, String userId) throws SyncException {
-		throw new SyncException(SyncException.METHOD_UNSUPPORTED, SyncException.METHOD_UNSUPPORTED_CODE);
+		List<IPerceroObject> result = new ArrayList<IPerceroObject>();
+
+		if (!StringUtils.hasText(perceroObject.getID())) {
+			// No valid ID on the object, so can't search for it.
+			return result;
+		}
+
+		if (mappedField.getMappedClass().getSourceMappedFields().contains(mappedField)) {
+			// This object is the source.
+			IPerceroObject thisObject = this.findById(BaseDataObject.toClassIdPair(perceroObject), userId);
+			IPerceroObject relatedObject;
+			try {
+				relatedObject = (IPerceroObject) mappedField.getGetter().invoke(thisObject);
+			} catch (Exception e) {
+				throw new SyncException(e);
+			}
+			if (relatedObject != null) {
+				if (!shellOnly) {
+					MappedClass relatedMappedClass = MappedClassManagerFactory.getMappedClassManager().getMappedClassByClassName(relatedObject.getClass().getCanonicalName());
+					relatedObject = relatedMappedClass.getDataProvider().findById(BaseDataObject.toClassIdPair(relatedObject), userId);
+				}
+				result.add(relatedObject);
+			}
+		}
+		else {
+			// This object is the target.
+			// The reverse mapped field should be the MappedField on the target object, the one that this MUST be the data provider for.
+			MappedField reverseMappedField = mappedField.getReverseMappedField();
+			if (reverseMappedField == null) {
+				// No reverse mapped field, meaning there is nothing to do.
+				return result;
+			}
+			
+			IDataProvider dataProvider = reverseMappedField.getMappedClass().getDataProvider();
+			result = dataProvider.getAllByRelationship(reverseMappedField, BaseDataObject.toClassIdPair(perceroObject), shellOnly, userId);
+		}
+		
+		return result;
+	}
+
+	public List<IPerceroObject> getAllByRelationship(MappedField mappedField, ClassIDPair targetClassIdPair, Boolean shellOnly, String userId) throws SyncException {
+//		throw new SyncException(SyncException.METHOD_UNSUPPORTED, SyncException.METHOD_UNSUPPORTED_CODE);
+		try {
+			if (mappedField.getMappedClass().getSourceMappedFields().contains(mappedField)) {
+				// This object is the source.
+				IPerceroObject exampleObject = (IPerceroObject) mappedField.getMappedClass().clazz.newInstance();
+				IPerceroObject targetObject = (IPerceroObject) Class.forName(targetClassIdPair.getClassName()).newInstance();
+				targetObject.setID(targetClassIdPair.getID());
+				mappedField.getSetter().invoke(exampleObject, targetObject);
+				return findByExample(exampleObject, null, userId, shellOnly);
+			}
+			else {
+				// This object is the target.
+				if (mappedField.getReverseMappedField() != null) {
+					IDataProvider dataProvider = mappedField.getReverseMappedField().getMappedClass().getDataProvider();
+					IPerceroObject targetObject = (IPerceroObject) Class.forName(targetClassIdPair.getClassName()).newInstance();
+					return dataProvider.findAllRelatedObjects(targetObject, mappedField.getReverseMappedField(), shellOnly, userId);
+				}
+				else {
+					return new ArrayList<IPerceroObject>(0);
+				}
+			}
+		} catch (Exception e) {
+			throw new SyncException(e);
+		}
 	}
 
 	@Override

@@ -85,6 +85,9 @@ public interface ICacheDataStore {
 	public abstract Boolean getSetIsEmpty(String key);
 
 	@Transactional
+	public Long getSetSize( final String key );
+
+	@Transactional
 	public abstract Long removeSetValueAndGetSize(String key, Object value);
 
 	public abstract void removeSetsValue(Collection<? extends Object> keys,
