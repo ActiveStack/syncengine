@@ -1,9 +1,12 @@
 package com.percero.agents.sync.jobs;
 
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -17,6 +20,7 @@ import javax.persistence.Table;
 
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
+import org.springframework.util.StringUtils;
 
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.cache.CacheManager;
@@ -41,17 +45,17 @@ import com.percero.framework.vo.PerceroList;
  */
 public class UpdateTableProcessor {
 
-    private static Logger logger = Logger.getLogger(UpdateTableProcessor.class);
+    protected static Logger logger = Logger.getLogger(UpdateTableProcessor.class);
 
-    private static final int EXPIRATION_TIME = 1000*60*30; // 30 minutes
-    private String tableName;
-    private UpdateTableConnectionFactory connectionFactory;
-    private PostDeleteHelper postDeleteHelper;
-    private PostPutHelper postPutHelper;
-    private IManifest manifest;
-    private CacheManager cacheManager;
-    private DataProviderManager dataProviderManager;
-    private IAccessManager accessManager;
+    protected static final int EXPIRATION_TIME = 1000*60*30; // 30 minutes
+    protected String tableName;
+    protected UpdateTableConnectionFactory connectionFactory;
+    protected PostDeleteHelper postDeleteHelper;
+    protected PostPutHelper postPutHelper;
+    protected IManifest manifest;
+    protected CacheManager cacheManager;
+    protected DataProviderManager dataProviderManager;
+    protected IAccessManager accessManager;
 
     public UpdateTableProcessor(String tableName,
                                 UpdateTableConnectionFactory connectionFactory,
@@ -72,17 +76,17 @@ public class UpdateTableProcessor {
         this.accessManager      = accessManager;
     }
     
-
+    
     /**
      * Update table schema looks like this
      *
      * `ID` int(11) NOT NULL AUTO_INCREMENT,
      * `tableName` varchar(255) DEFAULT NULL,
-     * `rowID` varchar(255) DEFAULT NULL,
+     * `row_ID` varchar(255) DEFAULT NULL,
      * `type` enum('INSERT','UPDATE','DELETE') NOT NULL DEFAULT 'UPDATE',
-     * `lockID` int(11) DEFAULT NULL,
-     * `lockDate` datetime DEFAULT NULL,
-     * `timestamp` timestamp DEFAULT CURRENT_TIMESTAMP
+     * `lock_ID` int(11) DEFAULT NULL,
+     * `lock_Date` datetime DEFAULT NULL,
+     * `time_stamp` timestamp DEFAULT CURRENT_TIMESTAMP
      *
      * @return
      */
@@ -110,7 +114,7 @@ public class UpdateTableProcessor {
         return result;
     }
 
-    private boolean processRow(UpdateTableRow row) throws Exception{
+    protected boolean processRow(UpdateTableRow row) throws Exception{
         boolean result = true;
 
         if(row.getRowId() != null)
@@ -153,7 +157,7 @@ public class UpdateTableProcessor {
      * @return
      */
     @SuppressWarnings("rawtypes")
-    private boolean processUpdateSingle(UpdateTableRow row) throws Exception{
+    protected boolean processUpdateSingle(UpdateTableRow row) throws Exception{
         Class clazz = getClassForTableName(row.getTableName());
         String className = clazz.getCanonicalName();
 
@@ -177,7 +181,7 @@ public class UpdateTableProcessor {
      * @return
      */
     @SuppressWarnings("rawtypes")
-	private boolean processUpdateTable(UpdateTableRow row) throws Exception{
+	protected boolean processUpdateTable(UpdateTableRow row) throws Exception{
     	Class clazz = getClassForTableName(row.getTableName());
     	String className = clazz.getCanonicalName();
 
@@ -225,7 +229,7 @@ public class UpdateTableProcessor {
      * @param Ids
      * @throws Exception
      */
-    private void processUpdates(String className, Collection<String> Ids) throws Exception{
+    protected void processUpdates(String className, Collection<String> Ids) throws Exception{
         IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
         MappedClass mappedClass = mcm.getMappedClassByClassName(className);
         IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
@@ -236,7 +240,7 @@ public class UpdateTableProcessor {
         }
     }
     
-    private void handleUpdateClassIdPair(IDataProvider dataProvider, ClassIDPair pair) throws Exception {
+    protected void handleUpdateClassIdPair(IDataProvider dataProvider, ClassIDPair pair) throws Exception {
     	IPerceroObject object = dataProvider.findById(pair, null, true);
     	
     	if (object != null) {
@@ -251,7 +255,7 @@ public class UpdateTableProcessor {
      * @return
      */
     @SuppressWarnings("rawtypes")
-	private boolean processInsertSingle(UpdateTableRow row) throws Exception{
+	protected boolean processInsertSingle(UpdateTableRow row) throws Exception{
         Class clazz = getClassForTableName(row.getTableName());
         String className = clazz.getCanonicalName();
         
@@ -269,7 +273,7 @@ public class UpdateTableProcessor {
      * @return
      */
     @SuppressWarnings("rawtypes")
-	private boolean processInsertTable(UpdateTableRow row) throws Exception {
+	protected boolean processInsertTable(UpdateTableRow row) throws Exception {
         Class clazz = getClassForTableName(row.getTableName());
         String className = clazz.getCanonicalName();
 
@@ -295,7 +299,7 @@ public class UpdateTableProcessor {
      * @return
      */
     @SuppressWarnings("rawtypes")
-	private boolean processDeleteSingle(UpdateTableRow row) throws Exception{
+	protected boolean processDeleteSingle(UpdateTableRow row) throws Exception{
         Class clazz = getClassForTableName(row.getTableName());
         String className = clazz.getCanonicalName();
         
@@ -318,7 +322,7 @@ public class UpdateTableProcessor {
      * @return
      */
     @SuppressWarnings("rawtypes")
-	private boolean processDeleteTable(UpdateTableRow row) throws Exception{
+	protected boolean processDeleteTable(UpdateTableRow row) throws Exception{
         Class clazz = getClassForTableName(row.getTableName());
         String className = clazz.getCanonicalName();
         
@@ -328,31 +332,33 @@ public class UpdateTableProcessor {
         
         // Get the list of ALL ID's of this class type that have been accessed.
         Set<String> accessedIds = accessManager.getClassAccessJournalIDs(className);
-        
-		// TODO: If ID "0", then that means someone wants to know about ALL
-		// records of this type. How do we do this?
-        
-        // Get a list of ALL ID's of this class type.
-        Set<ClassIDPair> allClassIdPairs = getAllClassIdPairsForTable(row.getTableName());
 
-        // Remove ALL existing/current ID's from our list of accessed ID's.
-        for(ClassIDPair nextClassIdPair : allClassIdPairs) {
-        	accessedIds.remove(nextClassIdPair.getID());
-        }
-
-        // Now we have the list of ID's that have actually been deleted.
-        for(String id : accessedIds){
-        	// Find the cached object first so that it is NOT removed if the same object is NOT found in the data store.
-        	IPerceroObject cachedObject = dataProvider.findById(new ClassIDPair(id, className), null, false);
-        	// We will know an object has been deleted IFF it does NOT exist in the data store.
-        	IPerceroObject dataStoreObject = dataProvider.findById(new ClassIDPair(id, className), null, true);
-        	
-        	if (dataStoreObject != null) {
-        		// Object has NOT been deleted.
-        		continue;
-        	}
-        	
-        	handleDeletedObject(cachedObject, clazz, className, id);
+        if (accessedIds != null && !accessedIds.isEmpty()) {
+			// TODO: If ID "0", then that means someone wants to know about ALL
+			// records of this type. How do we do this?
+	        
+	        // Get a list of ALL ID's of this class type.
+	        Set<ClassIDPair> allClassIdPairs = getAllClassIdPairsForTable(row.getTableName());
+	
+	        // Remove ALL existing/current ID's from our list of accessed ID's.
+	        for(ClassIDPair nextClassIdPair : allClassIdPairs) {
+	        	accessedIds.remove(nextClassIdPair.getID());
+	        }
+	
+	        // Now we have the list of ID's that have actually been deleted.
+	        for(String id : accessedIds){
+	        	// Find the cached object first so that it is NOT removed if the same object is NOT found in the data store.
+	        	IPerceroObject cachedObject = dataProvider.findById(new ClassIDPair(id, className), null, false);
+	        	// We will know an object has been deleted IFF it does NOT exist in the data store.
+	        	IPerceroObject dataStoreObject = dataProvider.findById(new ClassIDPair(id, className), null, true);
+	        	
+	        	if (dataStoreObject != null) {
+	        		// Object has NOT been deleted.
+	        		continue;
+	        	}
+	        	
+	        	handleDeletedObject(cachedObject, clazz, className, id);
+	        }
         }
 
         updateReferences(className);
@@ -361,7 +367,7 @@ public class UpdateTableProcessor {
     }
     
     @SuppressWarnings("rawtypes")
-	private void handleDeletedObject(IPerceroObject cachedObject, Class clazz, String className, String id) throws Exception {
+	protected void handleDeletedObject(IPerceroObject cachedObject, Class clazz, String className, String id) throws Exception {
     	boolean isShellObject = false;
         if (cachedObject == null) {
         	cachedObject = (IPerceroObject) clazz.newInstance();
@@ -375,7 +381,7 @@ public class UpdateTableProcessor {
     }
 
     @SuppressWarnings("rawtypes")
-	private Set<ClassIDPair> getAllClassIdPairsForTable(String tableName) throws Exception{
+	protected Set<ClassIDPair> getAllClassIdPairsForTable(String tableName) throws Exception{
         Class clazz = getClassForTableName(tableName);
         String className = clazz.getCanonicalName();
     	
@@ -392,7 +398,7 @@ public class UpdateTableProcessor {
      * Finds all back references to this class and pushes updates to all of them.
      * @param className
      */
-    private void updateReferences(String className){
+    protected void updateReferences(String className){
         IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
         MappedClass mappedClass = mcm.getMappedClassByClassName(className);
 		// Go through each mapped field and push all objects of that associated
@@ -480,32 +486,11 @@ public class UpdateTableProcessor {
 
             DateTime expireThreshold = new DateTime(now - EXPIRATION_TIME);
 
-            /**
-             * First try to lock a row
-             */
-            String sql = "update `:tableName` set lockID=:lockId, lockDate=NOW() " +
-                    "where lockID is null or " +
-                    "lockDate < ':expireThreshold' " +
-                    "order by timestamp limit 1";
-            sql = sql.replace(":tableName", tableName);
-            sql = sql.replace(":lockId", lockId+"");
-            sql = sql.replace(":expireThreshold", expireThreshold.toString("Y-MM-dd HH:mm:ss"));
-
-            int numUpdated = statement.executeUpdate(sql);
-
-            // Found a row to process
-            if(numUpdated > 0){
-                sql = "select * from :tableName where lockId=:lockId limit 1";
-                sql = sql.replace(":tableName", tableName);
-                sql = sql.replace(":lockId", lockId+"");
-
-                try(ResultSet rs = statement.executeQuery(sql)){
-                    // If got a row back
-                    if(rs.next())
-                        row = UpdateTableRow.fromResultSet(rs);
-                    else
-                        logger.warn("Locked a row but couldn't retrieve");
-                }
+            if (StringUtils.hasText(connectionFactory.getStoredProcedureName())) {
+            	row = getStoredProcRow(row, conn, statement, lockId, expireThreshold);
+            }
+            else {
+            	row = getUpdateSelectRow(row, statement, lockId, expireThreshold);
             }
 
         } catch(SQLException e){
@@ -515,11 +500,104 @@ public class UpdateTableProcessor {
         return row;
     }
 
-    /**
+	/**
+	 * @param row
+	 * @param statement
+	 * @param lockId
+	 * @param expireThreshold
+	 * @return
+	 * @throws SQLException
+	 */
+	private UpdateTableRow getUpdateSelectRow(UpdateTableRow row,
+			Statement statement, int lockId, DateTime expireThreshold)
+			throws SQLException {
+		/**
+		 * First try to lock a row
+		 */
+		String sql = connectionFactory.getUpdateStatementSql();
+		sql = sql.replace(":tableName", tableName);
+		sql = sql.replace(":lockId", lockId+"");
+		sql = sql.replace(":expireThreshold", expireThreshold.toString("Y-MM-dd HH:mm:ss"));
+
+		int numUpdated = statement.executeUpdate(sql);
+
+		// Found a row to process
+		if(numUpdated > 0){
+		    sql = "select * from :tableName where lock_id=:lockId limit 1";
+		    sql = sql.replace(":tableName", tableName);
+		    sql = sql.replace(":lockId", lockId+"");
+
+		    try(ResultSet rs = statement.executeQuery(sql)){
+		        // If got a row back
+		        if(rs.next())
+		            row = fromResultSet(rs);
+		        else
+		            logger.warn("Locked a row but couldn't retrieve");
+		    }
+		}
+		return row;
+	}
+
+	/**
+	 * @param row
+	 * @param conn
+	 * @param lockId
+	 * @param expireThreshold
+	 * @return
+	 * @throws SQLException
+	 */
+	private UpdateTableRow getStoredProcRow(UpdateTableRow row,
+			Connection conn, Statement statement, int lockId, DateTime expireThreshold)
+			throws SQLException {
+		Integer updateTableId = null;
+		try {
+		    CallableStatement cstmt = conn.prepareCall("{call " + connectionFactory.getStoredProcedureName() + "(?, ?, ?)}");
+		    cstmt.setInt(1, lockId);
+		    cstmt.setString(2, expireThreshold.toString("Y-MM-dd HH:mm:ss"));
+		    cstmt.registerOutParameter(3, Types.INTEGER);
+		    cstmt.executeUpdate();
+		    updateTableId = cstmt.getInt(3);
+		} catch(SQLException e){
+//            	return null;
+		    logger.warn(e.getMessage(), e);
+		    
+		    // If the stored proc doesn't exist, let's try and create it.
+		    if (StringUtils.hasText(connectionFactory.getStoredProcedureDefinition()) && e.getMessage().toLowerCase().contains(connectionFactory.getStoredProcedureName().toLowerCase()) && e.getMessage().toLowerCase().contains("must be declared")) {
+		    	try {
+		    		Statement stmtCreateStoredProcedure = conn.createStatement();
+		    		boolean createResult = stmtCreateStoredProcedure.execute(connectionFactory.getStoredProcedureDefinition().replaceAll(":tableName", tableName).replaceAll(":storedProcedureName", connectionFactory.getStoredProcedureName()));
+		    		System.out.println(createResult);
+		    	}
+		    	catch(SQLSyntaxErrorException ssee) {
+		    		logger.warn("Unable to create UpdateTable stored procedure: " + ssee.getMessage());
+		    	}
+		    	catch(Exception e1) {
+		    		logger.warn("Unable to create UpdateTable stored procedure: " + e1.getMessage());
+		    	}
+		    }
+		}
+		
+		if (updateTableId != null && updateTableId > -1) {
+		    String sql = "select * from :tableName where id=:id";
+		    sql = sql.replace(":tableName", tableName);
+		    sql = sql.replace(":id", updateTableId.toString());
+
+		    try(ResultSet rs = statement.executeQuery(sql)){
+		        // If got a row back
+		        if(rs.next())
+		            row = fromResultSet(rs);
+		        else
+		            logger.warn("Locked a row but couldn't retrieve");
+		    }
+		}
+		return row;
+	}
+
+	/**
      * Deletes the row
      * @param row
      */
-    private void deleteRow(UpdateTableRow row){
+    protected void deleteRow(UpdateTableRow row){
         try(Connection conn = connectionFactory.getConnection()){
             String sql = "delete from :tableName where ID=:ID";
             sql = sql.replace(":tableName", tableName);
@@ -558,5 +636,19 @@ public class UpdateTableProcessor {
         }
 
         return result;
+    }
+
+
+    protected UpdateTableRow fromResultSet(ResultSet resultSet) throws SQLException{
+        UpdateTableRow row = new UpdateTableRow();
+        row.ID          = resultSet.getInt("ID");
+        row.tableName   = resultSet.getString("tableName");
+        row.rowId       = resultSet.getString("row_id");
+        row.lockId      = resultSet.getInt("lock_id");
+        row.lockDate    = resultSet.getDate("lock_date");
+        row.type        = UpdateTableRowType.valueOf(resultSet.getString("type"));
+        row.timestamp   = resultSet.getDate("time_stamp");
+
+        return row;
     }
 }

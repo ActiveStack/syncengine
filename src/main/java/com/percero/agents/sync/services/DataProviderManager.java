@@ -26,9 +26,9 @@ public class DataProviderManager implements IDataProviderManager {
 		appContext = value;
 	}
 	
-	@Autowired
-	SyncAgentDataProvider defaultDataProvider;
-	public void setDefaultDataProvider(SyncAgentDataProvider value) {
+//	@Autowired
+	IDataProvider defaultDataProvider;
+	public void setDefaultDataProvider(IDataProvider value) {
 		defaultDataProvider = value;
 		defaultDataProvider.initialize();
 		addDataProvider(defaultDataProvider);

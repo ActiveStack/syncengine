@@ -25,8 +25,6 @@ import java.sql.Statement;
 public class UpdateTableProcessorTest {
 
     @Autowired
-    UpdateTableProcessorFactory processorFactory;
-    @Autowired
     UpdateTableConnectionFactory connectionFactory;
     @Autowired
     UpdateTablePoller poller;
@@ -53,21 +51,24 @@ public class UpdateTableProcessorTest {
 
     @Test
     public void getClassForTableName_NoTableAnnotation() throws Exception{
-        UpdateTableProcessor processor = processorFactory.getProcessor(tableName);
+    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
+        UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
         Class clazz = processor.getClassForTableName("Email");
         Assert.assertEquals(Email.class, clazz);
     }
 
     @Test
     public void getClassForTableName_TableAnnotation() throws Exception{
-        UpdateTableProcessor processor = processorFactory.getProcessor(tableName);
+    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
+        UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
         Class clazz = processor.getClassForTableName("Person");
         Assert.assertEquals(Person.class, clazz);
     }
 
     @Test
     public void getClassForTableName_NotFound() throws Exception{
-        UpdateTableProcessor processor = processorFactory.getProcessor(tableName);
+    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
+        UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
         Class clazz = processor.getClassForTableName("NotAnEntity");
         Assert.assertNull(clazz);
     }
@@ -88,7 +89,8 @@ public class UpdateTableProcessorTest {
     @Test
     public void getRow() throws Exception {
         setupThreeRowsInUpdateTable();
-        UpdateTableProcessor processor = processorFactory.getProcessor(tableName);
+    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
+        UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
         UpdateTableRow row = processor.getRow();
 
         Assert.assertNotNull(row);
@@ -112,7 +114,8 @@ public class UpdateTableProcessorTest {
     public void processMultipleRows() throws Exception {
         setupThreeRowsInUpdateTable();
 
-        UpdateTableProcessor processor = processorFactory.getProcessor(tableName);
+    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
+        UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
         ProcessorResult result = processor.process();
         Assert.assertEquals(3, result.getTotal());
         Assert.assertEquals(0, result.getNumFailed());

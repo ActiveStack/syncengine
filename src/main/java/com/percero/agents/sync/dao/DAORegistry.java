@@ -22,12 +22,11 @@ public class DAORegistry {
 
 	public DAORegistry() {
 		instance = this;
-		
 		DataProviderManager.getInstance().addDataProvider(DAODataProvider.getInstance()); 
 	}
-
+	
 	@SuppressWarnings({ "unchecked" })
-	private static Map<String, IDataAccessObject<? extends IPerceroObject>> dataAccessObjects = Collections.synchronizedMap(new HashMap<String, IDataAccessObject<? extends IPerceroObject>>());
+	private Map<String, IDataAccessObject<? extends IPerceroObject>> dataAccessObjects = Collections.synchronizedMap(new HashMap<String, IDataAccessObject<? extends IPerceroObject>>());
 	
 	public void registerDataAccessObject(String name, IDataAccessObject<? extends IPerceroObject> dataAccessObject) {
 		dataAccessObjects.put(name, dataAccessObject);

@@ -1,9 +1,11 @@
 package com.percero.agents.sync.vo;
 
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 import org.codehaus.jackson.annotate.JsonTypeInfo;
 
 
 @JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include=JsonTypeInfo.As.PROPERTY, property="cn")
+//@JsonIgnoreProperties(ignoreUnknown=true)
 public class SyncRequest {
 	
 	private String userId;

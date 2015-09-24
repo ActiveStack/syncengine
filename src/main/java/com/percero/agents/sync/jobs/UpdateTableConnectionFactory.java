@@ -1,56 +1,90 @@
 package com.percero.agents.sync.jobs;
 
-import com.mchange.v2.c3p0.ComboPooledDataSource;
-import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-import javax.annotation.PostConstruct;
 import java.beans.PropertyVetoException;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
+
+import org.apache.log4j.Logger;
+
+import com.mchange.v2.c3p0.ComboPooledDataSource;
 
 /**
  * Created by jonnysamps on 9/2/15.
  */
-@Component
+//@Component
 public class UpdateTableConnectionFactory {
 
     private static Logger logger = Logger.getLogger(UpdateTableConnectionFactory.class);
 
-    @Autowired
-    @Value("$pf{updateTable.driverClassName:com.mysql.jdbc.Driver}")
     private String driverClassName;
     public void setDriverClassName(String val){
         this.driverClassName = val;
     }
+    public String getDriverClassName(){
+    	return driverClassName;
+    }
 
-    @Autowired
-    @Value("$pf{updateTable.username}")
     private String username;
     public void setUsername(String val){
         this.username = val;
     }
+    public String getUsername(){
+    	return username;
+    }
 
-    @Autowired
-    @Value("$pf{updateTable.password}")
     private String password;
     public void setPassword(String val){
         this.password = val;
     }
+    public String getPassword(){
+    	return password;
+    }
 
-    @Autowired
-    @Value("$pf{updateTable.jdbcUrl:jdbc:mysql://localhost/db}")
     private String jdbcUrl;
     public void setJdbcUrl(String val){
         this.jdbcUrl = val;
     }
+    public String getJdbcUrl(){
+    	return jdbcUrl;
+    }
+    
+    private String[] tableNames;
+    public void setTableNames(String[] val) {
+    	tableNames = val;
+    }
+    public String[] getTableNames() {
+    	return tableNames;
+    }
+    
+    private String storedProcedureName;
+	private String storedProcedureDefinition;
+
+	public String getStoredProcedureName() {
+		return storedProcedureName;
+	}
+	public void setStoredProcedureName(String storedProcedureName) {
+		this.storedProcedureName = storedProcedureName;
+	}
+	public String getStoredProcedureDefinition() {
+		return storedProcedureDefinition;
+	}
+	public void setStoredProcedureDefinition(String storedProcedureDefinition) {
+		this.storedProcedureDefinition = storedProcedureDefinition;
+	}
+
+    private String updateStatementSql = "update `:tableName` set lock_id=:lockId, lock_date=NOW() " +
+            "where lock_id is null or " +
+            "lock_date < ':expireThreshold' " +
+            "order by time_stamp limit 1";
+	public String getUpdateStatementSql() {
+		return updateStatementSql;
+	}
+	public void setUpdateStatementSql(String updateStatementSql) {
+		this.updateStatementSql = updateStatementSql;
+	}
 
     private ComboPooledDataSource cpds;
-    @PostConstruct
+
     public void init() throws PropertyVetoException{
         try {
             cpds = new ComboPooledDataSource();
@@ -71,10 +105,18 @@ public class UpdateTableConnectionFactory {
 
     public Connection getConnection() throws SQLException{
         try{
+        	if (cpds == null) {
+        		init();
+        	}
             return cpds.getConnection();
-        }catch(SQLException e){
+        }
+        catch(PropertyVetoException e){
             logger.error(e.getMessage(), e);
-            throw e;
+            throw new SQLException(e);
+        }
+        catch(SQLException e){
+        	logger.error(e.getMessage(), e);
+        	throw e;
         }
     }
 }

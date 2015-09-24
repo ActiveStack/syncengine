@@ -9,6 +9,9 @@ public class SyncDataException extends SyncException{
 	public static final String CREATE_OBJECT_ERROR = "createObjectError";
 	public static final Integer CREATE_OBJECT_ERROR_CODE = -200;
 
+	public static final String READ_ONLY_ERROR = "readOnlyObject";
+	public static final Integer READ_ONLY_ERROR_CODE = -2001;
+
 	public static final String UPDATE_OBJECT_ERROR = "updateObjectError";
 	public static final Integer UPDATE_OBJECT_ERROR_CODE = -201;
 	

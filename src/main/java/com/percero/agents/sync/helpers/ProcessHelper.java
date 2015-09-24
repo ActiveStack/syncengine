@@ -30,7 +30,7 @@ public class ProcessHelper {
 	}
 	
 	private static ProcessHelper PROCESS_HELPER = null;
-
+	
 	@Autowired
 	protected IAccessManager accessManager;
 	public void setAccessManager(IAccessManager value) {

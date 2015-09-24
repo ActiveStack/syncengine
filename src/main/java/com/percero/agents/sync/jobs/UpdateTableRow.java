@@ -1,10 +1,10 @@
 package com.percero.agents.sync.jobs;
 
-import org.apache.log4j.Logger;
-
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
+
+import org.apache.log4j.Logger;
 
 /**
  * Class to represent a row from the an update table
@@ -51,16 +51,4 @@ public class UpdateTableRow {
     }
 
 
-    public static UpdateTableRow fromResultSet(ResultSet resultSet) throws SQLException{
-        UpdateTableRow row = new UpdateTableRow();
-        row.ID          = resultSet.getInt("ID");
-        row.tableName   = resultSet.getString("tableName");
-        row.rowId       = resultSet.getString("rowId");
-        row.lockId      = resultSet.getInt("lockId");
-        row.lockDate    = resultSet.getDate("lockDate");
-        row.type        = UpdateTableRowType.valueOf(resultSet.getString("type"));
-        row.timestamp   = resultSet.getDate("timestamp");
-
-        return row;
-    }
 }

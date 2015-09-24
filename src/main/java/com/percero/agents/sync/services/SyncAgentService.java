@@ -13,7 +13,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.PostConstruct;
@@ -29,6 +28,8 @@ import org.springframework.util.StringUtils;
 
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.access.RedisKeyUtils;
+import com.percero.agents.sync.connectors.HttpConnectorOperation;
+import com.percero.agents.sync.connectors.ILogicConnector;
 import com.percero.agents.sync.cw.IChangeWatcherHelperFactory;
 import com.percero.agents.sync.cw.IChangeWatcherValueHelper;
 import com.percero.agents.sync.datastore.ICacheDataStore;
@@ -48,8 +49,6 @@ import com.percero.agents.sync.metadata.IMappedClassManager;
 import com.percero.agents.sync.metadata.MappedClass;
 import com.percero.agents.sync.metadata.MappedClassManagerFactory;
 import com.percero.agents.sync.metadata.MappedField;
-import com.percero.agents.sync.metadata.MappedFieldList;
-import com.percero.agents.sync.metadata.MappedFieldPerceroObject;
 import com.percero.agents.sync.rr.IRequestHandler;
 import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.ClassIDPair;
@@ -82,6 +81,9 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	public SyncAgentService() {
 	}
 	
+	@Autowired
+	List<ILogicConnector> connectorFactories;
+
 	@Autowired
 	ObjectMapper safeObjectMapper;
 	public void setSafeObjectMapper(SafeObjectMapper value) {
@@ -344,12 +346,33 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		return result;
 	}
 	
-	public Object runProcess(String processName, Object[] queryArguments, String clientId) throws Exception {
+	public Object runProcess(String processName, Object queryArguments, String clientId) throws Exception {
 		Object result = null;
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
-		if (!isValidClient)
+		if (!isValidClient && false)
 			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+		
+		if (!StringUtils.hasText(processName))
+			throw new SyncException(SyncException.INVALID_PROCESS_ERROR, SyncException.INVALID_PROCESS_ERROR_CODE);
+		
+		// Check to see if this has a prefix, which would route it to a ConnectorFactory.
+		int prefixLocation = processName.indexOf(':');
+		if (prefixLocation > 0) {
+			String prefix = processName.substring(0, prefixLocation);
+			String operation = processName.substring(prefixLocation+1);
+			
+			if (StringUtils.hasText(prefix) && StringUtils.hasText(operation)) {
+				Iterator<ILogicConnector> itrConnectorFactories = connectorFactories.iterator();
+				while (itrConnectorFactories.hasNext()) {
+					ILogicConnector nextConnectorFactory = itrConnectorFactories.next();
+					if (nextConnectorFactory.getConnectorPrefix().equalsIgnoreCase(prefix)) {
+						// We have found our Connector Factory.
+						return nextConnectorFactory.runOperation(operation, clientId, queryArguments);
+					}
+				}
+			}
+		}
 		
 		if (processHelper != null)
 		{

@@ -12,6 +12,7 @@ import java.util.List;
 import javax.persistence.Transient;
 
 import org.apache.log4j.Logger;
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 import org.codehaus.jackson.annotate.JsonTypeInfo;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.mortbay.log.Log;
@@ -29,6 +30,7 @@ import com.percero.framework.vo.IPerceroObject;
 import com.percero.serial.JsonUtils;
 
 @JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include=JsonTypeInfo.As.PROPERTY, property="cn")
+//@JsonIgnoreProperties(ignoreUnknown=true)
 public class BaseDataObject implements Externalizable, IPerceroObject, IJsonObject, Comparable<BaseDataObject> {
 	
 	private static final Logger log = Logger.getLogger(BaseDataObject.class);

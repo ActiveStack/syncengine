@@ -38,6 +38,7 @@
 	<context:component-scan base-package="com.percero.amqp" />
 	
 	<!-- General Bean Definitions -->
+	<context:component-scan base-package="com.percero.agents.sync.connectors" />
 	<context:component-scan base-package="com.percero.agents.sync.helpers" />
 	<context:component-scan base-package="com.percero.agents.sync.datastore" />
 	<context:component-scan base-package="com.percero.agents.sync.hibernate" />
