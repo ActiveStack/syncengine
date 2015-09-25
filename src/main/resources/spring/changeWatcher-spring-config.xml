@@ -125,7 +125,7 @@
 		destroy-method="close" id="dataSource1">
 		<property name="driverClass" value="$pf{databaseAuth.driverClassName}" />
 		<property name="jdbcUrl"
-			value="jdbc:mysql://$pf{databaseAuth.host}:$pf{databaseAuth.port}/$pf{databaseAuth.dbname}?autoReconnect=true" />
+			value="$pf{databaseAuth.jdbcUrl}" />
 		<property name="user" value="$pf{databaseAuth.username}" />
 		<property name="password" value="$pf{databaseAuth.password}" />
 
@@ -227,7 +227,7 @@
 		destroy-method="close" id="dataSourceProject">
 		<property name="driverClass" value="$pf{databaseProject.driverClassName}" />
 		<property name="jdbcUrl"
-			value="jdbc:mysql://$pf{databaseProject.host}:$pf{databaseProject.port}/$pf{databaseProject.dbname}?autoReconnect=true" />
+			value="$pf{databaseProject.jdbcUrl}" />
 		<property name="user" value="$pf{databaseProject.username}" />
 		<property name="password" value="$pf{databaseProject.password}" />
 

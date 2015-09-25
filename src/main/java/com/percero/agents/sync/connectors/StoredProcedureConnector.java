@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URL;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -41,7 +42,12 @@ public class StoredProcedureConnector implements ILogicConnector {
 	@PostConstruct
 	public void init() throws YamlException {
         try {
-        	File configFile = new File(UpdateTableRegistry.class.getClassLoader().getResource("storedProcedures.yml").getFile());
+        	URL ymlUrl = UpdateTableRegistry.class.getClassLoader().getResource("storedProcedures.yml");
+        	if (ymlUrl == null) {
+            	logger.warn("No configuration found for StoredProcedures (storedProcedures.yml), skipping StoredProcedures");
+            	return;
+        	}
+        	File configFile = new File(ymlUrl.getFile());
         	YamlReader reader = new YamlReader(new FileReader(configFile));
         	reader.getConfig().setPropertyElementType(StoredProcedure.class, "parameters", StoredProcedureParameter.class);
 
