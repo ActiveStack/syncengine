@@ -646,7 +646,12 @@ public class UpdateTableProcessor {
         row.rowId       = resultSet.getString("row_id");
         row.lockId      = resultSet.getInt("lock_id");
         row.lockDate    = resultSet.getDate("lock_date");
-        row.type        = UpdateTableRowType.valueOf(resultSet.getString("type"));
+        try {
+        	row.type    = UpdateTableRowType.valueOf(resultSet.getString("type"));
+        } catch(IllegalArgumentException iae) {
+        	logger.warn("Invalid UpdateTableRow TYPE, ignoring");
+        	row.type    = UpdateTableRowType.NONE;
+        }
         row.timestamp   = resultSet.getDate("time_stamp");
 
         return row;

@@ -2,12 +2,11 @@ package com.percero.agents.sync.jobs;
 
 import java.beans.PropertyVetoException;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import javax.annotation.PostConstruct;
 
@@ -37,7 +36,12 @@ public class UpdateTableRegistry {
     @PostConstruct
     public void init() throws YamlException {
         try {
-        	File configFile = new File(UpdateTableRegistry.class.getClassLoader().getResource("updateTables.yml").getFile());
+        	URL ymlUrl = UpdateTableRegistry.class.getClassLoader().getResource("updateTables.yml");
+        	if (ymlUrl == null) {
+            	logger.warn("No configuration found for UpdateTables (updateTables.yml), skipping UpdateTables");
+            	return;
+        	}
+        	File configFile = new File(ymlUrl.getFile());
         	YamlReader reader = new YamlReader(new FileReader(configFile));
         	while (true) {
         		UpdateTableConnectionFactory updateTableConnectionFactory = reader.read(UpdateTableConnectionFactory.class);
