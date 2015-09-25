@@ -1,6 +1,7 @@
 package com.percero.agents.sync.services;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,19 @@ public class DataProviderManager implements IDataProviderManager {
 		defaultDataProvider.initialize();
 		addDataProvider(defaultDataProvider);
 	}
+	public IDataProvider getDefaultDataProvider() {
+		if (defaultDataProvider == null) {
+			// Check to see if there are ANY data providers.
+			if (dataProvidersByName.size() > 0) {
+				Iterator<IDataProvider> itrDataProviders = dataProvidersByName.values().iterator();
+				if (itrDataProviders.hasNext()) {
+					return itrDataProviders.next();
+				}
+			}
+		}
+		
+		return defaultDataProvider;
+	}
 	
 	private Map<String, IDataProvider> dataProvidersByName = new HashMap<String, IDataProvider>();
 
@@ -43,7 +57,7 @@ public class DataProviderManager implements IDataProviderManager {
 
 	public IDataProvider getDataProviderByName(String aName) {
 		if (!StringUtils.hasText(aName))
-			return defaultDataProvider;
+			return getDefaultDataProvider();
 
 		if (!dataProvidersByName.containsKey(aName)) {
 			// Attempt to get the bean from the ApplicationContext.
@@ -54,7 +68,7 @@ public class DataProviderManager implements IDataProviderManager {
 				return dataProvider;
 			} catch(Exception e) {
 				// If no data provider is found, then assume the default.
-				return defaultDataProvider;
+				return getDefaultDataProvider();
 			}
 		} else
 			return dataProvidersByName.get(aName);

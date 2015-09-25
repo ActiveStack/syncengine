@@ -13,6 +13,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.PostConstruct;
+
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
@@ -68,9 +70,11 @@ public class SyncAgentDataProvider implements IDataProvider {
 
 	private static final Logger log = Logger.getLogger(SyncAgentDataProvider.class);
 
+	@PostConstruct
 	public void initialize()
 	{
 		// Do nothing.
+		DataProviderManager.getInstance().addDataProvider(this);
 	}
 
 	public String getName() {
