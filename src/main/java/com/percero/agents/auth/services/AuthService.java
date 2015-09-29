@@ -327,6 +327,18 @@ public class AuthService implements IAuthService {
 				UserAccount theFoundUserAccount = updateUserAccountToken(queryUserAccount, true, serviceUser);
 				
 				if (theFoundUserAccount != null) {
+					try {
+						// Validate the user in the project database (by
+						// checking the IUserAnchor class)
+						// In the case that the UserAnchor object already exists
+						// in the project database but is NOT linked to the
+						// User, we need to link it here.
+						Object validateUserResult = accountHelper.validateUser(null, theFoundUserAccount.getUser().getID(), this);
+						System.out.println(validateUserResult);
+					} catch (Exception e) {
+						log.warn("Error validating user", e);
+					}
+					
 					// Now check Service Application Roles.
 					Boolean foundMatchingRole = validateUserRoles(serviceUser, theFoundUserAccount.getUser().getID());
 					

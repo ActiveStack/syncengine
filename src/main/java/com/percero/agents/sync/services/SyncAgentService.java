@@ -368,7 +368,12 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 					ILogicConnector nextConnectorFactory = itrConnectorFactories.next();
 					if (nextConnectorFactory.getConnectorPrefix().equalsIgnoreCase(prefix)) {
 						// We have found our Connector Factory.
-						return nextConnectorFactory.runOperation(operation, clientId, queryArguments);
+						if (queryArguments instanceof Object[] && ((Object[]) queryArguments).length > 0) {
+							return nextConnectorFactory.runOperation(operation, clientId, ((Object[]) queryArguments)[0]);
+						}
+						else {
+							return nextConnectorFactory.runOperation(operation, clientId, queryArguments);
+						}
 					}
 				}
 			}
