@@ -4,6 +4,8 @@ import com.percero.agents.auth.hibernate.AssociationExample;
 import com.percero.agents.auth.hibernate.AuthHibernateUtils;
 import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
 import com.percero.agents.auth.vo.*;
+import com.percero.agents.sync.dao.DAORegistry;
+import com.percero.agents.sync.dao.IDataAccessObject;
 import com.percero.agents.sync.hibernate.SyncHibernateUtils;
 import com.percero.agents.sync.metadata.*;
 import com.percero.agents.sync.services.ISyncAgentService;
@@ -339,19 +341,28 @@ public class AuthService2 {
         EntityImplementation userAnchorEI = getUserAnchorEntityImplementation();
 
         MappedClass mc = userAnchorEI.mappedClass;
-        String userAnchorQueryString = "SELECT ua FROM " + mc.tableName + " ua WHERE ua.userId=:userId";
-        Query userAnchorQuery = s.createQuery(userAnchorQueryString);
-        userAnchorQuery.setString("userId", user.getID());
+        DAORegistry daoRegistry = DAORegistry.getInstance();
+        IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) daoRegistry.getDataAccessObject(mc.className);
+//        String userAnchorQueryString = "SELECT ua FROM " + mc.tableName + " ua WHERE ua.userId=:userId";
+//        Query userAnchorQuery = s.createQuery(userAnchorQueryString);
+//        userAnchorQuery.setString("userId", user.getID());
 
-        List<IUserAnchor> foundUserAnchors = (List<IUserAnchor>) userAnchorQuery.list();
+//        List<IUserAnchor> foundUserAnchors = (List<IUserAnchor>) userAnchorQuery.list();
+        List<IPerceroObject> foundUserAnchors = null;
+        try {
+            Class<?> anchorUserClass = Class.forName(mc.className);
+            IUserAnchor example = (IUserAnchor) anchorUserClass.newInstance();
+            example.setUserId(user.getID());
+            foundUserAnchors = dao.findByExample((IPerceroObject) example, null, null, false);
+        }catch(Exception e){}
 
-        if (foundUserAnchors.size() <= 0)
+        if (foundUserAnchors != null && foundUserAnchors.size() <= 0)
             addOrUpdateUserAnchorFromServiceUserList(serviceUser, user, null);
         else {
             if(foundUserAnchors.size() > 1)
                 logger.warn("Found more than one IUserAnchor for userId: "+ user.getID());
 
-            result = foundUserAnchors.get(0); // Just take the first one
+            result = (IUserAnchor) foundUserAnchors.get(0); // Just take the first one
             handleUserAnchorFound(serviceUser, user, result);
         }
 
