@@ -1,5 +1,7 @@
 package com.percero.agents.auth.services;
 
+import com.percero.agents.auth.helpers.RoleHelper;
+import com.percero.agents.auth.helpers.UserAnchorHelper;
 import com.percero.agents.auth.hibernate.AssociationExample;
 import com.percero.agents.auth.hibernate.AuthHibernateUtils;
 import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
@@ -32,7 +34,7 @@ public class AuthService2 {
     private static Logger logger = Logger.getLogger(AuthService2.class);
 
     @Autowired
-    private AuthProviderRegistry authProviderRegistry;
+    AuthProviderRegistry authProviderRegistry;
 
     @Autowired
     SessionFactory sessionFactoryAuth;
@@ -336,7 +338,7 @@ public class AuthService2 {
 
     public void ensureAnchorUserExists(ServiceUser serviceUser, User user){
         IUserAnchor result = null;
-        Session s = appSessionFactory.openSession();
+//        Session s = appSessionFactory.openSession();
 
         EntityImplementation userAnchorEI = getUserAnchorEntityImplementation();
 
@@ -354,9 +356,11 @@ public class AuthService2 {
             IUserAnchor example = (IUserAnchor) anchorUserClass.newInstance();
             example.setUserId(user.getID());
             foundUserAnchors = dao.findByExample((IPerceroObject) example, null, null, false);
-        }catch(Exception e){}
+        }catch(Exception e){
+            logger.warn(e.getMessage(), e);
+        }
 
-        if (foundUserAnchors != null && foundUserAnchors.size() <= 0)
+        if (foundUserAnchors == null || foundUserAnchors.size() <= 0)
             addOrUpdateUserAnchorFromServiceUserList(serviceUser, user, null);
         else {
             if(foundUserAnchors.size() > 1)
@@ -366,8 +370,8 @@ public class AuthService2 {
             handleUserAnchorFound(serviceUser, user, result);
         }
 
-        if (s != null && s.isOpen())
-            s.close();
+//        if (s != null && s.isOpen())
+//            s.close();
     }
 
     private EntityImplementation getUserAnchorEntityImplementation(){
@@ -622,27 +626,16 @@ public class AuthService2 {
 
     @SuppressWarnings({ "unchecked" })
     public void setupUserRoles(User user, ServiceUser serviceUser) throws Exception {
-        Session s = appSessionFactory.openSession();
+//        Session s = appSessionFactory.openSession();
 
         try {
-            EntityImplementation userAnchorEI = getUserAnchorEntityImplementation();
             EntityImplementation userRoleEI = getUserRoleEntityImplementation();
 
-            RelationshipImplementation userAnchorRelImpl = userRoleEI.findRelationshipImplementationBySourceVarName(IUserRole.USER_ANCHOR_FIELD_NAME);
+            RelationshipImplementation userAnchorRelImpl = RoleHelper.getUserAnchorRI();
 
-            String userAnchorQueryString = "SELECT ua FROM " + userAnchorEI.mappedClass.tableName + " ua WHERE ua.userId=:userId";
-            Query userAnchorQuery = s.createQuery(userAnchorQueryString);
-            userAnchorQuery.setString("userId", user.getID());
+            IUserAnchor userAnchor = UserAnchorHelper.getUserAnchor(user.getID());
 
-            IUserAnchor userAnchor = (IUserAnchor) userAnchorQuery.uniqueResult();
-
-            //IUserRoleA userRoleAnnotation = getUserRoleAnnotation(userRoleClass);
-            String personRoleQueryString = "SELECT ur FROM " + userRoleEI.mappedClass.tableName
-                    + " ur WHERE ur." + userAnchorRelImpl.sourceMappedField.getField().getName() + " IN (SELECT ua FROM " + userAnchorEI.mappedClass.tableName + " ua WHERE ua.userId=:userId)";
-            Query personRoleQuery = s.createQuery(personRoleQueryString);
-            personRoleQuery.setString("userId", user.getID());
-
-            List<IUserRole> userRoles = (List<IUserRole>) personRoleQuery.list();
+            List<IUserRole> userRoles = RoleHelper.getUserRoles(userAnchor);
             List<IUserRole> updatedUserRoles = new ArrayList<IUserRole>();
 
             // First, remove all roles that a Person has that are not in the serviceUserList.
@@ -652,13 +645,9 @@ public class AuthService2 {
                 if (!serviceUser.getAreRoleNamesAccurate()) {
                     logger.debug("Ignoring role names from " + serviceUser.getAuthProviderID().toString());
                     isInaccurateList = true;
-                    break;
                 }
-                else {
-                    if (serviceUser.getRoleNames().contains(nextUserRole.getRoleName())) {
-                        serviceUserRoleExists = true;
-                        break;
-                    }
+                else if (serviceUser.getRoleNames().contains(nextUserRole.getRoleName())) {
+                    serviceUserRoleExists = true;
                 }
 
 
@@ -695,8 +684,6 @@ public class AuthService2 {
 
         } catch (Exception e) {
             logger.error("Unable to Get Person Roles", e);
-        } finally {
-            s.close();
         }
     }
 }

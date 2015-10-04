@@ -1,21 +1,17 @@
 package com.percero.agents.sync.metadata;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.percero.framework.metadata.IMappedQuery;
+
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.percero.framework.metadata.IMappedQuery;
 
 public class MappedField {
 
@@ -166,6 +162,7 @@ public class MappedField {
 
 	public Object getValue(Object anObject) throws IllegalArgumentException,
 			IllegalAccessException, InvocationTargetException {
+		if(anObject == null) return null;
 		Object result = getGetter().invoke(anObject);
 		return result;
 	}
