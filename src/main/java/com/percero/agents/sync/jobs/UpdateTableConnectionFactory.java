@@ -1,12 +1,11 @@
 package com.percero.agents.sync.jobs;
 
+import com.mchange.v2.c3p0.ComboPooledDataSource;
+import org.apache.log4j.Logger;
+
 import java.beans.PropertyVetoException;
 import java.sql.Connection;
 import java.sql.SQLException;
-
-import org.apache.log4j.Logger;
-
-import com.mchange.v2.c3p0.ComboPooledDataSource;
 
 /**
  * Created by jonnysamps on 9/2/15.
@@ -72,7 +71,7 @@ public class UpdateTableConnectionFactory {
 		this.storedProcedureDefinition = storedProcedureDefinition;
 	}
 
-    private String updateStatementSql = "update `:tableName` set lock_id=:lockId, lock_date=NOW() " +
+    private String updateStatementSql = "update :tableName set lock_id=:lockId, lock_date=NOW() " +
             "where lock_id is null or " +
             "lock_date < ':expireThreshold' " +
             "order by time_stamp limit 1";
@@ -82,6 +81,17 @@ public class UpdateTableConnectionFactory {
 	public void setUpdateStatementSql(String updateStatementSql) {
 		this.updateStatementSql = updateStatementSql;
 	}
+
+    /**
+     * How much should we favor this connection compared to another
+     */
+    private int weight = UpdateTableProcessor.INFINITE_ROWS;
+    public void setWeight(int weight){
+        this.weight = weight;
+    }
+    public int getWeight(){
+        return this.weight;
+    }
 
     private ComboPooledDataSource cpds;
 

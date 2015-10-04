@@ -48,21 +48,34 @@ public class UpdateTablePoller {
      */
     @Scheduled(fixedDelay=5000, initialDelay=10000)	// Every 5 seconds
     public void pollUpdateTables(){
+        logger.debug("|> Starting poller");
         if(enabled) {
-        	for(UpdateTableConnectionFactory updateTableConnectionFactory : updateTableRegistry.getConnectionFactories()) {
-	            for(String tableName : updateTableConnectionFactory.getTableNames()){
-	                UpdateTableProcessor processor = getProcessor(updateTableConnectionFactory, tableName);
-	                ProcessorResult result = processor.process();
-	                if(result.isSuccess()){
-	                    logger.debug("Update table processor ("+tableName+") finished successfully. Total rows ("+result.getTotal()+")");
-	                }
-	                else{
-	                    logger.warn("Update table processor ("+tableName+") failed. Details:");
-	                    logger.warn(result);
-	                }
-	            }
-        	}
+            // Loop until we didn't find any rows to work with
+            while(true) {
+                int count = 0;
+                for (UpdateTableConnectionFactory updateTableConnectionFactory : updateTableRegistry.getConnectionFactories()) {
+                    for (String tableName : updateTableConnectionFactory.getTableNames()) {
+                        count += doProcessingForTable(updateTableConnectionFactory, tableName);
+                    }
+                }
+                if(count <= 0) break;
+            }
         }
+        logger.debug("[] Stopping poller");
+    }
+
+    public int doProcessingForTable(UpdateTableConnectionFactory connectionFactory, String tableName){
+        UpdateTableProcessor processor = getProcessor(connectionFactory, tableName);
+        ProcessorResult result = processor.process();
+        if(result.isSuccess()){
+            logger.debug("Update table processor ("+tableName+") finished successfully. Total rows ("+result.getTotal()+")");
+        }
+        else{
+            logger.warn("Update table processor ("+tableName+") failed. Details:");
+            logger.warn(result);
+        }
+
+        return result.getTotal();
     }
 
     public UpdateTableProcessor getProcessor(UpdateTableConnectionFactory connectionFactory, String tableName){
