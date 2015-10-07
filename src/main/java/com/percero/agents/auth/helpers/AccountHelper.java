@@ -612,7 +612,7 @@ public class AccountHelper implements IAccountHelper {
 
     @SuppressWarnings({ "unchecked" })
     public void setupUserRoles(String userId, List<ServiceUser> serviceUserList) throws Exception {
-
+        if(serviceUserList.size() <= 0) return; // Need this to keep the UserRoles from getting deleted, with the new auth stuff
         try {
             ManifestHelper.setManifest(manifest);
             EntityImplementation userRoleEI = RoleHelper.getUserRoleEntityImplementation();
