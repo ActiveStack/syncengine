@@ -54,12 +54,6 @@ public class AccountHelper implements IAccountHelper {
     }
 
     @Autowired
-    protected SessionFactory appSessionFactory;
-    public void setAppSessionFactory(SessionFactory value) {
-        appSessionFactory = value;
-    }
-
-    @Autowired
     protected ISyncAgentService syncAgentService;
     public void setSyncAgentService(ISyncAgentService value) {
         syncAgentService = value;
