@@ -219,8 +219,7 @@
 		<property name="dataSource" ref="dataSource1" />
 		<property name="hibernateProperties">
 			<value>
-				<!--hibernate.dialect=org.hibernate.dialect.MySQLDialect-->
-				hibernate.dialect=org.hibernate.dialect.Oracle10gDialect
+				hibernate.dialect=org.hibernate.dialect.MySQLDialect
 				<!--hibernate.hbm2ddl.auto=update-->
 				<!-- hibernate.ejb.naming_strategy" value="org.hibernate.cfg.ImprovedNamingStrategy"/> -->
 				hibernate.show_sql=false
