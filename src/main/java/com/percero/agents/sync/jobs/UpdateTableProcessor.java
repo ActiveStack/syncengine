@@ -24,7 +24,7 @@ import java.util.*;
  * Responsible for querying an update table and processing the rows.
  * Created by Jonathan Samples<jonnysamps@gmail.com> on 8/31/15.
  */
-public class UpdateTableProcessor {
+public class UpdateTableProcessor implements Runnable{
 
     protected static Logger logger = Logger.getLogger(UpdateTableProcessor.class);
     public static final int INFINITE_ROWS = -1;
@@ -74,11 +74,10 @@ public class UpdateTableProcessor {
      *
      * @return
      */
-    public ProcessorResult process(){
+    public void run(){
         ProcessorResult result = new ProcessorResult();
 
-        int numRowsProcessed = 0;
-        while(numRowsProcessed < maxRowsToProcess || maxRowsToProcess == INFINITE_ROWS) {
+        while(true) {
             UpdateTableRow row = getRow();
             if(row == null) break;
 
@@ -93,10 +92,15 @@ public class UpdateTableProcessor {
                 logger.warn("Failed to process update: "+ e.getMessage(), e);
                 result.addResult(row.getType().toString(), false, e.getMessage());
             }
-            numRowsProcessed++;
         }
 
-        return result;
+        if(result.isSuccess()){
+            logger.debug("Update table processor ("+tableName+") finished successfully. Total rows ("+result.getTotal()+")");
+        }
+        else{
+            logger.warn("Update table processor ("+tableName+") failed. Details:");
+            logger.warn(result);
+        }
     }
 
     protected boolean processRow(UpdateTableRow row) throws Exception{
