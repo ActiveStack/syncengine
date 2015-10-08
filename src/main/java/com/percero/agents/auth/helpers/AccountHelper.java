@@ -7,7 +7,6 @@ import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.helpers.PostCreateHelper;
 import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.helpers.PostPutHelper;
-import com.percero.agents.sync.hibernate.SyncHibernateUtils;
 import com.percero.agents.sync.metadata.*;
 import com.percero.agents.sync.services.IDataProviderManager;
 import com.percero.agents.sync.services.ISyncAgentService;
@@ -18,8 +17,6 @@ import com.percero.framework.vo.IPerceroObject;
 import org.apache.log4j.Logger;
 import org.hibernate.HibernateException;
 import org.hibernate.NonUniqueResultException;
-import org.hibernate.Query;
-import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -385,12 +382,6 @@ public class AccountHelper implements IAccountHelper {
                 PropertyImplementation userIdentifierPropImpl = userIdentifierEntityImplementation.findPropertyImplementationByName(IUserIdentifier.USER_IDENTIFIER_FIELD_NAME);
                 RelationshipImplementation userAnchorRelImpl = userIdentifierEntityImplementation.findRelationshipImplementationBySourceVarName(IUserIdentifier.USER_ANCHOR_FIELD_NAME);
 
-
-                // Get this userAnchor's identifier(s).
-                String userIdentifierQueryString = "SELECT ui FROM " + userIdentifierEntityImplementation.mappedClass.tableName
-                        + " ui WHERE ui." + userIdentifierPropImpl.mappedField.getField().getName() + "=:value AND (ui." +
-                        userAnchorRelImpl.sourceMappedField.getField().getName() + " IS NULL OR ui." + userAnchorRelImpl.sourceMappedField.getField().getName() +
-                        " IN (SELECT ua FROM " + eiUserAnchor.mappedClass.tableName + " ua WHERE (ua.userId=null OR ua.userId='' OR ua.userId=:userId)))";
                 for (ServiceUser nextServiceUser : serviceUserList) {
                     for (ServiceIdentifier nextIdentifier : nextServiceUser.getIdentifiers()) {
                         try {
@@ -409,27 +400,11 @@ public class AccountHelper implements IAccountHelper {
                             }
 
                             // Look for this existing identifier.
-                            Query userIdentifierQuery = s.createQuery(userIdentifierQueryString);
-                            userIdentifierQuery.setString("userId", userId);
-                            userIdentifierQuery.setString("value", nextIdentifier.getValue());
-                            IUserIdentifier foundIdentifier = (IUserIdentifier) userIdentifierQuery.uniqueResult();
+                            IUserIdentifier foundIdentifier = (IUserIdentifier) UserIdentifierHelper.getUserIdentifierForUserAndValue(userIdentifierEntityImplementation,result,nextIdentifier.getValue());
 
-                            if (foundIdentifier != null) {
-                                // If the email does not have a Person, then associate email with this Person.
-                                foundIdentifier = (IUserIdentifier) SyncHibernateUtils.cleanObject(foundIdentifier, s);
-                                IUserAnchor existingUserAnchor = (IUserAnchor) SyncHibernateUtils.cleanObject(userAnchorRelImpl.sourceMappedField.getGetter().invoke(foundIdentifier), s);
-                                if (existingUserAnchor == null) {
-                                    if (result != null) {
-                                        userAnchorRelImpl.sourceMappedField.getSetter().invoke(foundIdentifier, result);
-                                        syncAgentService.systemPutObject((IPerceroObject) foundIdentifier, null, null, null, true);
-                                    }
-                                    else {
-                                        identifiersToSave.add(foundIdentifier);
-                                    }
-                                } else if (result == null) {
-                                    result = existingUserAnchor;
-                                }
-                            } else { // Identifier object NOT found, need to add.
+
+                            if (foundIdentifier == null) {
+                                // Identifier object NOT found, need to add.
                                 // Identifier.identifierValue will be set later, once that is determined.
                                 IUserIdentifier newIdentifier = (IUserIdentifier) userIdentifierEntityImplementation.mappedClass.clazz.newInstance();
 										/*
