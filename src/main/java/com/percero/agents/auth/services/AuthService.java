@@ -1,23 +1,13 @@
 package com.percero.agents.auth.services;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
+import com.percero.agents.auth.helpers.IAccountHelper;
+import com.percero.agents.auth.hibernate.AssociationExample;
+import com.percero.agents.auth.hibernate.AuthHibernateUtils;
+import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
+import com.percero.agents.auth.vo.*;
+import com.percero.agents.sync.access.IAccessManager;
 import org.apache.log4j.Logger;
-import org.hibernate.Criteria;
-import org.hibernate.Query;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.StaleStateException;
-import org.hibernate.Transaction;
+import org.hibernate.*;
 import org.hibernate.exception.LockAcquisitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,21 +15,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import com.percero.agents.auth.helpers.IAccountHelper;
-import com.percero.agents.auth.hibernate.AssociationExample;
-import com.percero.agents.auth.hibernate.AuthHibernateUtils;
-import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
-import com.percero.agents.auth.vo.AuthProvider;
-import com.percero.agents.auth.vo.OAuthResponse;
-import com.percero.agents.auth.vo.OAuthToken;
-import com.percero.agents.auth.vo.ServiceIdentifier;
-import com.percero.agents.auth.vo.ServiceUser;
-import com.percero.agents.auth.vo.SvcAppRole;
-import com.percero.agents.auth.vo.User;
-import com.percero.agents.auth.vo.UserAccount;
-import com.percero.agents.auth.vo.UserIdentifier;
-import com.percero.agents.auth.vo.UserToken;
-import com.percero.agents.sync.access.IAccessManager;
+import java.util.*;
 
 /**
  * The AuthService is responsible for managing authentication of users within the Percero framework. The AuthService
