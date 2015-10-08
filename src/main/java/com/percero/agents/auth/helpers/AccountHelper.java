@@ -438,15 +438,6 @@ public class AccountHelper implements IAccountHelper {
                 ((IPerceroObject) result).setID(UUID.randomUUID().toString());
                 result.setUserId(userId);
                 if (serviceUserList.size() > 0) {
-                    /**
-                     IUserAnchorA userAnchorAnnotation = getUserAnchorAnnotation(userAnchorClass);
-
-                     if (userAnchorAnnotation.firstNameFieldName() != null && !userAnchorAnnotation.firstNameFieldName().isEmpty())
-                     firstNameMappedField = mcUserAnchor.getMappedFieldByName(userAnchorAnnotation.firstNameFieldName());
-                     MappedField lastNameMappedField = null;
-                     if (userAnchorAnnotation.lastNameFieldName() != null && !userAnchorAnnotation.lastNameFieldName().isEmpty())
-                     lastNameMappedField = mcUserAnchor.getMappedFieldByName(userAnchorAnnotation.lastNameFieldName());
-                     */
 
                     // Find field that has firstName and lastName PropertyImplementations.
                     PropertyImplementation firstNamePropImpl = eiUserAnchor.findPropertyImplementationByName(IUserAnchor.FIRST_NAME_FIELD);

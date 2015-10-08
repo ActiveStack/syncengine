@@ -2,11 +2,11 @@ package com.percero.agents.auth.services;
 
 import com.percero.agents.auth.helpers.RoleHelper;
 import com.percero.agents.auth.helpers.UserAnchorHelper;
+import com.percero.agents.auth.helpers.UserIdentifierHelper;
 import com.percero.agents.auth.hibernate.AssociationExample;
 import com.percero.agents.auth.hibernate.AuthHibernateUtils;
 import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
 import com.percero.agents.auth.vo.*;
-import com.percero.agents.sync.hibernate.SyncHibernateUtils;
 import com.percero.agents.sync.metadata.*;
 import com.percero.agents.sync.services.ISyncAgentService;
 import com.percero.framework.bl.IManifest;
@@ -36,9 +36,6 @@ public class AuthService2 {
 
     @Autowired
     SessionFactory sessionFactoryAuth;
-
-    @Autowired
-    SessionFactory appSessionFactory;
 
     @Autowired
     ISyncAgentService syncAgentService;
@@ -421,7 +418,6 @@ public class AuthService2 {
     }
 
     protected IUserAnchor addOrUpdateUserAnchorFromServiceUserList(ServiceUser serviceUser, User user, IUserAnchor result) {
-        Session s = null;
         try {
             EntityImplementation eiUserAnchor = getUserAnchorEntityImplementation();
 
@@ -434,62 +430,32 @@ public class AuthService2 {
                 while (itrUserIdentifierEntityImplementations.hasNext()) {
                     EntityImplementation userIdentifierEntityImplementation = itrUserIdentifierEntityImplementations.next();
 
-                    //MappedField userAnchorMappedField = userIdentifierEntityImplementation.getMappedFieldByName(userIdentifierAnnotation.userAnchorFieldName());
                     PropertyImplementation userIdentifierPropImpl = userIdentifierEntityImplementation.findPropertyImplementationByName(IUserIdentifier.USER_IDENTIFIER_FIELD_NAME);
                     RelationshipImplementation userAnchorRelImpl = userIdentifierEntityImplementation.findRelationshipImplementationBySourceVarName(IUserIdentifier.USER_ANCHOR_FIELD_NAME);
-                    //IUserIdentifierA userIdentifierAnnotation = getUserIdentifierAnnotation(userIdentifierEntityImplementation);
-                    if (userAnchorRelImpl != null) {
 
-                        if (s == null) {
-                            s = appSessionFactory.openSession();
-                        }
-
-                        // Get this userAnchor's identifier(s).
-                        String userIdentifierQueryString = "SELECT ui FROM " + userIdentifierEntityImplementation.mappedClass.tableName
-                                + " ui WHERE ui." + userIdentifierPropImpl.mappedField.getField().getName() + "=:value AND (ui." +
-                                userAnchorRelImpl.sourceMappedField.getField().getName() + " IS NULL OR ui." + userAnchorRelImpl.sourceMappedField.getField().getName() +
-                                " IN (SELECT ua FROM " + eiUserAnchor.mappedClass.tableName + " ua WHERE (ua.userId=null OR ua.userId='' OR ua.userId=:userId)))";
-
-                        for (ServiceIdentifier nextIdentifier : serviceUser.getIdentifiers()) {
-                            try {
-                                // Make sure this Identifier is in the same paradigm.
-                                String paradigm = null;
-                                Iterator<PropertyImplementationParam> itrParams = userIdentifierPropImpl.params.iterator();
-                                while (itrParams.hasNext()) {
-                                    PropertyImplementationParam nextParam = itrParams.next();
-                                    if (nextParam.name.equalsIgnoreCase(IUserIdentifier.PARADIGM_PARAM_NAME)) {
-                                        paradigm = nextParam.value;
-                                        break;
-                                    }
+                    for (ServiceIdentifier nextIdentifier : serviceUser.getIdentifiers()) {
+                        try {
+                            // Make sure this Identifier is in the same paradigm.
+                            String paradigm = null;
+                            Iterator<PropertyImplementationParam> itrParams = userIdentifierPropImpl.params.iterator();
+                            while (itrParams.hasNext()) {
+                                PropertyImplementationParam nextParam = itrParams.next();
+                                if (nextParam.name.equalsIgnoreCase(IUserIdentifier.PARADIGM_PARAM_NAME)) {
+                                    paradigm = nextParam.value;
+                                    break;
                                 }
-                                if (nextIdentifier.getParadigm() == null || !nextIdentifier.getParadigm().equalsIgnoreCase(paradigm)) {
-                                    continue;
-                                }
+                            }
+                            if (nextIdentifier.getParadigm() == null || !nextIdentifier.getParadigm().equalsIgnoreCase(paradigm)) {
+                                continue;
+                            }
 
-                                // Look for this existing identifier.
-                                Query userIdentifierQuery = s.createQuery(userIdentifierQueryString);
-                                userIdentifierQuery.setString("userId", user.getID());
-                                userIdentifierQuery.setString("value", nextIdentifier.getValue());
-                                IUserIdentifier foundIdentifier = (IUserIdentifier) userIdentifierQuery.uniqueResult();
+                            // Look for this existing identifier.
+                            IUserIdentifier foundIdentifier = UserIdentifierHelper.getUserIdentifierForUserAndValue(userIdentifierEntityImplementation, result, nextIdentifier.getValue());
 
-                                if (foundIdentifier != null) {
-                                    // If the email does not have a Person, then associate email with this Person.
-                                    foundIdentifier = (IUserIdentifier) SyncHibernateUtils.cleanObject(foundIdentifier, s);
-                                    IUserAnchor existingUserAnchor = (IUserAnchor) SyncHibernateUtils.cleanObject(userAnchorRelImpl.sourceMappedField.getGetter().invoke(foundIdentifier), s);
-                                    if (existingUserAnchor == null) {
-                                        if (result != null) {
-                                            userAnchorRelImpl.sourceMappedField.getSetter().invoke(foundIdentifier, result);
-                                            syncAgentService.systemPutObject((IPerceroObject) foundIdentifier, null, null, null, true);
-                                        }
-                                        else {
-                                            identifiersToSave.add(foundIdentifier);
-                                        }
-                                    } else if (result == null) {
-                                        result = existingUserAnchor;
-                                    }
-                                } else { // Identifier object NOT found, need to add.
-                                    // Identifier.identifierValue will be set later, once that is determined.
-                                    IUserIdentifier newIdentifier = (IUserIdentifier) userIdentifierEntityImplementation.mappedClass.clazz.newInstance();
+
+                            if (foundIdentifier == null) {
+                                // Identifier.identifierValue will be set later, once that is determined.
+                                IUserIdentifier newIdentifier = (IUserIdentifier) userIdentifierEntityImplementation.mappedClass.clazz.newInstance();
 										/*
 										IUserIdentifierA userIdentifierA = null;
 										Class nextClass = newIdentifier.getClass();
@@ -505,18 +471,14 @@ public class AuthService2 {
 										MappedField mappedField = mappedClass.getExternalizeFieldByName(userIdentifierA.userIdentifierFieldName());
 										mappedField.getSetter().invoke(newIdentifier, nextIdentifier.getValue());
 										*/
-                                    userIdentifierPropImpl.mappedField.getSetter().invoke(newIdentifier, nextIdentifier.getValue());
-                                    identifiersToSave.add(newIdentifier);
-                                }
-                            } catch(NonUniqueResultException nure) {
-                                logger.warn("Non-unique User Identifier: " + nextIdentifier, nure);
+                                userIdentifierPropImpl.mappedField.getSetter().invoke(newIdentifier, nextIdentifier.getValue());
+                                identifiersToSave.add(newIdentifier);
                             }
+                        } catch(NonUniqueResultException nure) {
+                            logger.warn("Non-unique User Identifier: " + nextIdentifier, nure);
                         }
                     }
-                }
 
-                if (s != null && s.isOpen()) {
-                    s.close();
                 }
 
                 // Need to create a new IUserAnchor
@@ -586,9 +548,6 @@ public class AuthService2 {
             logger.error(e.getMessage(), e);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
-        } finally {
-            if (s != null && s.isOpen())
-                s.close();
         }
 
         return null;

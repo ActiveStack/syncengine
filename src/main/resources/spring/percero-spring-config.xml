@@ -241,89 +241,89 @@
 	</bean>
 
 	<!-- flyway db -->
-	<!--<bean id="flyway-project-clean" class="com.googlecode.flyway.core.Flyway"-->
-		<!--init-method="clean" depends-on="dataSourceProject" lazy-init="true">-->
-		<!--<property name="dataSource" ref="dataSourceProject" />-->
-	<!--</bean>-->
+	<bean id="flyway-project-clean" class="com.googlecode.flyway.core.Flyway"
+		init-method="clean" depends-on="dataSourceProject" lazy-init="true">
+		<property name="dataSource" ref="dataSourceProject" />
+	</bean>
 
-	<!--<bean id="flyway-project-init" class="com.googlecode.flyway.core.Flyway"-->
-		<!--init-method="init" depends-on="dataSourceProject" lazy-init="true">-->
-		<!--<property name="dataSource" ref="dataSourceProject" />-->
-	<!--</bean>-->
+	<bean id="flyway-project-init" class="com.googlecode.flyway.core.Flyway"
+		init-method="init" depends-on="dataSourceProject" lazy-init="true">
+		<property name="dataSource" ref="dataSourceProject" />
+	</bean>
 
-	<!--<bean id="flyway-project-migrate" class="com.googlecode.flyway.core.Flyway"-->
-		<!--init-method="migrate" depends-on="dataSourceProject" lazy-init="true">-->
-		<!--<property name="dataSource" ref="dataSourceProject" />-->
-	<!--</bean>-->
+	<bean id="flyway-project-migrate" class="com.googlecode.flyway.core.Flyway"
+		init-method="migrate" depends-on="dataSourceProject" lazy-init="true">
+		<property name="dataSource" ref="dataSourceProject" />
+	</bean>
 
-	<!--<bean id="disabled" class="com.googlecode.flyway.core.Flyway" lazy-init="true">-->
-		<!--<property name="dataSource" ref="dataSourceProject" />-->
-	<!--</bean>-->
+	<bean id="disabled" class="com.googlecode.flyway.core.Flyway" lazy-init="true">
+		<property name="dataSource" ref="dataSourceProject" />
+	</bean>
 
-	<!--<bean id="flyway-project-main" class="com.percero.defaults.EmptyFlyway"-->
-		<!--depends-on="dataSourceProject">-->
-		<!--<property name="percClean" ref="$pf{flywayProject.CleanClass}" />-->
-		<!--<property name="percInit" ref="$pf{flywayProject.InitClass}" />-->
-		<!--<property name="percMigrate" ref="$pf{flywayProject.MigrateClass}" />-->
-	<!--</bean>-->
-	<!--<bean id="txMan1"-->
-		<!--class="org.springframework.orm.hibernate3.HibernateTransactionManager">-->
-		<!--<property name="sessionFactory" ref="sessionFactoryAuth" />-->
-	<!--</bean>-->
-	<!--<tx:annotation-driven transaction-manager="txMan1" />-->
+	<bean id="flyway-project-main" class="com.percero.defaults.EmptyFlyway"
+		depends-on="dataSourceProject">
+		<property name="percClean" ref="$pf{flywayProject.CleanClass}" />
+		<property name="percInit" ref="$pf{flywayProject.InitClass}" />
+		<property name="percMigrate" ref="$pf{flywayProject.MigrateClass}" />
+	</bean>
+	<bean id="txMan1"
+		class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactoryAuth" />
+	</bean>
+	<tx:annotation-driven transaction-manager="txMan1" />
 
-	<!--&lt;!&ndash; depends-on="flyway-auth-main" &ndash;&gt;-->
-	<!--&lt;!&ndash; Project Database connection stuff &ndash;&gt;-->
-	<!--<bean class="com.mchange.v2.c3p0.ComboPooledDataSource"-->
-		<!--destroy-method="close" id="dataSourceProject">-->
-		<!--<property name="driverClass" value="$pf{databaseProject.driverClassName}" />-->
-		<!--<property name="jdbcUrl"-->
-			<!--value="$pf{databaseProject.jdbcUrl}" />-->
-		<!--<property name="user" value="$pf{databaseProject.username}" />-->
-		<!--<property name="password" value="$pf{databaseProject.password}" />-->
+	<!-- depends-on="flyway-auth-main" -->
+	<!-- Project Database connection stuff -->
+	<bean class="com.mchange.v2.c3p0.ComboPooledDataSource"
+		destroy-method="close" id="dataSourceProject">
+		<property name="driverClass" value="$pf{databaseProject.driverClassName}" />
+		<property name="jdbcUrl"
+			value="$pf{databaseProject.jdbcUrl}" />
+		<property name="user" value="$pf{databaseProject.username}" />
+		<property name="password" value="$pf{databaseProject.password}" />
 
-		<!--&lt;!&ndash; these are C3P0 properties &ndash;&gt;-->
-		<!--<property name="acquireIncrement" value="1" />-->
-		<!--<property name="minPoolSize" value="2" />-->
-		<!--<property name="maxPoolSize" value="80" />-->
-		<!--<property name="maxIdleTime" value="300" />-->
+		<!-- these are C3P0 properties -->
+		<property name="acquireIncrement" value="1" />
+		<property name="minPoolSize" value="2" />
+		<property name="maxPoolSize" value="80" />
+		<property name="maxIdleTime" value="300" />
 
-		<!--&lt;!&ndash; UNCOMMENT THIS TO IDENTIFY ANY CONNECTION POOL LEAKS <property name="unreturnedConnectionTimeout" -->
-			<!--value="120"/> < ! - - this time is in seconds; so 2 minutes - - > <property -->
-			<!--name="debugUnreturnedConnectionStackTraces" value="true" /> &ndash;&gt;-->
-	<!--</bean>-->
+		<!-- UNCOMMENT THIS TO IDENTIFY ANY CONNECTION POOL LEAKS <property name="unreturnedConnectionTimeout"
+			value="120"/> < ! - - this time is in seconds; so 2 minutes - - > <property
+			name="debugUnreturnedConnectionStackTraces" value="true" /> -->
+	</bean>
 
-	<!--<bean id="appSessionFactory"-->
-		<!--class="org.springframework.orm.hibernate3.annotation.AnnotationSessionFactoryBean"-->
-		<!--depends-on="flyway-project-main">-->
-		<!--<property name="dataSource" ref="dataSourceProject" />-->
-		<!--<property name="hibernateProperties">-->
-			<!--<value>-->
-				<!--&lt;!&ndash;hibernate.dialect=org.hibernate.dialect.MySQLDialect&ndash;&gt;-->
-				<!--hibernate.dialect=org.hibernate.dialect.Oracle10gDialect-->
+	<bean id="appSessionFactory"
+		class="org.springframework.orm.hibernate3.annotation.AnnotationSessionFactoryBean"
+		depends-on="flyway-project-main">
+		<property name="dataSource" ref="dataSourceProject" />
+		<property name="hibernateProperties">
+			<value>
+				<!--hibernate.dialect=org.hibernate.dialect.MySQLDialect-->
+				hibernate.dialect=org.hibernate.dialect.Oracle10gDialect
 
-				<!--&lt;!&ndash;hibernate.hbm2ddl.auto=update&ndash;&gt;-->
-				<!--&lt;!&ndash; hibernate.ejb.naming_strategy" value="org.hibernate.cfg.ImprovedNamingStrategy"/> &ndash;&gt;-->
-				<!--hibernate.show_sql=false-->
-				<!--hibernate.format_sql=false-->
-				<!--&lt;!&ndash; hibernate.current_session_context_class=org.hibernate.context.ThreadLocalSessionContext &ndash;&gt;-->
-				<!--hibernate.connection.aggressive_release=true-->
-				<!--hibernate.jdbc.batch_size=20-->
-				<!--hibernate.connection.autocommit=false-->
-				<!--hibernate.connection.autoReconnect=true-->
-				<!--hibernate.enable_lazy_load_no_trans=true-->
-			<!--</value>-->
-		<!--</property>-->
-		<!--<property name="packagesToScan">-->
-			<!--<list>-->
-				<!--<value>$pf{domain.packageToScan}</value>-->
-			<!--</list>-->
-		<!--</property>-->
-	<!--</bean>-->
-	<!--<bean id="txManProject"-->
-		<!--class="org.springframework.orm.hibernate3.HibernateTransactionManager">-->
-		<!--<property name="sessionFactory" ref="appSessionFactory" />-->
-	<!--</bean>-->
-	<!--<tx:annotation-driven transaction-manager="txManProject" />-->
+				<!--hibernate.hbm2ddl.auto=update-->
+				<!-- hibernate.ejb.naming_strategy" value="org.hibernate.cfg.ImprovedNamingStrategy"/> -->
+				hibernate.show_sql=false
+				hibernate.format_sql=false
+				<!-- hibernate.current_session_context_class=org.hibernate.context.ThreadLocalSessionContext -->
+				hibernate.connection.aggressive_release=true
+				hibernate.jdbc.batch_size=20
+				hibernate.connection.autocommit=false
+				hibernate.connection.autoReconnect=true
+				hibernate.enable_lazy_load_no_trans=true
+			</value>
+		</property>
+		<property name="packagesToScan">
+			<list>
+				<value>$pf{domain.packageToScan}</value>
+			</list>
+		</property>
+	</bean>
+	<bean id="txManProject"
+		class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+		<property name="sessionFactory" ref="appSessionFactory" />
+	</bean>
+	<tx:annotation-driven transaction-manager="txManProject" />
 
 </beans>
