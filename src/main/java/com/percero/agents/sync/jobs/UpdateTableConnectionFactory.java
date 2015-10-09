@@ -104,9 +104,9 @@ public class UpdateTableConnectionFactory {
             cpds.setPassword(password);
 
             // the settings below are optional -- c3p0 can work with defaults
-            cpds.setMinPoolSize(5);
+            cpds.setMinPoolSize(10);
             cpds.setAcquireIncrement(5);
-
+            cpds.setMaxPoolSize(this.weight);
         }catch(PropertyVetoException pve){
             logger.error(pve.getMessage(), pve);
             throw pve;
@@ -116,8 +116,8 @@ public class UpdateTableConnectionFactory {
     public Connection getConnection() throws SQLException{
         try{
         	if (cpds == null) {
-        		init();
-        	}
+                init();
+            }
             return cpds.getConnection();
         }
         catch(PropertyVetoException e){

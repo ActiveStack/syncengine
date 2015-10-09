@@ -78,7 +78,7 @@ public class UpdateTableProcessor implements Runnable{
         ProcessorResult result = new ProcessorResult();
 
         while(true) {
-            UpdateTableRow row = getRow();
+            UpdateTableRow row = getRows();
             if(row == null) break;
 
             try {
@@ -483,7 +483,7 @@ public class UpdateTableProcessor implements Runnable{
      * processors don't duplicate the work
      * @return
      */
-    public UpdateTableRow getRow(){
+    public UpdateTableRow getRows(){
         UpdateTableRow row = null;
 
         try(Connection conn = connectionFactory.getConnection();

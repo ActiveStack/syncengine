@@ -91,7 +91,7 @@ public class UpdateTableProcessorTest {
         setupThreeRowsInUpdateTable();
     	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
-        UpdateTableRow row = processor.getRow();
+        UpdateTableRow row = processor.getRows();
 
         Assert.assertNotNull(row);
         Assert.assertNotNull(row.getLockId());
