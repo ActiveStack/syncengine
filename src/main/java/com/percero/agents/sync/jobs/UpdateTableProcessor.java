@@ -40,6 +40,8 @@ public class UpdateTableProcessor implements Runnable{
     protected IAccessManager accessManager;
     protected int maxRowsToProcess = INFINITE_ROWS; // No max
 
+    private Connection connection;
+
     public UpdateTableProcessor(String tableName,
                                 UpdateTableConnectionFactory connectionFactory,
                                 IManifest manifest,
@@ -75,31 +77,37 @@ public class UpdateTableProcessor implements Runnable{
      * @return
      */
     public void run(){
-        ProcessorResult result = new ProcessorResult();
+        try {
+            ProcessorResult result = new ProcessorResult();
 
-        while(true) {
-            UpdateTableRow row = getRows();
-            if(row == null) break;
+            while (true) {
+                UpdateTableRow row = getRows();
+                if (row == null) break;
 
-            try {
-                if (processRow(row)) {
-                    result.addResult(row.getType().toString());
-                    deleteRow(row);
-                } else {
-                    result.addResult(row.getType().toString(), false, "");
+                try {
+                    if (processRow(row)) {
+                        result.addResult(row.getType().toString());
+                        deleteRow(row);
+                    } else {
+                        result.addResult(row.getType().toString(), false, "");
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to process update: " + e.getMessage(), e);
+                    result.addResult(row.getType().toString(), false, e.getMessage());
                 }
-            }catch(Exception e){
-                logger.warn("Failed to process update: "+ e.getMessage(), e);
-                result.addResult(row.getType().toString(), false, e.getMessage());
             }
-        }
 
-        if(result.isSuccess()){
-            logger.debug("Update table processor ("+tableName+") finished successfully. Total rows ("+result.getTotal()+")");
-        }
-        else{
-            logger.warn("Update table processor ("+tableName+") failed. Details:");
-            logger.warn(result);
+            if (result.isSuccess()) {
+                logger.debug("Update table processor (" + tableName + ") finished successfully. Total rows (" + result.getTotal() + ")");
+            } else {
+                logger.warn("Update table processor (" + tableName + ") failed. Details:");
+                logger.warn(result);
+            }
+        }finally{
+            try {
+                Connection conn = getConnection();
+                conn.close();
+            }catch(Exception e){}
         }
     }
 
@@ -486,10 +494,10 @@ public class UpdateTableProcessor implements Runnable{
     public UpdateTableRow getRows(){
         UpdateTableRow row = null;
 
-        try(Connection conn = connectionFactory.getConnection();
-            Statement statement = conn.createStatement())
-        {
-
+        Statement statement = null;
+        try{
+            Connection conn = getConnection();
+            statement = conn.createStatement();
             Random rand = new Random();
 
             int lockId = rand.nextInt();
@@ -510,6 +518,11 @@ public class UpdateTableProcessor implements Runnable{
 
         } catch(SQLException e){
             logger.warn(e.getMessage(), e);
+        } finally {
+            try {
+                if (statement != null)
+                    statement.close();
+            }catch(Exception e){}
         }
 
         return row;
@@ -619,7 +632,9 @@ public class UpdateTableProcessor implements Runnable{
      * @param row
      */
     protected void deleteRow(UpdateTableRow row){
-        try(Connection conn = connectionFactory.getConnection()){
+
+        try{
+            Connection conn = getConnection();
             String sql = "delete from :tableName where ID=:ID";
             sql = sql.replace(":tableName", tableName);
             sql = sql.replace(":ID", row.getID()+"");
@@ -676,5 +691,12 @@ public class UpdateTableProcessor implements Runnable{
         row.timestamp   = resultSet.getDate("time_stamp");
 
         return row;
+    }
+
+    private Connection getConnection() throws SQLException{
+        if(this.connection == null || this.connection.isClosed())
+            this.connection = this.connectionFactory.getConnection();
+
+        return this.connection;
     }
 }
