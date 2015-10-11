@@ -107,6 +107,8 @@ public class UpdateTableConnectionFactory {
             cpds.setMinPoolSize(10);
             cpds.setAcquireIncrement(5);
             cpds.setMaxPoolSize(this.weight);
+            cpds.setTestConnectionOnCheckout(true);
+
         }catch(PropertyVetoException pve){
             logger.error(pve.getMessage(), pve);
             throw pve;

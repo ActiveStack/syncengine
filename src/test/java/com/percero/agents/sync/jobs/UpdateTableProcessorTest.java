@@ -54,7 +54,7 @@ public class UpdateTableProcessorTest {
     public void getClassForTableName_NoTableAnnotation() throws Exception{
     	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
-        Class clazz = processor.getClassForTableName("Email");
+        List<Class> clazz = processor.getClassesForTableName("Email");
         Assert.assertEquals(Email.class, clazz);
     }
 
@@ -62,7 +62,7 @@ public class UpdateTableProcessorTest {
     public void getClassForTableName_TableAnnotation() throws Exception{
     	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
-        Class clazz = processor.getClassForTableName("Person");
+        List<Class> clazz = processor.getClassesForTableName("Person");
         Assert.assertEquals(Person.class, clazz);
     }
 
@@ -70,7 +70,7 @@ public class UpdateTableProcessorTest {
     public void getClassForTableName_NotFound() throws Exception{
     	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
-        Class clazz = processor.getClassForTableName("NotAnEntity");
+        List<Class> clazz = processor.getClassesForTableName("NotAnEntity");
         Assert.assertNull(clazz);
     }
 

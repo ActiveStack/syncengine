@@ -16,7 +16,6 @@ import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.springframework.util.StringUtils;
 
-import javax.persistence.Table;
 import java.sql.*;
 import java.util.*;
 import java.util.Date;
@@ -105,7 +104,7 @@ public class UpdateTableProcessor implements Runnable{
 
                 Date endTime = new Date();
                 UpdateTableProcessReporter.getInstance()
-                        .submitCountAndTime(tableName, successfulRows.size(), endTime.getTime()-startTime.getTime());
+                        .submitCountAndTime(tableName, successfulRows.size(), endTime.getTime() - startTime.getTime());
             }
 
             if (!result.isSuccess()) {
@@ -163,10 +162,9 @@ public class UpdateTableProcessor implements Runnable{
      */
     @SuppressWarnings("rawtypes")
     protected boolean processUpdateSingle(UpdateTableRow row) throws Exception{
-        Class clazz = getClassForTableName(row.getTableName());
+        List<Class> classes = getClassesForTableName(row.getTableName());
 
-        // If we found the class then we care about this row, otherwise return true and the row will be deleted
-        if(clazz != null) {
+        for(Class clazz : classes) {
             String className = clazz.getCanonicalName();
 
             IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -192,9 +190,9 @@ public class UpdateTableProcessor implements Runnable{
      */
     @SuppressWarnings("rawtypes")
     protected boolean processUpdateTable(UpdateTableRow row) throws Exception{
-        Class clazz = getClassForTableName(row.getTableName());
+        List<Class> classes = getClassesForTableName(row.getTableName());
 
-        if(clazz != null) {
+        for(Class clazz : classes) {
             String className = clazz.getCanonicalName();
 
             // If there are any clients that have asked for all objects in a class then we have to push everything
@@ -268,10 +266,9 @@ public class UpdateTableProcessor implements Runnable{
      */
     @SuppressWarnings("rawtypes")
     protected boolean processInsertSingle(UpdateTableRow row) throws Exception{
-        Class clazz = getClassForTableName(row.getTableName());
+        List<Class> classes = getClassesForTableName(row.getTableName());
 
-        // If clazz is not null then we care about this row, otherwise throw the row away
-        if(clazz != null) {
+        for(Class clazz : classes) {
             String className = clazz.getCanonicalName();
 
             // We do not use PostCreateHelper here because we are going to do all
@@ -291,9 +288,9 @@ public class UpdateTableProcessor implements Runnable{
      */
     @SuppressWarnings("rawtypes")
     protected boolean processInsertTable(UpdateTableRow row) throws Exception {
-        Class clazz = getClassForTableName(row.getTableName());
+        List<Class> classes = getClassesForTableName(row.getTableName());
 
-        if(clazz != null) {
+        for(Class clazz : classes) {
             String className = clazz.getCanonicalName();
 
             // if any client needs all of this class then the only choice we have is to push everything
@@ -320,9 +317,9 @@ public class UpdateTableProcessor implements Runnable{
      */
     @SuppressWarnings("rawtypes")
     protected boolean processDeleteSingle(UpdateTableRow row) throws Exception{
-        Class clazz = getClassForTableName(row.getTableName());
+        List<Class> classes = getClassesForTableName(row.getTableName());
 
-        if(clazz != null) {
+        for(Class clazz : classes){
             String className = clazz.getCanonicalName();
 
             // See if this object is in the cache.  If so, it will help us know which related objects to update.
@@ -347,9 +344,9 @@ public class UpdateTableProcessor implements Runnable{
      */
     @SuppressWarnings("rawtypes")
     protected boolean processDeleteTable(UpdateTableRow row) throws Exception{
-        Class clazz = getClassForTableName(row.getTableName());
+        List<Class> classes = getClassesForTableName(row.getTableName());
 
-        if(clazz != null) {
+        for(Class clazz : classes){
             String className = clazz.getCanonicalName();
 
             IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -409,13 +406,16 @@ public class UpdateTableProcessor implements Runnable{
 
     @SuppressWarnings("rawtypes")
     protected Set<ClassIDPair> getAllClassIdPairsForTable(String tableName) throws Exception{
-        Class clazz = getClassForTableName(tableName);
-        String className = clazz.getCanonicalName();
+        Set<ClassIDPair> results = new HashSet<>();
+        List<Class> classes = getClassesForTableName(tableName);
 
-        IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-        MappedClass mappedClass = mcm.getMappedClassByClassName(className);
-        IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-        Set<ClassIDPair> results = dataProvider.getAllClassIdPairsByName(className);
+        for(Class clazz : classes) {
+            String className = clazz.getCanonicalName();
+            IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+            MappedClass mappedClass = mcm.getMappedClassByClassName(className);
+            IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
+            results.addAll(dataProvider.getAllClassIdPairsByName(className));
+        }
 
         return results;
     }
@@ -667,26 +667,12 @@ public class UpdateTableProcessor implements Runnable{
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public Class getClassForTableName(String tableName){
-        Class result = null;
+    public List<Class> getClassesForTableName(String tableName){
+        List<Class> result = new ArrayList<>();
 
-        // First look for the @Table annotation
-        for(Class c : manifest.getClassList()){
-            Table table = (Table) c.getAnnotation(Table.class);
-            if(table != null && tableName.equals(table.name())) {
-                result = c;
-                break;
-            }
-        }
-
-        // If we didn't find that now look for the simple class name to match
-        if(result == null){
-            for(Class c : manifest.getClassList()){
-                if(tableName.equals(c.getSimpleName())) {
-                    result = c;
-                    break;
-                }
-            }
+        UpdateTableMapping mapping = UpdateTableRegistry.getInstance().getTableMapping(tableName);
+        if(mapping != null){
+            result.addAll(mapping.classes);
         }
 
         return result;
@@ -712,7 +698,7 @@ public class UpdateTableProcessor implements Runnable{
     }
 
     private Connection getConnection() throws SQLException{
-        if(this.connection == null || this.connection.isClosed())
+        if(this.connection == null || !this.connection.isValid(10)) // 10 second timeout
             this.connection = this.connectionFactory.getConnection();
 
         return this.connection;
