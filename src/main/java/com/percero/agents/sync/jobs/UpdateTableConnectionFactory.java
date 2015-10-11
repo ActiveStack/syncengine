@@ -74,7 +74,7 @@ public class UpdateTableConnectionFactory {
     private String updateStatementSql = "update :tableName set lock_id=:lockId, lock_date=NOW() " +
             "where lock_id is null or " +
             "lock_date < ':expireThreshold' " +
-            "order by time_stamp limit 1";
+            "order by time_stamp limit :limit";
 	public String getUpdateStatementSql() {
 		return updateStatementSql;
 	}

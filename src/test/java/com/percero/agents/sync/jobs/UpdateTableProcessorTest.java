@@ -16,6 +16,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 
 /**
  * Created by Jonathan Samples<jonnysamps@gmail.com> on 9/4/15.
@@ -91,7 +92,8 @@ public class UpdateTableProcessorTest {
         setupThreeRowsInUpdateTable();
     	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
-        UpdateTableRow row = processor.getRows();
+        List<UpdateTableRow> rows = processor.getRows(1);
+        UpdateTableRow row = rows.get(0);
 
         Assert.assertNotNull(row);
         Assert.assertNotNull(row.getLockId());

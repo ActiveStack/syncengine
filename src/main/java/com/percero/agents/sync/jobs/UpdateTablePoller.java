@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,6 +48,12 @@ public class UpdateTablePoller {
 
     public boolean enabled = true;
 
+    @PostConstruct
+    public void init(){
+        // Get the reporter going
+        UpdateTableProcessReporter.getInstance();
+    }
+
     /**
      * Run every minute
      */
@@ -74,7 +81,6 @@ public class UpdateTablePoller {
         // Spin `weight` new threads... weight is supposed to be a balancing scale.. but right now we
         // Use it to see how many threads to create.
         for(int i = 0; i < connectionFactory.getWeight(); i++) {
-            logger.info("Creating new processor thread");
             UpdateTableProcessor processor = getProcessor(connectionFactory, tableName);
             Thread thread = new Thread(processor);
             threads.add(thread);
