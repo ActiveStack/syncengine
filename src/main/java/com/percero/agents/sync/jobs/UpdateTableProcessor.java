@@ -698,7 +698,7 @@ public class UpdateTableProcessor implements Runnable{
     }
 
     private Connection getConnection() throws SQLException{
-        if(this.connection == null || !this.connection.isValid(10)) // 10 second timeout
+        if(this.connection == null || this.connection.isClosed()) // 10 second timeout
             this.connection = this.connectionFactory.getConnection();
 
         return this.connection;
