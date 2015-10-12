@@ -760,6 +760,9 @@ public class RedisAccessManager implements IAccessManager {
 				String classValue = RedisKeyUtils.classIdPair(pair.getClassName(), pair.getID());
 
 				for(String nextClient : clientIds) {
+					if (!StringUtils.hasText(nextClient)) {
+						continue;
+					}
 					if (!sendToPusher && pusherClient != null) {
 						// Don't send to pushing Client
 						if (nextClient.equals(pusherClient)) {
