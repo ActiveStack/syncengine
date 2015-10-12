@@ -219,9 +219,8 @@
 		<property name="dataSource" ref="dataSource1" />
 		<property name="hibernateProperties">
 			<value>
-				<!--hibernate.dialect=org.hibernate.dialect.MySQLDialect-->
-				hibernate.dialect=org.hibernate.dialect.Oracle10gDialect
-				<!--hibernate.hbm2ddl.auto=update-->
+				hibernate.dialect=org.hibernate.dialect.MySQLDialect
+				hibernate.hbm2ddl.auto=update
 				<!-- hibernate.ejb.naming_strategy" value="org.hibernate.cfg.ImprovedNamingStrategy"/> -->
 				hibernate.show_sql=false
 				hibernate.format_sql=false
@@ -288,8 +287,8 @@
 		<property name="maxPoolSize" value="80" />
 		<property name="maxIdleTime" value="300" />
 
-		<!-- UNCOMMENT THIS TO IDENTIFY ANY CONNECTION POOL LEAKS <property name="unreturnedConnectionTimeout" 
-			value="120"/> < ! - - this time is in seconds; so 2 minutes - - > <property 
+		<!-- UNCOMMENT THIS TO IDENTIFY ANY CONNECTION POOL LEAKS <property name="unreturnedConnectionTimeout"
+			value="120"/> < ! - - this time is in seconds; so 2 minutes - - > <property
 			name="debugUnreturnedConnectionStackTraces" value="true" /> -->
 	</bean>
 

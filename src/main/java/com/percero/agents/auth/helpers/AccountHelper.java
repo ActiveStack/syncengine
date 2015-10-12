@@ -4,12 +4,9 @@ import com.percero.agents.auth.principal.PrincipalUser;
 import com.percero.agents.auth.services.IAuthService;
 import com.percero.agents.auth.vo.*;
 import com.percero.agents.sync.access.IAccessManager;
-import com.percero.agents.sync.dao.DAORegistry;
-import com.percero.agents.sync.dao.IDataAccessObject;
 import com.percero.agents.sync.helpers.PostCreateHelper;
 import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.helpers.PostPutHelper;
-import com.percero.agents.sync.hibernate.SyncHibernateUtils;
 import com.percero.agents.sync.metadata.*;
 import com.percero.agents.sync.services.IDataProviderManager;
 import com.percero.agents.sync.services.ISyncAgentService;
@@ -18,7 +15,8 @@ import com.percero.framework.bl.IManifest;
 import com.percero.framework.bl.ManifestHelper;
 import com.percero.framework.vo.IPerceroObject;
 import org.apache.log4j.Logger;
-import org.hibernate.*;
+import org.hibernate.HibernateException;
+import org.hibernate.NonUniqueResultException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -51,12 +49,6 @@ public class AccountHelper implements IAccountHelper {
     protected IAccessManager accessManager;
     public void setAccessManager(IAccessManager value) {
         accessManager = value;
-    }
-
-    @Autowired
-    protected SessionFactory appSessionFactory;
-    public void setAppSessionFactory(SessionFactory value) {
-        appSessionFactory = value;
     }
 
     @Autowired
@@ -165,48 +157,18 @@ public class AccountHelper implements IAccountHelper {
 
     public IUserAnchor validateUser(String regAppKey, String userId, IAuthService authService) throws HibernateException {
         IUserAnchor result = null;
-        Session s = appSessionFactory.openSession();
         try {
             ManifestHelper.setManifest(manifest);
-            //Class userAnchorClass = ManifestHelper.findImplementingClass(IUserAnchor.class);
-            EntityImplementation userAnchorEI = null;
-            List<EntityImplementation> userAnchorMappedClasses = MappedClass.findEntityImplementation(IUserAnchor.class);
-            if (userAnchorMappedClasses.size() > 0) {
-                userAnchorEI = userAnchorMappedClasses.get(0);
-            }
+            IUserAnchor foundUserAnchor = UserAnchorHelper.getUserAnchor(userId);
 
-            if (userAnchorEI != null) {
-                //IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-                MappedClass mc = userAnchorEI.mappedClass;
-                if (mc != null) {
-                    IUserAnchor foundUserAnchor = null;
-                    try {
-                        IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(mc.className);
-                        Class userAnchorClass = Class.forName(mc.className);
-                        IUserAnchor example = (IUserAnchor) userAnchorClass.newInstance();
-                        example.setUserId(userId);
-                        List<IPerceroObject> list = dao.findByExample((IPerceroObject)example, null, null, false);
-                        if(list.size() > 0)
-                            foundUserAnchor = (IUserAnchor) list.get(0);
-//                        String userAnchorQueryString = "SELECT ua FROM " + mc.tableName + " ua WHERE ua.userId=:userId";
-//                        Query userAnchorQuery = s.createQuery(userAnchorQueryString);
-//                        userAnchorQuery.setString("userId", userId);
-//                        IUserAnchor foundUserAnchor = (IUserAnchor) userAnchorQuery.uniqueResult();
-                    }catch(Exception e){}
-
-                    if (foundUserAnchor == null) {
-                        result = handleUserAnchorNotFound(regAppKey, userId, authService);
-                    } else {
-                        handleUserAnchorFound(regAppKey, userId, authService, foundUserAnchor);
-                        result = foundUserAnchor;
-                    }
-                }
+            if (foundUserAnchor == null) {
+                result = handleUserAnchorNotFound(regAppKey, userId, authService);
+            } else {
+                handleUserAnchorFound(regAppKey, userId, authService, foundUserAnchor);
+                result = foundUserAnchor;
             }
         } catch (NonUniqueResultException nre) {
             log.error("More than one UserAnchor objects found for userId " + userId, nre);
-        } finally {
-            if (s != null && s.isOpen())
-                s.close();
         }
         return result;
     }
@@ -404,81 +366,47 @@ public class AccountHelper implements IAccountHelper {
      }*/
 
     protected IUserAnchor addOrUpdateUserAnchorFromServiceUserList(String userId, List<ServiceUser> serviceUserList, IUserAnchor result) {
-        Session s = null;
         try {
+            // TODO: why are we doing this everywhere?
             ManifestHelper.setManifest(manifest);
-            //Set<Class> userIdentifierClasses = ManifestHelper.findImplementingClasses(IUserIdentifier.class);
-            //Class userAnchorClass = ManifestHelper.findImplementingClass(IUserAnchor.class);
-            EntityImplementation eiUserAnchor = null;
-            List<EntityImplementation> userAnchorEntityImplementations = MappedClass.findEntityImplementation(IUserAnchor.class);
-            if (userAnchorEntityImplementations.size() > 0) {
-                eiUserAnchor = userAnchorEntityImplementations.get(0);
-            }
+
+            EntityImplementation eiUserAnchor = UserAnchorHelper.getUserAnchorEntityImplementation();
             List<EntityImplementation> userIdentifierEntityImplementations = MappedClass.findEntityImplementation(IUserIdentifier.class);
 
-            if (userIdentifierEntityImplementations.size() > 0) {
-                List<IUserIdentifier> identifiersToSave = new ArrayList<IUserIdentifier>();
+            List<IUserIdentifier> identifiersToSave = new ArrayList<IUserIdentifier>();
 
-                Iterator<EntityImplementation> itrUserIdentifierEntityImplementations = userIdentifierEntityImplementations.iterator();
-                while (itrUserIdentifierEntityImplementations.hasNext()) {
-                    EntityImplementation userIdentifierEntityImplementation = itrUserIdentifierEntityImplementations.next();
+            Iterator<EntityImplementation> itrUserIdentifierEntityImplementations = userIdentifierEntityImplementations.iterator();
+            while (itrUserIdentifierEntityImplementations.hasNext()) {
+                EntityImplementation userIdentifierEntityImplementation = itrUserIdentifierEntityImplementations.next();
 
-                    //MappedField userAnchorMappedField = userIdentifierEntityImplementation.getMappedFieldByName(userIdentifierAnnotation.userAnchorFieldName());
-                    PropertyImplementation userIdentifierPropImpl = userIdentifierEntityImplementation.findPropertyImplementationByName(IUserIdentifier.USER_IDENTIFIER_FIELD_NAME);
-                    RelationshipImplementation userAnchorRelImpl = userIdentifierEntityImplementation.findRelationshipImplementationBySourceVarName(IUserIdentifier.USER_ANCHOR_FIELD_NAME);
-                    //IUserIdentifierA userIdentifierAnnotation = getUserIdentifierAnnotation(userIdentifierEntityImplementation);
-                    if (userAnchorRelImpl != null) {
+                PropertyImplementation userIdentifierPropImpl = userIdentifierEntityImplementation.findPropertyImplementationByName(IUserIdentifier.USER_IDENTIFIER_FIELD_NAME);
+                RelationshipImplementation userAnchorRelImpl = userIdentifierEntityImplementation.findRelationshipImplementationBySourceVarName(IUserIdentifier.USER_ANCHOR_FIELD_NAME);
 
-                        if (s == null) {
-                            s = appSessionFactory.openSession();
-                        }
+                for (ServiceUser nextServiceUser : serviceUserList) {
+                    for (ServiceIdentifier nextIdentifier : nextServiceUser.getIdentifiers()) {
+                        try {
+                            // Make sure this Identifier is in the same paradigm.
+                            String paradigm = null;
+                            Iterator<PropertyImplementationParam> itrParams = userIdentifierPropImpl.params.iterator();
+                            while (itrParams.hasNext()) {
+                                PropertyImplementationParam nextParam = itrParams.next();
+                                if (nextParam.name.equalsIgnoreCase(IUserIdentifier.PARADIGM_PARAM_NAME)) {
+                                    paradigm = nextParam.value;
+                                    break;
+                                }
+                            }
+                            if (nextIdentifier.getParadigm() == null || !nextIdentifier.getParadigm().equalsIgnoreCase(paradigm)) {
+                                continue;
+                            }
 
-                        // Get this userAnchor's identifier(s).
-                        String userIdentifierQueryString = "SELECT ui FROM " + userIdentifierEntityImplementation.mappedClass.tableName
-                                + " ui WHERE ui." + userIdentifierPropImpl.mappedField.getField().getName() + "=:value AND (ui." +
-                                userAnchorRelImpl.sourceMappedField.getField().getName() + " IS NULL OR ui." + userAnchorRelImpl.sourceMappedField.getField().getName() +
-                                " IN (SELECT ua FROM " + eiUserAnchor.mappedClass.tableName + " ua WHERE (ua.userId=null OR ua.userId='' OR ua.userId=:userId)))";
-                        for (ServiceUser nextServiceUser : serviceUserList) {
-                            for (ServiceIdentifier nextIdentifier : nextServiceUser.getIdentifiers()) {
-                                try {
-                                    // Make sure this Identifier is in the same paradigm.
-                                    String paradigm = null;
-                                    Iterator<PropertyImplementationParam> itrParams = userIdentifierPropImpl.params.iterator();
-                                    while (itrParams.hasNext()) {
-                                        PropertyImplementationParam nextParam = itrParams.next();
-                                        if (nextParam.name.equalsIgnoreCase(IUserIdentifier.PARADIGM_PARAM_NAME)) {
-                                            paradigm = nextParam.value;
-                                            break;
-                                        }
-                                    }
-                                    if (nextIdentifier.getParadigm() == null || !nextIdentifier.getParadigm().equalsIgnoreCase(paradigm)) {
-                                        continue;
-                                    }
+                            // Look for this existing identifier.
+                            IUserIdentifier foundIdentifier = (IUserIdentifier) UserIdentifierHelper.getUserIdentifierForUserAndValue(userIdentifierEntityImplementation,result,nextIdentifier.getValue());
 
-                                    // Look for this existing identifier.
-                                    Query userIdentifierQuery = s.createQuery(userIdentifierQueryString);
-                                    userIdentifierQuery.setString("userId", userId);
-                                    userIdentifierQuery.setString("value", nextIdentifier.getValue());
-                                    IUserIdentifier foundIdentifier = (IUserIdentifier) userIdentifierQuery.uniqueResult();
 
-                                    if (foundIdentifier != null) {
-                                        // If the email does not have a Person, then associate email with this Person.
-                                        foundIdentifier = (IUserIdentifier) SyncHibernateUtils.cleanObject(foundIdentifier, s);
-                                        IUserAnchor existingUserAnchor = (IUserAnchor) SyncHibernateUtils.cleanObject(userAnchorRelImpl.sourceMappedField.getGetter().invoke(foundIdentifier), s);
-                                        if (existingUserAnchor == null) {
-                                            if (result != null) {
-                                                userAnchorRelImpl.sourceMappedField.getSetter().invoke(foundIdentifier, result);
-                                                syncAgentService.systemPutObject((IPerceroObject) foundIdentifier, null, null, null, true);
-                                            }
-                                            else {
-                                                identifiersToSave.add(foundIdentifier);
-                                            }
-                                        } else if (result == null) {
-                                            result = existingUserAnchor;
-                                        }
-                                    } else { // Identifier object NOT found, need to add.
-                                        // Identifier.identifierValue will be set later, once that is determined.
-                                        IUserIdentifier newIdentifier = (IUserIdentifier) userIdentifierEntityImplementation.mappedClass.clazz.newInstance();
+                            if (foundIdentifier == null) {
+                                // Identifier object NOT found, need to add.
+                                // Identifier.identifierValue will be set later, once that is determined.
+                                IUserIdentifier newIdentifier = (IUserIdentifier) userIdentifierEntityImplementation.mappedClass.clazz.newInstance();
 										/*
 										IUserIdentifierA userIdentifierA = null;
 										Class nextClass = newIdentifier.getClass();
@@ -494,65 +422,51 @@ public class AccountHelper implements IAccountHelper {
 										MappedField mappedField = mappedClass.getExternalizeFieldByName(userIdentifierA.userIdentifierFieldName());
 										mappedField.getSetter().invoke(newIdentifier, nextIdentifier.getValue());
 										*/
-                                        userIdentifierPropImpl.mappedField.getSetter().invoke(newIdentifier, nextIdentifier.getValue());
-                                        identifiersToSave.add(newIdentifier);
-                                    }
-                                } catch(NonUniqueResultException nure) {
-                                    log.warn("Non-unique User Identifier: " + nextIdentifier, nure);
-                                }
+                                userIdentifierPropImpl.mappedField.getSetter().invoke(newIdentifier, nextIdentifier.getValue());
+                                identifiersToSave.add(newIdentifier);
                             }
+                        } catch(NonUniqueResultException nure) {
+                            log.warn("Non-unique User Identifier: " + nextIdentifier, nure);
                         }
                     }
                 }
+            }
 
-                if (s != null && s.isOpen()) {
-                    s.close();
+            // Need to create a new IUserAnchor
+            if (result == null) {
+                result = (IUserAnchor) eiUserAnchor.mappedClass.clazz.newInstance();
+                ((IPerceroObject) result).setID(UUID.randomUUID().toString());
+                result.setUserId(userId);
+                if (serviceUserList.size() > 0) {
+
+                    // Find field that has firstName and lastName PropertyImplementations.
+                    PropertyImplementation firstNamePropImpl = eiUserAnchor.findPropertyImplementationByName(IUserAnchor.FIRST_NAME_FIELD);
+                    PropertyImplementation lastNamePropImpl = eiUserAnchor.findPropertyImplementationByName(IUserAnchor.LAST_NAME_FIELD);
+
+                    ServiceUser firstServiceUser = serviceUserList.get(0);
+
+                    if (firstNamePropImpl != null)
+                        firstNamePropImpl.mappedField.getSetter().invoke(result, firstServiceUser.getFirstName());
+                    if (lastNamePropImpl != null)
+                        lastNamePropImpl.mappedField.getSetter().invoke(result, firstServiceUser.getLastName());
                 }
 
-                // Need to create a new IUserAnchor
-                if (result == null) {
-                    result = (IUserAnchor) eiUserAnchor.mappedClass.clazz.newInstance();
-                    ((IPerceroObject) result).setID(UUID.randomUUID().toString());
-                    result.setUserId(userId);
-                    if (serviceUserList.size() > 0) {
-                        /**
-                         IUserAnchorA userAnchorAnnotation = getUserAnchorAnnotation(userAnchorClass);
+                syncAgentService.systemCreateObject((IPerceroObject) result, null);
 
-                         if (userAnchorAnnotation.firstNameFieldName() != null && !userAnchorAnnotation.firstNameFieldName().isEmpty())
-                         firstNameMappedField = mcUserAnchor.getMappedFieldByName(userAnchorAnnotation.firstNameFieldName());
-                         MappedField lastNameMappedField = null;
-                         if (userAnchorAnnotation.lastNameFieldName() != null && !userAnchorAnnotation.lastNameFieldName().isEmpty())
-                         lastNameMappedField = mcUserAnchor.getMappedFieldByName(userAnchorAnnotation.lastNameFieldName());
-                         */
+            }
+            else if (result.getUserId() == null || result.getUserId().isEmpty()) {
+                result.setUserId(userId);
 
-                        // Find field that has firstName and lastName PropertyImplementations.
-                        PropertyImplementation firstNamePropImpl = eiUserAnchor.findPropertyImplementationByName(IUserAnchor.FIRST_NAME_FIELD);
-                        PropertyImplementation lastNamePropImpl = eiUserAnchor.findPropertyImplementationByName(IUserAnchor.LAST_NAME_FIELD);
+                syncAgentService.systemPutObject((IPerceroObject) result, null, null, null, true);
+            }
 
-                        ServiceUser firstServiceUser = serviceUserList.get(0);
-
-                        if (firstNamePropImpl != null)
-                            firstNamePropImpl.mappedField.getSetter().invoke(result, firstServiceUser.getFirstName());
-                        if (lastNamePropImpl != null)
-                            lastNamePropImpl.mappedField.getSetter().invoke(result, firstServiceUser.getLastName());
-                    }
-
-                    syncAgentService.systemCreateObject((IPerceroObject) result, null);
-
+            for (IUserIdentifier nextUserIdentifier : identifiersToSave) {
+                // Set Email.person now that we have a firm handle on that Person object.
+                Boolean isNewObject = false;
+                if (((IPerceroObject)nextUserIdentifier).getID() == null || ((IPerceroObject)nextUserIdentifier).getID().isEmpty()) {
+                    isNewObject = true;
+                    ((IPerceroObject)nextUserIdentifier).setID(UUID.randomUUID().toString());
                 }
-                else if (result.getUserId() == null || result.getUserId().isEmpty()) {
-                    result.setUserId(userId);
-
-                    syncAgentService.systemPutObject((IPerceroObject) result, null, null, null, true);
-                }
-
-                for (IUserIdentifier nextUserIdentifier : identifiersToSave) {
-                    // Set Email.person now that we have a firm handle on that Person object.
-                    Boolean isNewObject = false;
-                    if (((IPerceroObject)nextUserIdentifier).getID() == null || ((IPerceroObject)nextUserIdentifier).getID().isEmpty()) {
-                        isNewObject = true;
-                        ((IPerceroObject)nextUserIdentifier).setID(UUID.randomUUID().toString());
-                    }
 
 					/*
 					IUserIdentifierA userIdentifierAnnotation = getUserIdentifierAnnotation(nextUserIdentifier.getClass());
@@ -568,31 +482,31 @@ public class AccountHelper implements IAccountHelper {
 					}
 					*/
 
-                    IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-                    MappedClass mc = mcm.getMappedClassByClassName(nextUserIdentifier.getClass().getName());
-                    EntityImplementation entityImpl = mc.entityImplementations.get(IUserIdentifier.class);
-                    if (entityImpl != null) {
-                        RelationshipImplementation relImpl = entityImpl.findRelationshipImplementationBySourceVarName(IUserIdentifier.USER_ANCHOR_FIELD_NAME);
-                        if (relImpl != null) {
-                            relImpl.sourceMappedField.getSetter().invoke(nextUserIdentifier, result);
-                            if (isNewObject) {
-                                syncAgentService.systemCreateObject((IPerceroObject) nextUserIdentifier, null);
-                            }
-                            else {
-                                syncAgentService.systemPutObject((IPerceroObject) nextUserIdentifier, null, null, null, true);
-                            }
+                IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+                MappedClass mc = mcm.getMappedClassByClassName(nextUserIdentifier.getClass().getName());
+                EntityImplementation entityImpl = mc.entityImplementations.get(IUserIdentifier.class);
+                if (entityImpl != null) {
+                    RelationshipImplementation relImpl = entityImpl.findRelationshipImplementationBySourceVarName(IUserIdentifier.USER_ANCHOR_FIELD_NAME);
+                    if (relImpl != null) {
+                        relImpl.sourceMappedField.getSetter().invoke(nextUserIdentifier, result);
+                        if (isNewObject) {
+                            syncAgentService.systemCreateObject((IPerceroObject) nextUserIdentifier, null);
                         }
                         else {
-                            log.warn("No UserAnchor found for IUserIdentifier class " + nextUserIdentifier.getClass().getCanonicalName());
+                            syncAgentService.systemPutObject((IPerceroObject) nextUserIdentifier, null, null, null, true);
                         }
                     }
-                }
-
-                if (result != null) {
-                    setupUserRoles(userId, serviceUserList);
-                    return result;
+                    else {
+                        log.warn("No UserAnchor found for IUserIdentifier class " + nextUserIdentifier.getClass().getCanonicalName());
+                    }
                 }
             }
+
+            if (result != null) {
+                setupUserRoles(userId, serviceUserList);
+                return result;
+            }
+
 
         } catch (IllegalArgumentException e) {
             log.error(e.getMessage(), e);
@@ -602,9 +516,6 @@ public class AccountHelper implements IAccountHelper {
             log.error(e.getMessage(), e);
         } catch (Exception e) {
             log.error(e.getMessage(), e);
-        } finally {
-            if (s != null && s.isOpen())
-                s.close();
         }
 
         return null;
@@ -612,7 +523,7 @@ public class AccountHelper implements IAccountHelper {
 
     @SuppressWarnings({ "unchecked" })
     public void setupUserRoles(String userId, List<ServiceUser> serviceUserList) throws Exception {
-
+        if(serviceUserList.size() <= 0) return; // Need this to keep the UserRoles from getting deleted, with the new auth stuff
         try {
             ManifestHelper.setManifest(manifest);
             EntityImplementation userRoleEI = RoleHelper.getUserRoleEntityImplementation();
