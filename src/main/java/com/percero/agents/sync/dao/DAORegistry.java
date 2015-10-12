@@ -1,13 +1,10 @@
 package com.percero.agents.sync.dao;
 
+import com.percero.framework.vo.IPerceroObject;
+import edu.emory.mathcs.backport.java.util.Collections;
+
 import java.util.HashMap;
 import java.util.Map;
-
-import com.percero.agents.sync.services.DAODataProvider;
-import com.percero.agents.sync.services.DataProviderManager;
-import com.percero.framework.vo.IPerceroObject;
-
-import edu.emory.mathcs.backport.java.util.Collections;
 
 public class DAORegistry {
 	
@@ -22,7 +19,6 @@ public class DAORegistry {
 
 	public DAORegistry() {
 		instance = this;
-		DataProviderManager.getInstance().addDataProvider(DAODataProvider.getInstance()); 
 	}
 	
 	@SuppressWarnings({ "unchecked" })
