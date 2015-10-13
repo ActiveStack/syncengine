@@ -10,11 +10,11 @@ public class RunProcessRequest extends SyncRequest {
 		this.queryName = queryName;
 	}
 
-	private Object[] queryArguments;
-	public Object[] getQueryArguments() {
+	private Object queryArguments;
+	public Object getQueryArguments() {
 		return queryArguments;
 	}
-	public void setQueryArguments(Object[] queryArguments) {
+	public void setQueryArguments(Object queryArguments) {
 		this.queryArguments = queryArguments;
 	}
 	

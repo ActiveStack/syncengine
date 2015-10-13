@@ -13,7 +13,7 @@ public class RunShardedProcess {
 	private String clientId;
 	private String serviceGroupId;
 	private String processId;
-	private Object[] arguments;
+	private Object arguments;
 
 	public String getOriginatingClientId() {
 		return originatingClientId;
@@ -39,10 +39,10 @@ public class RunShardedProcess {
 	public void setProcessId(String processId) {
 		this.processId = processId;
 	}
-	public Object[] getArguments() {
+	public Object getArguments() {
 		return arguments;
 	}
-	public void setArguments(Object[] arguments) {
+	public void setArguments(Object arguments) {
 		this.arguments = arguments;
 	}
 }
