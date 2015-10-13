@@ -744,10 +744,47 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
 						}
 
-						if (taskExecutor != null && false) {
-							taskExecutor.execute(new PostPutTask(postPutHelper, BaseDataObject.toClassIdPair((BaseDataObject) result), userId, clientId, pushToClient, changedFields));
-						} else {
+//						if (taskExecutor != null && false) {
+//							taskExecutor.execute(new PostPutTask(postPutHelper, BaseDataObject.toClassIdPair((BaseDataObject) result), userId, clientId, pushToClient, changedFields));
+//						} else {
 							postPutHelper.postPutObject(BaseDataObject.toClassIdPair((BaseDataObject) result), userId, clientId, pushToClient, changedFields);
+//						}
+						
+						// For each changed field, we look at the reverse mapped
+						// relationship (if one exists) and update that object
+						// (this was already done in the cache by the
+						// cacheManager).
+						if (changedFields != null && !changedFields.isEmpty()) {
+							Iterator<Map.Entry<ClassIDPair, Collection<MappedField>>> itrChangedFieldEntryset = changedFields.entrySet().iterator();
+							while (itrChangedFieldEntryset.hasNext()) {
+								Map.Entry<ClassIDPair, Collection<MappedField>> nextEntry = itrChangedFieldEntryset.next();
+								ClassIDPair thePair = nextEntry.getKey();
+								Collection<MappedField> changedMappedFields = nextEntry.getValue();
+								
+								// If thePair is NOT the object being updated, then need to run the postPutHelper for the Pair object as well.
+								if (!thePair.equals(classIdPair)) {
+									Map<ClassIDPair, Collection<MappedField>> thePairChangedFields = new HashMap<ClassIDPair, Collection<MappedField>>(1);
+									thePairChangedFields.put(thePair, changedMappedFields);
+									
+									// This will also run thePair through the ChangeWatcher check below.
+//									if (taskExecutor != null && false) {
+//										taskExecutor.execute(new PostPutTask(postPutHelper, thePair, userId, clientId, pushToClient, thePairChangedFields));
+//									} else {
+										postPutHelper.postPutObject(thePair, userId, clientId, pushToClient, thePairChangedFields);
+//									}
+								}
+								else {
+									Iterator<MappedField> itrChangedFields = changedMappedFields.iterator();
+									String[] fieldNames = new String[changedMappedFields.size()];
+									int i = 0;
+									while (itrChangedFields.hasNext()) {
+										MappedField nextChangedField = itrChangedFields.next();
+										fieldNames[i] = nextChangedField.getField().getName();
+										i++;
+									}
+									accessManager.checkChangeWatchers(thePair, fieldNames, null);
+								}
+							}
 						}
 					}
 				}

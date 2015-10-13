@@ -312,6 +312,10 @@ public class DAODataProvider implements IDataProvider {
         }
     }
 
+    @Override
+    public IPerceroObject retrieveCachedObject(ClassIDPair classIdPair) throws Exception {
+    	return retrieveFromRedisCache(classIdPair);
+    }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private IPerceroObject retrieveFromRedisCache(ClassIDPair classIdPair) throws Exception {
@@ -911,15 +915,24 @@ public class DAODataProvider implements IDataProvider {
         }
     }
 
-
-    @SuppressWarnings("rawtypes")
     public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject) {
+    	return getChangedMappedFields(newObject, false);
+    }
+
+    public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject, boolean ignoreCache) {
+        String className = newObject.getClass().getCanonicalName();
+        IPerceroObject oldObject = findById(new ClassIDPair(newObject.getID(), className), null, ignoreCache);
+
+        return getChangedMappedFields(oldObject, newObject);
+    }
+    
+    @SuppressWarnings("rawtypes")
+    public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject oldObject, IPerceroObject newObject) {
         Map<ClassIDPair, Collection<MappedField>> result = new HashMap<ClassIDPair, Collection<MappedField>>();
         Collection<MappedField> baseObjectResult = null;
         ClassIDPair basePair = new ClassIDPair(newObject.getID(), newObject.getClass().getCanonicalName());
 
         String className = newObject.getClass().getCanonicalName();
-        IPerceroObject oldObject = findById(new ClassIDPair(newObject.getID(), className), null);
         IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
         MappedClass mc = mcm.getMappedClassByClassName(className);
         Iterator<MappedField> itrMappedFields = mc.externalizableFields.iterator();

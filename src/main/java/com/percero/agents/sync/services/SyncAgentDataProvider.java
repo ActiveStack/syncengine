@@ -592,6 +592,11 @@ public class SyncAgentDataProvider implements IDataProvider {
 		return null;
 	}
 
+	@Override
+	public IPerceroObject retrieveCachedObject(ClassIDPair classIdPair) throws Exception {
+		return retrieveFromRedisCache(classIdPair);
+	}
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private IPerceroObject retrieveFromRedisCache(ClassIDPair classIdPair) throws Exception {
 		IPerceroObject result = null;
@@ -1457,33 +1462,48 @@ public class SyncAgentDataProvider implements IDataProvider {
 	}
 
 
+	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject compareObject) {
+		return getChangedMappedFields(compareObject, false);
+	}
+	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject compareObject, boolean ignoreCache) {
+		String className = compareObject.getClass().getCanonicalName();
+		IPerceroObject oldObject = systemGetById(new ClassIDPair(compareObject.getID(), className), ignoreCache);
+		
+		return getChangedMappedFields(oldObject, compareObject);
+	}
 	@SuppressWarnings("rawtypes")
-	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject) {
+	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject oldObject, IPerceroObject compareObject) {
 		Map<ClassIDPair, Collection<MappedField>> result = new HashMap<ClassIDPair, Collection<MappedField>>();
-		Collection<MappedField> baseObjectResult = null;
-		ClassIDPair basePair = new ClassIDPair(newObject.getID(), newObject.getClass().getCanonicalName());
 
-		String className = newObject.getClass().getCanonicalName();
-		IPerceroObject oldObject = systemGetById(new ClassIDPair(newObject.getID(), className));
+		// Validate both objects.
+		if (oldObject == null || compareObject == null || oldObject.getID() == null || compareObject.getID() == null || !oldObject.getID().equals(compareObject.getID())) {
+			return result;
+		}
+		
+		Collection<MappedField> baseObjectResult = null;
+		ClassIDPair basePair = new ClassIDPair(compareObject.getID(), compareObject.getClass().getCanonicalName());
+		
+		String className = compareObject.getClass().getCanonicalName();
+		
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 		MappedClass mc = mcm.getMappedClassByClassName(className);
 		Iterator<MappedField> itrMappedFields = mc.externalizableFields.iterator();
 		while (itrMappedFields.hasNext()) {
 			MappedField nextMappedField = itrMappedFields.next();
 			try {
-				Boolean fieldIsEqual = nextMappedField.compareObjects(oldObject, newObject);
+				Boolean fieldIsEqual = nextMappedField.compareObjects(oldObject, compareObject);
 				if (!fieldIsEqual) {
 					if (baseObjectResult == null) {
 						baseObjectResult = new HashSet<MappedField>();
 						result.put(basePair, baseObjectResult);
 					}
 					baseObjectResult.add(nextMappedField);
-
+					
 					// If this is a relationship field, then need to grab the old and new values.
 					if (nextMappedField.getReverseMappedField() != null) {
 						if (nextMappedField instanceof MappedFieldPerceroObject) {
 							MappedFieldPerceroObject nextMappedFieldPerceroObject = (MappedFieldPerceroObject) nextMappedField;
-
+							
 							IPerceroObject oldReversePerceroObject = (IPerceroObject) nextMappedFieldPerceroObject.getGetter().invoke(oldObject);
 							if (oldReversePerceroObject != null) {
 								ClassIDPair oldReversePair = new ClassIDPair(oldReversePerceroObject.getID(), oldReversePerceroObject.getClass().getCanonicalName());
@@ -1494,8 +1514,8 @@ public class SyncAgentDataProvider implements IDataProvider {
 								}
 								oldReverseChangedFields.add(nextMappedField.getReverseMappedField());
 							}
-
-							IPerceroObject newReversePerceroObject = (IPerceroObject) nextMappedFieldPerceroObject.getGetter().invoke(newObject);
+							
+							IPerceroObject newReversePerceroObject = (IPerceroObject) nextMappedFieldPerceroObject.getGetter().invoke(compareObject);
 							if (newReversePerceroObject != null) {
 								ClassIDPair newReversePair = new ClassIDPair(newReversePerceroObject.getID(), newReversePerceroObject.getClass().getCanonicalName());
 								Collection<MappedField> changedFields = result.get(newReversePair);
@@ -1508,22 +1528,22 @@ public class SyncAgentDataProvider implements IDataProvider {
 						}
 						else if (nextMappedField instanceof MappedFieldList) {
 							MappedFieldList nextMappedFieldList = (MappedFieldList) nextMappedField;
-
+							
 							List oldReverseList = (List) nextMappedFieldList.getGetter().invoke(oldObject);
 							if (oldReverseList == null)
 								oldReverseList = new ArrayList();
-
-							List newReverseList = (List) nextMappedFieldList.getGetter().invoke(newObject);
+							
+							List newReverseList = (List) nextMappedFieldList.getGetter().invoke(compareObject);
 							if (newReverseList == null)
 								newReverseList = new ArrayList();
-
+							
 							// Compare each item in the lists.
 							Collection oldChangedList = retrieveObjectsNotInCollection(oldReverseList, newReverseList);
 							Iterator itrOldChangedList = oldChangedList.iterator();
 							while (itrOldChangedList.hasNext()) {
 								BaseDataObject nextOldChangedObject = (BaseDataObject) itrOldChangedList.next();
 								ClassIDPair nextOldReversePair = BaseDataObject.toClassIdPair(nextOldChangedObject);
-
+								
 								// Old object is not in new list, so add to list of changed fields.
 								Collection<MappedField> changedFields = result.get(nextOldReversePair);
 								if (changedFields == null) {
@@ -1532,13 +1552,13 @@ public class SyncAgentDataProvider implements IDataProvider {
 								}
 								changedFields.add(nextMappedField.getReverseMappedField());
 							}
-
+							
 							Collection newChangedList = retrieveObjectsNotInCollection(newReverseList, oldReverseList);
 							Iterator itrNewChangedList = newChangedList.iterator();
 							while (itrNewChangedList.hasNext()) {
 								BaseDataObject nextNewChangedObject = (BaseDataObject) itrNewChangedList.next();
 								ClassIDPair nextNewReversePair = BaseDataObject.toClassIdPair(nextNewChangedObject);
-
+								
 								// Old object is not in new list, so add to list of changed fields.
 								Collection<MappedField> changedFields = result.get(nextNewReversePair);
 								if (changedFields == null) {
@@ -1555,7 +1575,7 @@ public class SyncAgentDataProvider implements IDataProvider {
 				baseObjectResult.add(nextMappedField);
 			}
 		}
-
+		
 		return result;
 	}
 

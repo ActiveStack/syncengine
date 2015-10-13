@@ -426,4 +426,25 @@ public class RedisDataProvider implements IDataProvider {
 		// TODO Auto-generated method stub
 		return null;
 	}
+
+	@Override
+	public IPerceroObject retrieveCachedObject(ClassIDPair classIdPair)
+			throws Exception {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(
+			IPerceroObject newObject, boolean ignoreCache) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(
+			IPerceroObject oldObject, IPerceroObject compareObject) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

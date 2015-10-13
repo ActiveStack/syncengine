@@ -25,6 +25,7 @@ public interface IDataProvider {
 	public List<Object> runQuery(MappedClass mappedClass, String queryName, Object[] queryArguments, String clientId) throws SyncException;
 	public IPerceroObject findById(ClassIDPair classIdPair, String userId);
 	public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache);
+	public IPerceroObject retrieveCachedObject(ClassIDPair classIdPair) throws Exception;
 	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId);
 	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId, Boolean ignoreCache);
 //	public IPerceroObject findUnique(IPerceroObject theQueryObject, String userId);
@@ -51,6 +52,8 @@ public interface IDataProvider {
 	 * @return
 	 */
 	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject);
+	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject, boolean ignoreCache);
+	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject oldObject, IPerceroObject compareObject);
 	
 	/**
 	 * Given the mappedField, returns ALL objects in the relationship described by the mappedField.

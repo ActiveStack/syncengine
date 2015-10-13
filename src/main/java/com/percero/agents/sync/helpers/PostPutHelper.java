@@ -81,7 +81,6 @@ public class PostPutHelper {
 		pushObjectUpdateJournals(clientIds, pair, pairChangedFields);
 		
 		// Now run past the ChangeWatcher.
-		
 		if (changedFields == null || changedFields.isEmpty()) {
 			accessManager.checkChangeWatchers(pair, null, null);
 		}
@@ -92,15 +91,26 @@ public class PostPutHelper {
 				Map.Entry<ClassIDPair, Collection<MappedField>> nextEntry = itrChangedFieldEntryset.next();
 				ClassIDPair thePair = nextEntry.getKey();
 				Collection<MappedField> changedMappedFields = nextEntry.getValue();
-				Iterator<MappedField> itrChangedFields = changedMappedFields.iterator();
-				String[] fieldNames = new String[changedMappedFields.size()];
-				int i = 0;
-				while (itrChangedFields.hasNext()) {
-					MappedField nextChangedField = itrChangedFields.next();
-					fieldNames[i] = nextChangedField.getField().getName();
-					i++;
+				
+				// If thePair is NOT the object being updated, then need to run the postPutHelper for the Pair object as well.
+				if (!thePair.equals(pair)) {
+					Map<ClassIDPair, Collection<MappedField>> thePairChangedFields = new HashMap<ClassIDPair, Collection<MappedField>>(1);
+					thePairChangedFields.put(thePair, changedMappedFields);
+					
+					// This will also run thePair through the ChangeWatcher check below.
+					this.postPutObject(thePair, pusherUserId, pusherClientId, pushToUser, thePairChangedFields);
 				}
-				accessManager.checkChangeWatchers(thePair, fieldNames, null);
+				else {
+					Iterator<MappedField> itrChangedFields = changedMappedFields.iterator();
+					String[] fieldNames = new String[changedMappedFields.size()];
+					int i = 0;
+					while (itrChangedFields.hasNext()) {
+						MappedField nextChangedField = itrChangedFields.next();
+						fieldNames[i] = nextChangedField.getField().getName();
+						i++;
+					}
+					accessManager.checkChangeWatchers(thePair, fieldNames, null);
+				}
 			}
 //			Iterator<ClassIDPair> itrChangedFieldKeyset = changedFields.keySet().iterator();
 //			while (itrChangedFieldKeyset.hasNext()) {
