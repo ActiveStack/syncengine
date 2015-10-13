@@ -63,6 +63,9 @@ public class AuthService2 {
             userToken = (UserToken) AuthHibernateUtils.cleanObject(userToken);
             response.setResult(userToken);
         }
+        else {
+        	logger.warn("LOGIN FAILED (" + provider.getID() + "): Unable to retrieve valid Service User");
+        }
 
         return response;
     }
