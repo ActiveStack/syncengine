@@ -5,6 +5,8 @@ import com.percero.agents.sync.dao.DAORegistry;
 import com.percero.agents.sync.dao.IDataAccessObject;
 import com.percero.agents.sync.metadata.EntityImplementation;
 import com.percero.agents.sync.metadata.MappedClass;
+import com.percero.agents.sync.services.DataProviderManager;
+import com.percero.agents.sync.services.IDataProvider;
 import com.percero.framework.bl.ManifestHelper;
 import com.percero.framework.vo.IPerceroObject;
 
@@ -18,13 +20,12 @@ public class UserAnchorHelper {
         IUserAnchor result = null;
         Class userAnchorClass = ManifestHelper.findImplementingClass(IUserAnchor.class);
 
-        IDataAccessObject<IPerceroObject> userAnchorDao =
-                (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(userAnchorClass.getName());
+        IDataProvider dataProvider = DataProviderManager.getInstance().getDefaultDataProvider();
 
         try {
             IUserAnchor example = (IUserAnchor) userAnchorClass.newInstance();
             example.setUserId(userId);
-            List<IPerceroObject> list = userAnchorDao.findByExample((IPerceroObject)example, null, null, false);
+            List<IPerceroObject> list = dataProvider.findByExample((IPerceroObject)example, null, null, false);
             if(list.size() > 0)
                 result = (IUserAnchor)list.get(0);
         }catch(Exception e){}
