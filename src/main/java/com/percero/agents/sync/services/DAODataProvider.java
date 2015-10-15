@@ -236,11 +236,11 @@ public class DAODataProvider implements IDataProvider {
                 IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(classIdPair.getClassName());
                 // Retrieve results BEFORE applying access rules so that our cached value represents the full object.
                 result = dao.retrieveObject(classIdPair, null, false);
-                populateToManyRelationships(result, true, null);
-                populateToOneRelationships(result, true, null);
 
                 // Now put the object in the cache.
                 if (result != null) {
+                	populateToManyRelationships(result, true, null);
+                	populateToOneRelationships(result, true, null);
                     putObjectInRedisCache(result);
                 }
                 else {

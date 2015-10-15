@@ -1331,6 +1331,12 @@ public class RedisAccessManager implements IAccessManager {
 				String nextChangeWatcher = itrChangeWatchers.next();
 				// TODO: Test this optimization.
 //				if (getChangeWatcherResultExists(nextChangeWatcher)) {
+					// If the type is CUSTOM, need to append the ClassIDPair, if it exists.
+					if (nextChangeWatcher.startsWith("cw:cf:CUSTOM:")) {
+						if (classIdPair != null) {
+							nextChangeWatcher += ":" + classIdPair.getClassName() + ":" + classIdPair.getID();
+						}
+					}
 					setupRecalculateChangeWatcher(nextChangeWatcher);
 //				}
 //				else {
@@ -1457,6 +1463,7 @@ public class RedisAccessManager implements IAccessManager {
 	}
 	
 	protected void setupRecalculateChangeWatcher(String changeWatcherId) {
+		
 		ChangeWatcherReporting.internalRequestsCounter++;
 		if (useChangeWatcherQueue && pushSyncHelper != null) {
 			pushSyncHelper.pushStringToRoute( (new StringBuilder(changeWatcherId).append(":TS:").append(System.currentTimeMillis())).toString(), changeWatcherRouteName);
