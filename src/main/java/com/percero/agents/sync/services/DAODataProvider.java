@@ -36,12 +36,9 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class DAODataProvider implements IDataProvider {
 
-    // TODO: Better manage Hibernate Sessions (opening and closing).
-
     private static final Logger log = Logger.getLogger(DAODataProvider.class);
 
     private static DAODataProvider instance = null;
-
 
     public static DAODataProvider getInstance() {
         return instance;
@@ -49,13 +46,6 @@ public class DAODataProvider implements IDataProvider {
 
     public DAODataProvider() {
         instance = this;
-    }
-
-    @PostConstruct
-    public void init()
-    {
-        dataProviderManager.addDataProvider(this);
-        ((DataProviderManager)dataProviderManager).setDefaultDataProvider(this);
     }
 
     public void initialize(){
