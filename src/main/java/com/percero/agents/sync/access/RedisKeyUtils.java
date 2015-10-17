@@ -38,6 +38,10 @@ public abstract class RedisKeyUtils {
 		return "c:np";
 	}
 	
+	public static String eolClients() {
+		return "c:eol";
+	}
+	
 	public static String client(String clientId) {
 		return (new StringBuilder(INT_64).append("c:").append(clientId)).toString();
 	}

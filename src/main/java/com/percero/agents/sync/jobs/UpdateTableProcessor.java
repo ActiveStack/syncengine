@@ -129,8 +129,8 @@ public class UpdateTableProcessor implements Runnable{
                 deleteRows(successfulRows);
 
                 Date endTime = new Date();
-                UpdateTableProcessReporter.getInstance()
-                        .submitCountAndTime(tableName, successfulRows.size(), endTime.getTime() - startTime.getTime());
+//                UpdateTableProcessReporter.getInstance()
+//                        .submitCountAndTime(tableName, successfulRows.size(), endTime.getTime() - startTime.getTime());
             }
             
             for(String className : classNamesToUpdateReferences) {

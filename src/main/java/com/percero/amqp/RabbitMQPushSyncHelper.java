@@ -49,6 +49,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.percero.agents.sync.access.IAccessManager;
+import com.percero.agents.sync.access.RedisKeyUtils;
+import com.percero.agents.sync.datastore.ICacheDataStore;
 import com.percero.agents.sync.services.IPushSyncHelper;
 import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.IJsonObject;
@@ -99,6 +101,12 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	String rabbitHost = null;
 	@Autowired @Value("$pf{gateway.rabbitmq.queue_timeout:43200000}")	// 8 Hours
 	long rabbitQueueTimeout = 43200000;
+
+	@Autowired
+	ICacheDataStore cacheDataStore;
+	public void setCacheDataStore(ICacheDataStore cacheDataStore) {
+		this.cacheDataStore = cacheDataStore;
+	}
 
 	@SuppressWarnings("rawtypes")
 	protected void pushJsonToRouting(String objectJson, Class objectClass, String routingKey) {
@@ -228,7 +236,7 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 			
 			// Send EOL message down the pipe.
 			pushJsonToRouting("{\"EOL\":true, \"clientId\":\"" + clientId + "\"}", String.class, clientId);
-			eolClients.add(clientId);
+			cacheDataStore.addSetValue(RedisKeyUtils.eolClients(), clientId);
 		} catch(AmqpIOException e) {
 			// Most likely due to queue already being deleted.
 			if (e.getCause() instanceof IOException && e.getCause().getCause() instanceof ShutdownSignalException) {
@@ -254,7 +262,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	protected Boolean deleteQueue(String queue) {
 		try {
 			logger.debug("RabbitMQ Deleting Queue " + queue);
-			eolClients.remove(queue);
 			Queue clientQueue = new Queue(queue, durableQueues);
 			amqpAdmin.declareQueue(clientQueue);
 			amqpAdmin.deleteQueue(queue);
@@ -263,13 +270,13 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 			logger.debug("Unable to clear out AMQP queue: " + queue + " (most likely because it no longer exists)", e);
 			return false;
 		}
+
+		// Remove queue name from list of EOL Clients.
+		cacheDataStore.removeSetValue(RedisKeyUtils.eolClients(), queue);
 		
 		return true;
 	}
-	
-	@SuppressWarnings("unchecked")
-	private Set<String> eolClients = Collections.synchronizedSet(new HashSet<String>());
-	
+		
 	@Override
 	public Boolean renameClient(String thePreviousClientId, String clientId) {
 		if (!StringUtils.hasText(thePreviousClientId)) {
@@ -340,7 +347,7 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 		String host = rabbitHost;
 		if (!StringUtils.hasText(host)) {
 			// No Rabbit host configured?  Very strange, but no sense in moving forward here...
-			logger.debug("No RabbitMQ host configured?");
+			logger.error("No RabbitMQ host configured?");
 			return;
 		}
 		
@@ -390,7 +397,7 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 						continue;
 					}
 
-					if (eolClients.contains(nextQueueName)) {
+					if (cacheDataStore.getSetIsMember(RedisKeyUtils.eolClients(), nextQueueName)) {
 						JsonElement nextJsonQueueMessages = nextJsonQueueObject.get("messages");
 						int nextQueueMessages = 0;
 						if (nextJsonQueueMessages != null) {
@@ -410,7 +417,7 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 						int numConsumers = nextJsonQueueConsumers.getAsInt();
 						if (numConsumers == 0) {
 							// If this queue is in the EOL list, then it can simply be deleted.
-							if (eolClients.contains(nextQueueName)) {
+							if (cacheDataStore.getSetIsMember(RedisKeyUtils.eolClients(), nextQueueName)) {
 								logger.debug("Deleting EOL no consumers queue " + nextQueueName);
 								deleteQueue(nextQueueName);
 								continue;

@@ -178,21 +178,21 @@ public class RedisAccessManager implements IAccessManager {
 			return false;
 	}
 
-	private static final Set<String> CLIENT_KEYS_SEY = new HashSet<String>(2);
+	private static final Set<String> CLIENT_KEYS_SET = new HashSet<String>(2);
 	static {
-		CLIENT_KEYS_SEY.add(RedisKeyUtils.clientsPersistent());
-		CLIENT_KEYS_SEY.add(RedisKeyUtils.clientsNonPersistent());
+		CLIENT_KEYS_SET.add(RedisKeyUtils.clientsPersistent());
+		CLIENT_KEYS_SET.add(RedisKeyUtils.clientsNonPersistent());
 	}
 	
 	@SuppressWarnings("unchecked")
 	public Set<String> validateClients(Collection<String> clientIds) throws Exception {
-		Set<String> validClients = (Set<String>) cacheDataStore.getSetsContainsMembers(CLIENT_KEYS_SEY, clientIds.toArray());
+		Set<String> validClients = (Set<String>) cacheDataStore.getSetsContainsMembers(CLIENT_KEYS_SET, clientIds.toArray());
 		return validClients;
 	}
 	
 	@SuppressWarnings("unchecked")
 	public Set<String> validateClientsIncludeFromDeviceHistory(Map<String, String> clientDevices) throws Exception {
-		Set<String> validClients = (Set<String>) cacheDataStore.getSetsContainsMembers(CLIENT_KEYS_SEY, clientDevices.keySet().toArray());
+		Set<String> validClients = (Set<String>) cacheDataStore.getSetsContainsMembers(CLIENT_KEYS_SET, clientDevices.keySet().toArray());
 		
 		// Now check each device to see if it has a corresponding clientId.
 		Iterator<Map.Entry<String, String>> itrClientDevices = clientDevices.entrySet().iterator();
@@ -609,7 +609,7 @@ public class RedisAccessManager implements IAccessManager {
 	@Scheduled(fixedRate=60000)	// 60 Seconds
 //	@Scheduled(fixedRate=300000)	// 5 Minutes
 	public void postAccessJournals() {
-		log.info("Posting " +  postAccessJournals.size() + " Access Journal" + (postAccessJournals.size() == 1 ? "" : "s"));
+		log.debug("Posting " +  postAccessJournals.size() + " Access Journal" + (postAccessJournals.size() == 1 ? "" : "s"));
 		/**if (taskExecutor != null) {
 			taskExecutor.execute(new RedisPostClientTask(postClientHelper, postClientIds));
 		} else {*/
@@ -668,7 +668,7 @@ public class RedisAccessManager implements IAccessManager {
 	@Scheduled(fixedRate=300000)	// 5 Minutes
 //	@Scheduled(fixedRate=120000)	// 2 Minutes
 	public void postClients() {
-		log.info("Posting " +  postClientIds.size() + " client" + (postClientIds.size() == 1 ? "" : "s"));
+		log.debug("Posting " +  postClientIds.size() + " client" + (postClientIds.size() == 1 ? "" : "s"));
 		/**if (taskExecutor != null) {
 			taskExecutor.execute(new RedisPostClientTask(postClientHelper, postClientIds));
 		} else {*/
@@ -846,7 +846,7 @@ public class RedisAccessManager implements IAccessManager {
 			
             // Add to the class's AccessJournals set
             if(classId != null && !classId.isEmpty()) { // && !classId.equals("0")) {
-                log.info("Adding to class AccessJournals: "+classId);
+                log.debug("Adding to class AccessJournals: "+classId);
                 String classAccessJournalKey = RedisKeyUtils.classAccessJournal(className);
                 cacheDataStore.addSetValue(classAccessJournalKey, classId);
             }

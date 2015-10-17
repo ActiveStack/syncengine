@@ -479,24 +479,6 @@ public class AuthService implements IAuthService {
 					}
 				}
 
-				/*
-				if (serviceUser.getEmails() != null && serviceUser.getEmails().size() > 0) {
-					String strFindUserIdentifier = "SELECT ui.user FROM UserIdentifier ui WHERE ui.type='email' AND (";
-					int counter = 0;
-					for(String nextEmail : serviceUser.getEmails()) {
-						if (counter > 0)
-							strFindUserIdentifier += " OR ";
-						strFindUserIdentifier += "ui.userIdentifier='" + nextEmail + "'";
-						counter++;
-					}
-					strFindUserIdentifier += ")";
-					Query q = s.createQuery(strFindUserIdentifier);
-					List<User> userList = (List<User>) q.list();
-					if (userList.size() > 0) {
-						theUser = userList.get(0);
-					}
-				}*/
-
 				Transaction tx = s.beginTransaction();
 				tx.begin();
 				Date currentDate = new Date();
@@ -563,33 +545,6 @@ public class AuthService implements IAuthService {
 					}
 					tx.commit();
 				}
-				/*
-				if (serviceUser.getEmails() != null && serviceUser.getEmails().size() > 0) {
-					if (s == null)
-						s = sessionFactoryAuth.openSession();
-					Transaction tx = s.beginTransaction();
-					Query q = null;
-					for(String nextEmail : serviceUser.getEmails()) {
-						q = s.createQuery("FROM UserIdentifier ui WHERE ui.userIdentifier=:uid AND ui.type='email'");
-						q.setString("uid", nextEmail);
-
-						List<UserIdentifier> userIdenditifierList = (List<UserIdentifier>) q.list();
-
-						if (userIdenditifierList.size() == 0) {
-							try {
-								UserIdentifier userIdentifier = new UserIdentifier();
-								userIdentifier.setType("email");
-								userIdentifier.setUser(theFoundUserAccount.getUser());
-								userIdentifier.setUserIdentifier(nextEmail);
-								s.saveOrUpdate(userIdentifier);
-							} catch(Exception e) {
-								log.warn("Unable to save Email UserIdentifier for " + serviceUser.getName(), e);
-							}
-						}
-					}
-					tx.commit();
-				}
-				 */
 			}
 		} catch (Exception e) {
 			log.error("Unable to run authenticate UserAccount", e);
@@ -690,57 +645,68 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 	/* (non-Javadoc)
 	 * @see com.com.percero.agents.auth.services.IAuthService#logoutUser(java.lang.String, java.lang.String, java.lang.String)
 	 */
-	@SuppressWarnings("rawtypes")
 	public Boolean logoutUser(String aUserId, String aToken, String aClientId) {
 		Boolean result = false;
-		Boolean validUser = StringUtils.hasText(aUserId);
-		Boolean validClient = StringUtils.hasText(aClientId);
+		boolean validUser = StringUtils.hasText(aUserId);
+		boolean validClient = StringUtils.hasText(aClientId);
+		boolean validToken = StringUtils.hasText(aToken);
 		
 		// If neither a valid user or a valid client, then no one to logout.
-		if (!validUser && !validClient) {
+		if (!validUser && !validClient && !validToken) {
+			log.warn("Invalid user/client/token on AuthService.logoutUser");
 			return false;
 		}
 
-		log.debug("Logging out User: " + aUserId + ", Client: " + aClientId);
-		User theQueryUser = new User();
-		theQueryUser.setID(aUserId);
-
-		UserToken theQueryUserToken = new UserToken();
-		if (validUser) {
-			theQueryUserToken.setUser(theQueryUser);
+		String deleteUserTokenSql = "DELETE FROM UserToken WHERE ";
+		
+		// Match EITHER the ClientID OR the Token
+		if (validClient && validToken) {
+			log.debug("Logging out Client: " + aClientId + ", Token: " + aToken);
+			deleteUserTokenSql += " (clientId=:clientId OR token=:token) ";
 		}
-		if (validClient) {
-			theQueryUserToken.setClientId(aClientId);
+		else if (validToken) {
+			log.debug("Logging out Token: " + aToken);
+			log.debug("Logging out Token: " + aToken);
+			deleteUserTokenSql += " token=:token ";
+		}
+		else if (validClient) {
+			log.debug("Logging out Client: " + aClientId);
+			deleteUserTokenSql += " clientId=:clientId ";
+		}
+		else if (validUser) {
+			// This will log out ALL of the User's devices, logging them out completely.
+			log.warn("Logging out ALL User " + aUserId + " devices!");
+			deleteUserTokenSql += " user_ID=:user_ID ";
 		}
 
-		if (StringUtils.hasText(aToken)) {
-			theQueryUserToken.setToken(aToken);
-		}
-
-		result = true;
-		List userTokenResults = findByExample(theQueryUserToken, null);
-		Iterator itrUserTokenResults = userTokenResults.iterator();
 		Session s = null;
-		while (itrUserTokenResults.hasNext()) {
-			UserToken userTokenResult = (UserToken) itrUserTokenResults.next();
+		try {
+			s = sessionFactoryAuth.openSession();
 
-			try {
-				if (s == null) {
-					s = sessionFactoryAuth.openSession();
-				}
-				log.debug("Deleting UserToken: " + userTokenResult.getID() + ", Client: " + userTokenResult.getClientId());
-				Transaction tx = s.beginTransaction();
-				tx.begin();
-				s.delete(userTokenResult);
-				tx.commit();
-			} catch (StaleStateException e) {
-				// Most likely this failed because the userToken has already been deleted from the database.
-				log.debug("Unable to delete UserToken due to StaleStateException: " + e.getMessage());
-				result = false;
-			} catch (Exception e) {
-				log.error("Unable to delete UserToken", e);
-				result = false;
+			Query deleteQuery = s.createSQLQuery(deleteUserTokenSql);
+			
+			if (validClient && validToken) {
+				deleteQuery.setString("token", aToken);
+				deleteQuery.setString("clientId", aClientId);
 			}
+			else if (validToken) {
+				deleteQuery.setString("token", aToken);
+			}
+			else if (validClient) {
+				deleteQuery.setString("clientId", aClientId);
+			}
+			else if (validUser) {
+				deleteQuery.setString("user_ID", aUserId);
+			}
+			
+			deleteQuery.executeUpdate();
+		} catch (StaleStateException e) {
+			// Most likely this failed because the userToken has already been deleted from the database.
+			log.debug("Unable to delete UserToken due to StaleStateException: " + e.getMessage());
+			result = false;
+		} catch (Exception e) {
+			log.error("Unable to delete UserToken", e);
+			result = false;
 		}
 		
 		if (s != null && s.isOpen()) {
@@ -768,8 +734,10 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 				query.setString("clientId", aClientId);
 
 				Long uniqueResultCount = (Long) query.uniqueResult();
-				if (uniqueResultCount != null && uniqueResultCount > 0)
+				if (uniqueResultCount != null && uniqueResultCount > 0) {
+//					result = false;
 					result = true;
+				}
 				else
 					log.warn("Invalid User in validateUserByToken: User " + aUserId + ", Token " + aToken + ", Client " + aClientId);
 			} catch (Exception e) {
@@ -1019,38 +987,44 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 	 **********************************************/
 	static final String DELETE_USER_TOKENS_COLLECTION_SQL = "DELETE FROM UserToken WHERE clientId IN (:clientIds)";
 
-	@SuppressWarnings("unchecked")
+	private Set<String> previousInvalidClientIds = new HashSet<String>();
+	
+//	@SuppressWarnings("unchecked")
 	/**
 	 * This method checks for any rogue/ghost UserTokens and removes them.
 	 */
 //	@Scheduled(fixedRate=30000)	// 30 Seconds
 	@Scheduled(fixedDelay=300000, initialDelay=120000)	// 5 Minutes, 2 Minutes
 	private void cleanupUserTokens() {
-		Session s = null;
+//		Session s = null;
 		try {
-			s = sessionFactoryAuth.openSession();
+//			s = sessionFactoryAuth.openSession();
 
 			int firstResultCounter = 0;
-			int maxResults = 3;
-			String userTokenQueryString = "SELECT DISTINCT(ut.clientId), ut.deviceId FROM UserToken ut ORDER BY ut.clientId";
-			Query userTokenQuery = s.createQuery(userTokenQueryString);
-			userTokenQuery.setMaxResults(maxResults);
-			userTokenQuery.setFirstResult(firstResultCounter);
+			int maxResults = 30;
 
-			// Gather up all clientIds to remove, then delete at the end.
 			List<String> clientIdsToDelete = new LinkedList<String>();
-			List<Object[]> userTokenClientIds = userTokenQuery.list();
-			Map<String, String> clientDevicesMap = new HashMap<String, String>(userTokenClientIds.size());
-			Iterator<Object[]> itrUserTokenClientIds = userTokenClientIds.iterator();
-			if (userTokenClientIds != null) {
-				while (itrUserTokenClientIds.hasNext()) {
-					Object[] nextClientDevice = itrUserTokenClientIds.next();
-					if (nextClientDevice != null && nextClientDevice.length >= 2) {
-						clientDevicesMap.put((String)nextClientDevice[0], (String)nextClientDevice[1]);
-					}
-				}
-			}
+			Map<String, String> clientDevicesMap = retrieveListOfClientDevicesFromUserTokens(maxResults, firstResultCounter);
 			
+//			String userTokenQueryString = "SELECT DISTINCT(ut.clientId), ut.deviceId FROM UserToken ut ORDER BY ut.clientId";
+//			Query userTokenQuery = s.createQuery(userTokenQueryString);
+//			userTokenQuery.setMaxResults(maxResults);
+//			userTokenQuery.setFirstResult(firstResultCounter);
+//
+//			// Gather up all clientIds to remove, then delete at the end.
+//			List<String> clientIdsToDelete = new LinkedList<String>();
+//			List<Object[]> userTokenClientIds = userTokenQuery.list();
+//			Map<String, String> clientDevicesMap = new HashMap<String, String>(userTokenClientIds.size());
+//			if (userTokenClientIds != null) {
+//				Iterator<Object[]> itrUserTokenClientIds = userTokenClientIds.iterator();
+//				while (itrUserTokenClientIds.hasNext()) {
+//					Object[] nextClientDevice = itrUserTokenClientIds.next();
+//					if (nextClientDevice != null && nextClientDevice.length >= 2) {
+//						clientDevicesMap.put((String)nextClientDevice[0], (String)nextClientDevice[1]);
+//					}
+//				}
+//			}
+//			
 			while (clientDevicesMap != null && !clientDevicesMap.isEmpty()) {
 				Set<String> validClients = accessManager.validateClientsIncludeFromDeviceHistory(clientDevicesMap);
 				
@@ -1058,58 +1032,113 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 				clientIdsToDelete.addAll(clientDevicesMap.keySet());
 				
 				// If countToDelete is greater than Max User Token Cleanup Count, execute delete and start again.
-				if (clientIdsToDelete.size() > maxUserTokenCleanupCount) {
-					log.warn("Deleting " + clientIdsToDelete.size() + " client UserTokens");
-					Transaction tx = s.beginTransaction();
-					tx.begin();
-					Query deleteQuery = s.createQuery(DELETE_USER_TOKENS_COLLECTION_SQL);
-					deleteQuery.setParameterList("clientIds", clientIdsToDelete);
-					deleteQuery.executeUpdate();
-					tx.commit();
+				if (!clientIdsToDelete.isEmpty()) {
+					log.warn("Cleaning up " + clientIdsToDelete.size() + " client UserTokens");
 					
-					clientIdsToDelete.clear();
-					firstResultCounter = 0;
-				}
-				else {
-					firstResultCounter += maxResults;
-				}
-
-				userTokenQuery.setFirstResult(firstResultCounter);
-				userTokenClientIds = userTokenQuery.list();
-				if (userTokenClientIds != null) {
-					clientDevicesMap = new HashMap<String, String>(userTokenClientIds.size());
-					itrUserTokenClientIds = userTokenClientIds.iterator();
-					if (userTokenClientIds != null) {
-						while (itrUserTokenClientIds.hasNext()) {
-							Object[] nextClientDevice = itrUserTokenClientIds.next();
-							if (nextClientDevice != null && nextClientDevice.length >= 2) {
-								clientDevicesMap.put((String)nextClientDevice[0], (String)nextClientDevice[1]);
-							}
+					// Logout ALL of these Clients.
+					Iterator<String> itrClientIdsToDelete = clientIdsToDelete.iterator();
+					while (itrClientIdsToDelete.hasNext()) {
+						String clientId = itrClientIdsToDelete.next();
+						
+						// Want to give each client a bit of time to login, so
+						// pend the client Id to remove the first time, then
+						// actually remove it the second time.
+						if (previousInvalidClientIds.contains(clientId)) {
+							accessManager.logoutClient(clientId, true);	// Force the deletion, since this client is no longer valid.
+							previousInvalidClientIds.remove(clientId);
+						}
+						else {
+							previousInvalidClientIds.add(clientId);
 						}
 					}
+					
+					clientIdsToDelete.clear();
+// 					firstResultCounter = 0;
 				}
-				else {
-					clientDevicesMap = null;
-				}
+//				else {
+					firstResultCounter += maxResults;
+//				}
+
+				clientDevicesMap = retrieveListOfClientDevicesFromUserTokens(maxResults, firstResultCounter);
+//				userTokenQuery.setFirstResult(firstResultCounter);
+//				userTokenClientIds = userTokenQuery.list();
+//				if (userTokenClientIds != null) {
+//					clientDevicesMap = new HashMap<String, String>(userTokenClientIds.size());
+//					Iterator<Object[]> itrUserTokenClientIds = userTokenClientIds.iterator();
+//					if (userTokenClientIds != null) {
+//						while (itrUserTokenClientIds.hasNext()) {
+//							Object[] nextClientDevice = itrUserTokenClientIds.next();
+//							if (nextClientDevice != null && nextClientDevice.length >= 2) {
+//								clientDevicesMap.put((String)nextClientDevice[0], (String)nextClientDevice[1]);
+//							}
+//						}
+//					}
+//				}
+//				else {
+//					clientDevicesMap = null;
+//				}
 			}
 
-			if (clientIdsToDelete.size() > 0) {
-				log.warn("Deleting " + clientIdsToDelete.size() + " client UserTokens");
-				log.debug( "Deleting Client IDs: " + StringUtils.arrayToCommaDelimitedString(clientIdsToDelete.toArray()) );
-				Transaction tx = s.beginTransaction();
-				tx.begin();
-				Query deleteQuery = s.createQuery(DELETE_USER_TOKENS_COLLECTION_SQL);
-				deleteQuery.setParameterList("clientIds", clientIdsToDelete);
-				deleteQuery.executeUpdate();
-				tx.commit();
-
-				clientIdsToDelete.clear();
-			}
+//			if (clientIdsToDelete.size() > 0) {
+//				log.warn("Cleaning up " + clientIdsToDelete.size() + " client UserTokens");
+//				
+//				// Logout ALL of these Clients.
+//				Iterator<String> itrClientIdsToDelete = clientIdsToDelete.iterator();
+//				while (itrClientIdsToDelete.hasNext()) {
+//					String clientId = itrClientIdsToDelete.next();
+//					accessManager.logoutClient(clientId, true);	// Force the deletion, since this client is no longer valid.
+//				}
+////				log.warn("Deleting " + clientIdsToDelete.size() + " client UserTokens");
+////				log.debug( "Deleting Client IDs: " + StringUtils.arrayToCommaDelimitedString(clientIdsToDelete.toArray()) );
+////				Transaction tx = s.beginTransaction();
+////				tx.begin();
+////				Query deleteQuery = s.createQuery(DELETE_USER_TOKENS_COLLECTION_SQL);
+////				deleteQuery.setParameterList("clientIds", clientIdsToDelete);
+////				deleteQuery.executeUpdate();
+////				tx.commit();
+//
+//				clientIdsToDelete.clear();
+//			}
 		} catch (Exception e) {
 			log.error("Unable to get cleanup UserTokens", e);
+//		} finally {
+//			if (s != null)
+//				s.close();
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	private Map<String, String> retrieveListOfClientDevicesFromUserTokens(int maxResults, int firstResultCounter) {
+		Map<String, String> result = null;
+
+		Session s = null;
+		try {
+			s = sessionFactoryAuth.openSession();
+			String userTokenQueryString = "SELECT DISTINCT(ut.clientId), ut.deviceId FROM UserToken ut ORDER BY ut.clientId";
+			Query userTokenQuery = s.createQuery(userTokenQueryString);
+			userTokenQuery.setMaxResults(maxResults);
+			userTokenQuery.setFirstResult(firstResultCounter);
+	
+			// Gather up all clientIds to remove, then delete at the end.
+			List<Object[]> userTokenClientIds = userTokenQuery.list();
+			result = new HashMap<String, String>(userTokenClientIds.size());
+
+			if (userTokenClientIds != null) {
+				Iterator<Object[]> itrUserTokenClientIds = userTokenClientIds.iterator();
+				while (itrUserTokenClientIds.hasNext()) {
+					Object[] nextClientDevice = itrUserTokenClientIds.next();
+					if (nextClientDevice != null && nextClientDevice.length >= 2) {
+						result.put((String)nextClientDevice[0], (String)nextClientDevice[1]);
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.error("Unable to retrieve list of Client Devices from UserTokens", e);
 		} finally {
 			if (s != null)
 				s.close();
 		}
+		
+		return result;
 	}
 }
