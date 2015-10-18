@@ -59,7 +59,6 @@ import com.percero.agents.sync.vo.SyncResponse;
 import com.rabbitmq.client.ShutdownSignalException;
 
 import edu.emory.mathcs.backport.java.util.Arrays;
-import edu.emory.mathcs.backport.java.util.Collections;
 
 @Component
 public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationContextAware {
@@ -229,14 +228,18 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@Override
 	public Boolean removeClient(String clientId) {
 		try {
-			logger.debug("RabbitMQ Removing Client " + clientId);
-			Queue clientQueue = new Queue(clientId, durableQueues);
-			amqpAdmin.declareQueue(clientQueue);
-			amqpAdmin.purgeQueue(clientId, true);
-			
-			// Send EOL message down the pipe.
-			pushJsonToRouting("{\"EOL\":true, \"clientId\":\"" + clientId + "\"}", String.class, clientId);
-			cacheDataStore.addSetValue(RedisKeyUtils.eolClients(), clientId);
+			if (!cacheDataStore.getSetIsMember(RedisKeyUtils.eolClients(), clientId)) {
+				logger.debug("RabbitMQ Removing Client " + clientId);
+				Queue clientQueue = new Queue(clientId, durableQueues);
+				amqpAdmin.declareQueue(clientQueue);
+				
+				// Remove ALL the messages from the queue, since this client is dead and gone.
+				amqpAdmin.purgeQueue(clientId, true);
+				
+				// If this client hasn't already received an EOL message, send it now.
+				pushJsonToRouting("{\"EOL\":true, \"clientId\":\"" + clientId + "\"}", String.class, clientId);
+				cacheDataStore.addSetValue(RedisKeyUtils.eolClients(), clientId);
+			}
 		} catch(AmqpIOException e) {
 			// Most likely due to queue already being deleted.
 			if (e.getCause() instanceof IOException && e.getCause().getCause() instanceof ShutdownSignalException) {
@@ -245,6 +248,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 				msg = sse.getMessage();
 				
 				if (msg.contains("reply-text=NOT_FOUND")) {
+					// This would indicate that the queue no longer exists, so we can also remove it from the cache for final termination
+					cacheDataStore.removeSetValue(RedisKeyUtils.eolClients(), clientId);
 					return true;
 				}
 			}
@@ -276,7 +281,7 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 		
 		return true;
 	}
-		
+	
 	@Override
 	public Boolean renameClient(String thePreviousClientId, String clientId) {
 		if (!StringUtils.hasText(thePreviousClientId)) {

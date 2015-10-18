@@ -735,7 +735,6 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 
 				Long uniqueResultCount = (Long) query.uniqueResult();
 				if (uniqueResultCount != null && uniqueResultCount > 0) {
-//					result = false;
 					result = true;
 				}
 				else
