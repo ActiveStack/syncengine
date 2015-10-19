@@ -531,13 +531,17 @@ public class DAODataProvider implements IDataProvider {
                 perceroObject.setID(UUID.randomUUID().toString());
             else {
                 // Check to see if item already exists.
-                IPerceroObject existingObject = dao.retrieveObject(BaseDataObject.toClassIdPair(perceroObject), null, false);
-                if (existingObject != null)
-                {
-                    populateToManyRelationships(perceroObject, true, null);
-                    populateToOneRelationships(perceroObject, true, null);
-                    return (T) cleanObject(perceroObject, userId);
-                }
+            	try {
+	                IPerceroObject existingObject = dao.retrieveObject(BaseDataObject.toClassIdPair(perceroObject), null, false);
+	                if (existingObject != null)
+	                {
+	                    populateToManyRelationships(perceroObject, true, null);
+	                    populateToOneRelationships(perceroObject, true, null);
+	                    return (T) cleanObject(perceroObject, userId);
+	                }
+            	} catch( Exception e) {
+            		log.debug("Error retrieving object on create", e);
+            	}
             }
 
             perceroObject = (T) dao.createObject(perceroObject, userId);
