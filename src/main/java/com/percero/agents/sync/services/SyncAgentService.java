@@ -550,6 +550,14 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
 		IPerceroObject result = dataProvider.findById(new ClassIDPair(anId, aClassName), null);
 		
+		if (result != null) {
+			try {
+				postGetHelper.postGetObject(result, null, null);
+			} catch (Exception e) {
+				log.error(e.getMessage(), e);
+			}
+		}
+
 		return result;
 	}
 	
@@ -561,6 +569,14 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
 		IPerceroObject result = dataProvider.findById(cip, null);
 		
+		if (result != null) {
+			try {
+				postGetHelper.postGetObject(result, null, null);
+			} catch (Exception e) {
+				log.error(e.getMessage(), e);
+			}
+		}
+
 		return result;
 	}
 	
@@ -576,6 +592,14 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
 		T result = (T) dataProvider.findById(new ClassIDPair(perceroObject.getID(), className), null);
+
+		if (result != null) {
+			try {
+				postGetHelper.postGetObject(result, null, null);
+			} catch (Exception e) {
+				log.error(e.getMessage(), e);
+			}
+		}
 		
 		return result;
 	}
