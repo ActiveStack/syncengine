@@ -28,4 +28,20 @@ public class AuthResponse {
 	public void setCorrespondingMessageId(String correspondingMessageId) {
 		this.correspondingMessageId = correspondingMessageId;
 	}
+
+	private String message = "OK";
+	public String getMessage(){
+		return this.message;
+	}
+	public void setMessage(String message){
+		this.message = message;
+	}
+
+	private int statusCode = 200;
+	public int getStatusCode(){
+		return this.statusCode;
+	}
+	public void setStatusCode(int statusCode){
+		this.statusCode = statusCode;
+	}
 }

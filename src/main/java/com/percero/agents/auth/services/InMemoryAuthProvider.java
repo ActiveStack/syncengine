@@ -1,9 +1,6 @@
 package com.percero.agents.auth.services;
 
-import com.percero.agents.auth.vo.BasicAuthCredential;
-import com.percero.agents.auth.vo.InMemoryAuthProviderUser;
-import com.percero.agents.auth.vo.ServiceIdentifier;
-import com.percero.agents.auth.vo.ServiceUser;
+import com.percero.agents.auth.vo.*;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import java.util.HashMap;
@@ -21,23 +18,27 @@ public class InMemoryAuthProvider implements IAuthProvider {
         return ID;
     }
 
-    public ServiceUser authenticate(String credential) {
-        ServiceUser result = null;
+    public AuthProviderResponse authenticate(String credential) {
+        AuthProviderResponse result = new AuthProviderResponse();
         BasicAuthCredential cred = BasicAuthCredential.fromString(credential);
 
         String hashPass = DigestUtils.sha1Hex(cred.getPassword());
 
         InMemoryAuthProviderUser user = users.get(cred.getUsername());
         if(user != null && user.getPassHash().equals(hashPass)) {
-            result = new ServiceUser();
-            result.setAuthProviderID(getID());
-            result.setId(cred.getUsername());
-            result.setFirstName(user.getFirstName());
-            result.setLastName(user.getLastName());
-            result.getEmails().add(user.getEmail());
-            result.setAreRoleNamesAccurate(true);
-            result.getIdentifiers().add(new ServiceIdentifier("email", user.getEmail()));
+            ServiceUser serviceUser = new ServiceUser();
+            serviceUser.setAuthProviderID(getID());
+            serviceUser.setId(cred.getUsername());
+            serviceUser.setFirstName(user.getFirstName());
+            serviceUser.setLastName(user.getLastName());
+            serviceUser.getEmails().add(user.getEmail());
+            serviceUser.setAreRoleNamesAccurate(true);
+            serviceUser.getIdentifiers().add(new ServiceIdentifier("email", user.getEmail()));
+            result.serviceUser = serviceUser;
+            result.authCode = AuthCode.SUCCESS;
         }
+        else
+            result.authCode = AuthCode.FORBIDDEN;
 
         return result;
     }

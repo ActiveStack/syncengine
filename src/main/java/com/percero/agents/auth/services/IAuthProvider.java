@@ -1,5 +1,6 @@
 package com.percero.agents.auth.services;
 
+import com.percero.agents.auth.vo.AuthProviderResponse;
 import com.percero.agents.auth.vo.ServiceUser;
 
 /**
@@ -17,6 +18,6 @@ public interface IAuthProvider {
      * @param credential - A String to be interpreted by the provider as an authentication credential
      * @return ServiceUser
      */
-    ServiceUser authenticate(String credential);
+    AuthProviderResponse authenticate(String credential);
 
 }

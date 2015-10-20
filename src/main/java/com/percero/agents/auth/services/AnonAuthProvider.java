@@ -1,9 +1,6 @@
 package com.percero.agents.auth.services;
 
-import com.percero.agents.auth.vo.AuthProvider;
-import com.percero.agents.auth.vo.ServiceIdentifier;
-import com.percero.agents.auth.vo.ServiceOrganization;
-import com.percero.agents.auth.vo.ServiceUser;
+import com.percero.agents.auth.vo.*;
 import com.percero.util.RandomStringGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,7 +28,10 @@ public class AnonAuthProvider implements IAuthProvider {
         return ID;
     }
 
-    public ServiceUser authenticate(String credential) {
+    public AuthProviderResponse authenticate(String credential) {
+        AuthProviderResponse result = new AuthProviderResponse();
+        result.authCode = AuthCode.SUCCESS;
+
         ServiceUser serviceUser = new ServiceUser();
         serviceUser.setFirstName("ANON");
         serviceUser.setLastName("ANON");
@@ -51,6 +51,7 @@ public class AnonAuthProvider implements IAuthProvider {
         serviceUser.getEmails().add(email);
         serviceUser.getIdentifiers().add(new ServiceIdentifier("email", email));
 
-        return serviceUser;
+        result.serviceUser = serviceUser;
+        return result;
     }
 }

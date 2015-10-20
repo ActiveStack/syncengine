@@ -177,7 +177,8 @@ public class GoogleAuthProvider implements IAuthProvider{
         }
     }
 
-    public ServiceUser authenticate(String credential) {
+    public AuthProviderResponse authenticate(String credential) {
+        AuthProviderResponse result = new AuthProviderResponse();
         try {
             OAuthCredential decodedCredential = om.readValue(credential, OAuthCredential.class);
 
@@ -196,12 +197,18 @@ public class GoogleAuthProvider implements IAuthProvider{
             googleCredential.setFromTokenResponse(authResponse);
 
             ServiceUser serviceUser = getServiceUser(googleCredential);
-
-            return serviceUser;
+            if(serviceUser == null)
+                result.authCode = AuthCode.FORBIDDEN;
+            else{
+                result.authCode = AuthCode.SUCCESS;
+                result.serviceUser = serviceUser;
+            }
         } catch(Exception e) {
             log.error("Unable to get authenticate oauth code", e);
             return null;
         }
+
+        return result;
     }
 
     private ServiceUser getServiceUser(Credential credential) {

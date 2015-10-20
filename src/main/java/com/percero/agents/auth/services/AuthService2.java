@@ -51,7 +51,10 @@ public class AuthService2 {
 
         IAuthProvider provider = authProviderRegistry.getProvider(request.getAuthProvider());
 
-        ServiceUser serviceUser = provider.authenticate(request.getCredential());
+        AuthProviderResponse apResponse = provider.authenticate(request.getCredential());
+        ServiceUser serviceUser = apResponse.serviceUser;
+        response.setStatusCode(apResponse.authCode.getCode());
+        response.setMessage(apResponse.authCode.getMessage());
 
         // Login successful
         if(serviceUser != null) {
@@ -64,7 +67,8 @@ public class AuthService2 {
             response.setResult(userToken);
         }
         else {
-        	logger.warn("LOGIN FAILED (" + provider.getID() + "): Unable to retrieve valid Service User");
+        	logger.warn("LOGIN FAILED: (" + provider.getID() + "): Unable to retrieve valid Service User");
+            logger.warn("       ERROR: ("+response.getStatusCode()+") "+response.getMessage());
         }
 
         return response;
