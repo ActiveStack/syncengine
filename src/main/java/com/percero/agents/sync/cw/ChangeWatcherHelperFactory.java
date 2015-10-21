@@ -72,8 +72,11 @@ public class ChangeWatcherHelperFactory implements IChangeWatcherHelperFactory, 
 					clazz = clazz.getSuperclass();
 				}
 			} catch(Exception e) {
-				log.error("Unable to get ChangeWatcherHelper for " + category, e);
+//				log.error("Unable to get ChangeWatcherHelper for " + category, e);
 			}
+			
+			// If no result, then set that up in the helperCache.
+			helperCache.put(category, null);
 			
 			return null;
 		}

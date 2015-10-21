@@ -350,7 +350,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		Object result = null;
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
-		if (!isValidClient && false)
+		if (!isValidClient)
 			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
 		
 		if (!StringUtils.hasText(processName))

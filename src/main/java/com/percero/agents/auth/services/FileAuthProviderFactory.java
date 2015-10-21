@@ -48,7 +48,7 @@ public class FileAuthProviderFactory {
             logger.info("Using FileAuthProvider ("+providerID+"). Found "+list.size()+" users.");
         }catch(IOException e){
             logger.info("Not using FileAuthProvider");
-            logger.debug(e.getMessage(),e);
+//            logger.debug(e.getMessage(),e);
         }
     }
 }

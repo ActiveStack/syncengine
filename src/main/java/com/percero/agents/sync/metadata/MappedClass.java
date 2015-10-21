@@ -918,8 +918,9 @@ public class MappedClass implements IMappedClass {
 							
 							if (refOneToMany != null) {
 								
-								Boolean inheritsFrom = inheritsFrom(this.clazz, refOneToMany.targetEntity());
-								if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToMany.mappedBy())) {
+//								Boolean inheritsFrom = inheritsFrom(this.clazz, refOneToMany.targetEntity());
+//								if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToMany.mappedBy())) {
+								if (this.clazz == refOneToMany.targetEntity() && nextMappedField.getField().getName().equals(refOneToMany.mappedBy())) {
 									// Found the referenced field.
 									reverseMappedField = nextRefMappedField;
 									break;
@@ -932,8 +933,9 @@ public class MappedClass implements IMappedClass {
 								refOneToOne = nextRefMappedField.getGetter().getAnnotation(OneToOne.class);
 							
 							if (refOneToOne != null) {
-								Boolean inheritsFrom = inheritsFrom(this.clazz, refOneToOne.targetEntity());
-								if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
+//								Boolean inheritsFrom = inheritsFrom(this.clazz, refOneToOne.targetEntity());
+//								if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
+								if (this.clazz == refOneToOne.targetEntity() && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
 									// Found the referenced field.
 									reverseMappedField = nextRefMappedField;
 									break;
@@ -951,8 +953,9 @@ public class MappedClass implements IMappedClass {
 									refOneToOne = nextRefMappedField.getGetter().getAnnotation(OneToOne.class);
 								
 								if (refOneToOne != null) {
-									Boolean inheritsFrom = inheritsFrom(this.clazz, nextRefMappedField.getField().getType());
-									if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
+//									Boolean inheritsFrom = inheritsFrom(this.clazz, nextRefMappedField.getField().getType());
+//									if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
+									if (this.clazz == nextRefMappedField.getField().getType() && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
 										// Found the referenced field.
 										reverseMappedField = nextRefMappedField;
 										break;
@@ -999,8 +1002,9 @@ public class MappedClass implements IMappedClass {
 								refOneToMany = nextRefMappedField.getGetter().getAnnotation(OneToMany.class);
 							
 							if (refOneToMany != null) {
-								Boolean inheritsFrom = inheritsFrom(this.clazz, refOneToMany.targetEntity());
-								if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToMany.mappedBy())) {
+//								Boolean inheritsFrom = inheritsFrom(this.clazz, refOneToMany.targetEntity());
+//								if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToMany.mappedBy())) {
+								if (this.clazz == refOneToMany.targetEntity() && nextMappedField.getField().getName().equals(refOneToMany.mappedBy())) {
 									// Found the referenced field.
 									reverseMappedField = nextRefMappedField;
 									break;
@@ -1013,8 +1017,9 @@ public class MappedClass implements IMappedClass {
 								refOneToOne = nextRefMappedField.getGetter().getAnnotation(OneToOne.class);
 							
 							if (refOneToOne != null) {
-								Boolean inheritsFrom = inheritsFrom(this.clazz, refOneToOne.targetEntity());
-								if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
+//								Boolean inheritsFrom = inheritsFrom(this.clazz, refOneToOne.targetEntity());
+//								if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
+								if (this.clazz == refOneToOne.targetEntity() && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
 									// Found the referenced field.
 									reverseMappedField = nextRefMappedField;
 									break;
@@ -1032,8 +1037,9 @@ public class MappedClass implements IMappedClass {
 									refOneToOne = nextRefMappedField.getGetter().getAnnotation(OneToOne.class);
 								
 								if (refOneToOne != null) {
-									Boolean inheritsFrom = inheritsFrom(this.clazz, nextRefMappedField.getField().getType());
-									if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
+//									Boolean inheritsFrom = inheritsFrom(this.clazz, nextRefMappedField.getField().getType());
+//									if (inheritsFrom && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
+									if (this.clazz == nextRefMappedField.getField().getType() && nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
 										// Found the referenced field.
 										reverseMappedField = nextRefMappedField;
 										break;
