@@ -1,5 +1,8 @@
 package com.percero.util;
 
+import java.sql.Timestamp;
+import java.util.Date;
+
 public class DateUtils {
 
 	public static java.sql.Date utilDateToSqlDate(java.util.Date utilDate) {
@@ -9,6 +12,13 @@ public class DateUtils {
 		else {
 			return null;
 		}
+	}
+	
+	public static Date utilDateFromSqlTimestamp(Timestamp timestamp) {
+		if (timestamp != null) {
+			return new Date(timestamp.getTime());
+		}
+		return null;
 	}
 
 }
