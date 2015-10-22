@@ -1181,8 +1181,12 @@ public class DAODataProvider implements IDataProvider {
         for(MappedField nextToManyMappedField : mappedClass.toManyFields) {
 
             // TODO: Take into account Access Rights.
-            List<IPerceroObject> allRelatedObjects = findAllRelatedObjects(perceroObject, nextToManyMappedField, shellOnly, userId);
-            nextToManyMappedField.getSetter().invoke(perceroObject, allRelatedObjects);
+        	try {
+	            List<IPerceroObject> allRelatedObjects = findAllRelatedObjects(perceroObject, nextToManyMappedField, shellOnly, userId);
+	            nextToManyMappedField.getSetter().invoke(perceroObject, allRelatedObjects);
+        	} catch(Exception e) {
+        		log.error("Unable to retrieve related objects for " + perceroObject.getClass().getCanonicalName() + "::" + nextToManyMappedField.getField().getName());
+        	}
         }
     }
 
