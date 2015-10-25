@@ -36,27 +36,30 @@ public class ChangeWatcherHelper implements IChangeWatcherHelper {
 		accessManager = value;
 	}
 
-	public void process(String category, String subCategory, String fieldName) {
+	public Object process(String category, String subCategory, String fieldName) {
 		// This is really an error.
 		StringBuilder strBuilder = new StringBuilder("No value calculate method found for: ").append(category).append(":").append(subCategory).append(":").append(fieldName);
 		log.error(strBuilder.toString());
+		
+		return null;
 	}
 	
-	public void process(String category, String subCategory, String fieldName, String[] params) {
+	public Object process(String category, String subCategory, String fieldName, String[] params) {
 		// This is really an error.
 		StringBuilder strBuilder = new StringBuilder("No value process method found for: ").append(category).append(":").append(subCategory).append(":").append(fieldName);
 		for(String nextString : params) {
 			strBuilder.append(".").append(nextString);
 		}
 		log.error(strBuilder.toString());
+		
+		return null;
 	}
 	
 	
-	public void reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp) {
+	public Object reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp) {
 		ChangeWatcherReporting.reprocessCounter++;
-		process(category, subCategory, fieldName, params);
-		
 		log.debug(ChangeWatcherReporting.stringResults());
+		return process(category, subCategory, fieldName, params);
 	}
 	
 	

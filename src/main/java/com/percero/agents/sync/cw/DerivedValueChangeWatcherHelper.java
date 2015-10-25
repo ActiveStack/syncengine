@@ -95,13 +95,13 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 	}
 	
 	@Override
-	public void process(String category, String subCategory, String fieldName) {
-		calculate(fieldName, new ClassIDPair(subCategory, category));
+	public Object process(String category, String subCategory, String fieldName) {
+		return calculate(fieldName, new ClassIDPair(subCategory, category));
 	}
 
 	@Override
-	public void process(String category, String subCategory, String fieldName, String[] params) {
-		calculate(fieldName, new ClassIDPair(subCategory, category), params);
+	public Object process(String category, String subCategory, String fieldName, String[] params) {
+		return calculate(fieldName, new ClassIDPair(subCategory, category), params);
 	}
 	
 	/**protected void postCalculate(String fieldName, ClassIDPair classIdPair, Object result, Object oldValue) {
@@ -141,7 +141,7 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 	}
 	
 	
-	public void recalculate(String fieldName, ClassIDPair classIdPair, Collection<String> clientIds, String[] params, Long requestTimestamp) {
+	public Object recalculate(String fieldName, ClassIDPair classIdPair, Collection<String> clientIds, String[] params, Long requestTimestamp) {
 		Object value = null;
 		
 		// Check to see if this value has already been calculated.
@@ -155,7 +155,7 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 					//	In essence, the recalc was already done, albeit at the behest of another process.
 					ChangeWatcherReporting.abortedRecalcsCounter++;
 //					log.debug("Aborting ChangeWatcherHelper.recalculate request since it has already been fulfilled.");
-					return;
+					return null;
 				}
 			}
 			currentValue = accessManager.getChangeWatcherResult(classIdPair, fieldName, params);
@@ -177,12 +177,14 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 		}
 		
 		log.debug(ChangeWatcherReporting.stringResults());
+		
+		return null;
 	}
 
 	@Override
-	public void reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp) {
+	public Object reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp) {
 		ChangeWatcherReporting.reprocessCounter++;
-		this.recalculate(fieldName, new ClassIDPair(subCategory, category), clientIds, params, requestTimestamp);
+		return this.recalculate(fieldName, new ClassIDPair(subCategory, category), clientIds, params, requestTimestamp);
 	}
 	
 

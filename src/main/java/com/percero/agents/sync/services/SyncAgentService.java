@@ -292,6 +292,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			Object newInstance = theClass.newInstance();
 			if (newInstance instanceof IPerceroObject) {
 				((IPerceroObject) newInstance).setID("0");
+				
 				postGetHelper.postGetObject((IPerceroObject) newInstance, userId, clientId);
 			}
 		}
@@ -480,7 +481,10 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			}
 			
 			if (result != null) {
-				postGetHelper.postGetObject(result, userId, clientId);
+				IPerceroObject postGetResult = postGetHelper.postGetObject(result, userId, clientId);
+				if (postGetResult != null) {
+					result = postGetResult;
+				}
 			}
 			
 			return result;
@@ -508,8 +512,9 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
 			List<IPerceroObject> result = dataProvider.findByExample((IPerceroObject) theQueryObject, excludeProperties, userId, false);
 			
-			if (result != null && result.size() > 0)
+			if (result != null && result.size() > 0) {
 				postGetHelper.postGetObject(result, userId, clientId);
+			}
 			
 			return result;
 		}
@@ -536,7 +541,10 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		IPerceroObject result = dataProvider.findById(new ClassIDPair(anId, aClassName), userId);
 		
 		if (result != null) {
-			postGetHelper.postGetObject(result, userId, clientId);
+			IPerceroObject postGetResult = postGetHelper.postGetObject(result, userId, clientId);
+			if (postGetResult != null) {
+				result = postGetResult;
+			}
 		}
 		
 		return result;

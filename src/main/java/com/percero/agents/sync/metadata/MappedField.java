@@ -25,7 +25,7 @@ public class MappedField {
 	public List<IMappedQuery> queries = new ArrayList<IMappedQuery>();
 	private Boolean hasReadAccessRights = false;
 
-	private MappedField reverseMappedField = null;
+	protected MappedField reverseMappedField = null;
 	public MappedField getReverseMappedField() {
 		return reverseMappedField;
 	}

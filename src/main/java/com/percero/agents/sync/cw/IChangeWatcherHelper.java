@@ -4,8 +4,8 @@ import java.util.Collection;
 
 public interface IChangeWatcherHelper {
 
-	public void process(String category, String subCategory, String fieldName);
-	public void process(String category, String subCategory, String fieldName, String[] params);
-	public void reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp);
+	public Object process(String category, String subCategory, String fieldName);
+	public Object process(String category, String subCategory, String fieldName, String[] params);
+	public Object reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp);
 
 }

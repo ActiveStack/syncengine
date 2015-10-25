@@ -13,6 +13,17 @@ import com.percero.agents.sync.manager.DataExternalizer;
 import com.percero.framework.vo.IPerceroObject;
 
 public class MappedFieldList extends MappedField {
+	
+	private Class listClass = null;
+	public Class getListClass() {
+		return listClass;
+	}
+
+	public void setListClass(Class listClass) {
+		this.listClass = listClass;
+	}
+
+	
 
 	@SuppressWarnings("rawtypes")
 	@Override
@@ -104,4 +115,5 @@ public class MappedFieldList extends MappedField {
 			return true;
 		}
 	}
+	
 }

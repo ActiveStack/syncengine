@@ -107,4 +107,28 @@ public class MappedFieldPerceroObject extends MappedField {
 			return (valueA.getID().equals(valueB.getID()) && valueA.getClass().getCanonicalName().equals(valueB.getClass().getCanonicalName()));
 	}
 
+
+	@Override
+	public void setReverseMappedField(MappedField reverseMappedField) {
+		this.reverseMappedField = reverseMappedField;
+		
+		if (reverseMappedField != null) {
+			Class declaringClass = getField().getDeclaringClass();
+			Class mappedDeclaringClass = this.getMappedClass().clazz.getSuperclass();
+//			Class listClass = null;
+//			if (reverseMappedField instanceof MappedFieldList) {
+//				listClass = ((MappedFieldList) reverseMappedField).getListClass().getSuperclass();
+//			}
+//			else {
+//				listClass = reverseMappedField.getField().getDeclaringClass();
+//			}
+			
+	//		if (this.reverseMappedField != null) {
+			if (declaringClass == mappedDeclaringClass) {
+				if(this.reverseMappedField.getReverseMappedField() == null) {
+					this.reverseMappedField.setReverseMappedField(this);
+				}
+			}
+		}
+	}
 }

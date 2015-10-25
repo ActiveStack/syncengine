@@ -45,6 +45,8 @@
 	<context:component-scan base-package="com.percero.agents.sync.services" />
 	<context:component-scan base-package="com.percero.agents.sync.hibernate" />
 	<context:component-scan base-package="com.percero.agents.sync.rr" />
+	<context:component-scan base-package="com.percero.agents.sync.jobs" />
+	<context:component-scan base-package="com.percero.agents.sync.cache" />
 	<context:component-scan base-package="com.percero.serial.map" />
 	<context:component-scan base-package="com.percero.agents.auth.services" />
 	<bean class="com.percero.serial.JsonDecoder" />
@@ -108,6 +110,11 @@
 	<bean id="accessManager" class="com.percero.agents.sync.access.RedisAccessManager" />
 
 	<!-- Create RabbitMQ boilerplate objects needed by the worker -->
+		<!-- 
+	<rabbit:connection-factory id="rabbitConnectionFactory"
+		addresses="$pf{gateway.rabbitmq.addresses}"
+		username="$pf{gateway.rabbitmq.login}" password="$pf{gateway.rabbitmq.password}" />
+		 -->
 	<rabbit:connection-factory id="rabbitConnectionFactory"
 		host="$pf{gateway.rabbitmq.host}" port="$pf{gateway.rabbitmq.port}"
 		username="$pf{gateway.rabbitmq.login}" password="$pf{gateway.rabbitmq.password}" />
@@ -185,7 +192,6 @@
 				<!--
 				hibernate.dialect=org.hibernate.dialect.Oracle10gDialect
 				-->
-				
 				hibernate.hbm2ddl.auto=update
 				<!-- hibernate.ejb.naming_strategy" value="org.hibernate.cfg.ImprovedNamingStrategy"/> -->
 				hibernate.show_sql=false
@@ -264,9 +270,10 @@
 		<property name="dataSource" ref="dataSourceProject" />
 		<property name="hibernateProperties">
 			<value>
-				<!-- hibernate.dialect=org.hibernate.dialect.MySQLDialect -->
+				<!--hibernate.dialect=org.hibernate.dialect.MySQLDialect-->
 				hibernate.dialect=org.hibernate.dialect.Oracle10gDialect
-				hibernate.hbm2ddl.auto=update
+
+				<!--hibernate.hbm2ddl.auto=update-->
 				<!-- hibernate.ejb.naming_strategy" value="org.hibernate.cfg.ImprovedNamingStrategy"/> -->
 				hibernate.show_sql=false
 				hibernate.format_sql=false

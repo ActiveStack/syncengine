@@ -41,11 +41,11 @@ public class PostGetHelper {
 	}
 	
 
-	public void postGetObject(IPerceroObject perceroObject, String userId, String clientId) throws Exception {
+	public IPerceroObject postGetObject(IPerceroObject perceroObject, String userId, String clientId) throws Exception {
 		ClassIDPair pair = new ClassIDPair(perceroObject.getID(), perceroObject.getClass().getCanonicalName());
 		accessManager.saveAccessJournal(pair, userId, clientId);
 		
-		postGet(pair);
+		return postGet(pair);
 	}
 	
 	public void postGetObject(List<IPerceroObject> perceroObjects, String userId, String clientId) throws Exception {
@@ -58,27 +58,29 @@ public class PostGetHelper {
 		accessManager.saveAccessJournal(classIdPairs, userId, clientId);
 	}
 	
-	protected void postGet(ClassIDPair classIdPair) {
+	protected IPerceroObject postGet(ClassIDPair classIdPair) {
 		IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(CATEGORY);
 		if (cwh != null) {
 			String changeWatcherId = "cw:cf:" + CATEGORY + ":" + classIdPair.getClassName() + ":" + classIdPair.getID();
-			setupRecalculateChangeWatcher(changeWatcherId);
+			return setupRecalculateChangeWatcher(changeWatcherId);
 		}
+		
+		return null;
 	}
 	
-	protected void setupRecalculateChangeWatcher(String changeWatcherId) {
+	protected IPerceroObject setupRecalculateChangeWatcher(String changeWatcherId) {
 		
 		ChangeWatcherReporting.internalRequestsCounter++;
 //		if (useChangeWatcherQueue && pushSyncHelper != null) {
 //			pushSyncHelper.pushStringToRoute( (new StringBuilder(changeWatcherId).append(":TS:").append(System.currentTimeMillis())).toString(), changeWatcherRouteName);
 //		}
 //		else {
-			recalculateChangeWatcher(changeWatcherId);
+			return recalculateChangeWatcher(changeWatcherId);
 //		}
 	}
 	
 	@SuppressWarnings("unchecked")
-	public void recalculateChangeWatcher(String changeWatcherId) {
+	public IPerceroObject recalculateChangeWatcher(String changeWatcherId) {
 		try {
 			// Check to see if a timestamp has been included.
 			String[] changeWatcherTsArray = changeWatcherId.split(":TS:");
@@ -111,7 +113,10 @@ public class PostGetHelper {
 			if (changeWatcherHelperFactory != null)
 			{
 				IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(category);
-				cwh.reprocess(category, subCategory, fieldName, null, otherParams, requestTimestamp);
+				Object result = cwh.reprocess(category, subCategory, fieldName, null, otherParams, requestTimestamp);
+				if (result != null && result instanceof IPerceroObject) {
+					return (IPerceroObject) result;
+				}
 
 				/**
 				// If no clients interested in this value, then remove it from the cache.
@@ -136,5 +141,7 @@ public class PostGetHelper {
 		} catch(Exception e) {
 			log.error("Error recalculating Change Watcher: " + changeWatcherId, e);
 		}
+		
+		return null;
 	}
 }
