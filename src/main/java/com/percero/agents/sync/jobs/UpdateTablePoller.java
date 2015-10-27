@@ -51,7 +51,7 @@ public class UpdateTablePoller {
     @PostConstruct
     public void init(){
         // Get the reporter going
-//        UpdateTableProcessReporter.getInstance();
+        UpdateTableProcessReporter.getInstance();
     }
 
     /**
