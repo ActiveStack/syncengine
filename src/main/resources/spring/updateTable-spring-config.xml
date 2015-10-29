@@ -18,6 +18,7 @@
     <import resource="basic_components_spring_config.xml"/>
 
     <!-- is not actually used but is required to satisfy deps of other beans -->
+    <rabbit:queue name="dummy" />
     <rabbit:listener-container acknowledge="auto" >
         <rabbit:listener queue-names="dummy" ref="perceroAgentListener" />
     </rabbit:listener-container>
