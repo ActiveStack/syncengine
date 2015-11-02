@@ -7,6 +7,7 @@ import com.percero.agents.auth.hibernate.AssociationExample;
 import com.percero.agents.auth.hibernate.AuthHibernateUtils;
 import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
 import com.percero.agents.auth.vo.*;
+import com.percero.agents.sync.exceptions.SyncDataException;
 import com.percero.agents.sync.metadata.*;
 import com.percero.agents.sync.services.ISyncAgentService;
 import com.percero.framework.bl.IManifest;
@@ -104,7 +105,7 @@ public class AuthService2 {
      * @param serviceUser
      * @return
      */
-    private UserAccount findUserAccount(ServiceUser serviceUser){
+    private UserAccount findUserAccount(ServiceUser serviceUser) throws SyncDataException {
         UserAccount theFoundUserAccount = null;
         UserAccount theQueryObject = new UserAccount();
         theQueryObject.setAccountId(serviceUser.getId());
@@ -118,11 +119,15 @@ public class AuthService2 {
         List userAccounts = findByExample(theQueryObject,
                 excludeProperties);
 
-        if ((userAccounts instanceof List)
-                && ((List) userAccounts).size() > 0) {
-            // Found a valid UserAccount.
-            List userAccountList = (List) userAccounts;
-            theFoundUserAccount = (UserAccount) userAccountList.get(0);
+        if ((userAccounts instanceof List)) {
+        	List listUserAccounts = (List) userAccounts;
+    		if (listUserAccounts.size() == 1) {
+	            // Found a valid UserAccount.
+	            theFoundUserAccount = (UserAccount) listUserAccounts.get(0);
+    		}
+    		else if (listUserAccounts.size() > 1) {
+    			throw new SyncDataException(listUserAccounts.size() + " UserAccounts found for serviceUser " + serviceUser.getId(), 1001);
+    		}
         }
 
         return theFoundUserAccount;
@@ -133,7 +138,8 @@ public class AuthService2 {
      * @param serviceUser
      * @return
      */
-    private User findUser(ServiceUser serviceUser){
+    @SuppressWarnings("unchecked")
+	private User findUser(ServiceUser serviceUser) throws SyncDataException {
         Session s = sessionFactoryAuth.openSession();
 
         User theUser = null;
@@ -151,8 +157,11 @@ public class AuthService2 {
 
             Query q = s.createQuery(strFindUserIdentifier);
             List<User> userList = (List<User>) q.list();
-            if (userList.size() > 0) {
+            if (userList.size() == 1) {
                 theUser = userList.get(0);
+            }
+            else if (userList.size() > 1) {
+            	throw new SyncDataException(userList.size() + " UserIdentifiers found for serviceUser " + serviceUser.getId(), 1001);
             }
         }
 
@@ -165,7 +174,8 @@ public class AuthService2 {
      * @param serviceUser
      * @returns UserAccount
      */
-    private UserAccount getOrCreateUserAccount(ServiceUser serviceUser, IAuthProvider provider, AuthenticationRequest request){
+    @SuppressWarnings("unchecked")
+	private UserAccount getOrCreateUserAccount(ServiceUser serviceUser, IAuthProvider provider, AuthenticationRequest request){
 
         UserAccount theFoundUserAccount = null;
         Session s = null;
