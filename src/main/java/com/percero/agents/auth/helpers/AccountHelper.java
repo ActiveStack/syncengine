@@ -85,7 +85,7 @@ public class AccountHelper implements IAccountHelper {
     }
 
     public Principal authenticateOAuth(String regAppKey, String svcOAuthKey, String userId, String userToken, String clientId, String clientType, String deviceId, Set<String> existingClientIds) {
-    	log.debug("[AccountHelper] Authenticating user " + userId + ", token " + userToken + ", client " + clientId + ", device " + deviceId + " " + (existingClientIds != null && !existingClientIds.isEmpty() ? "NO existing clients" : existingClientIds.size() + " existing client(s)"));
+    	log.debug("[AccountHelper] Authenticating user " + userId + ", token " + userToken + ", client " + clientId + ", device " + deviceId + " " + (existingClientIds == null || existingClientIds.isEmpty() ? "NO existing clients" : existingClientIds.size() + " existing client(s)"));
 
     	if (!StringUtils.hasText(clientType)) {
             clientType = Client.NON_PERSISTENT_TYPE;
