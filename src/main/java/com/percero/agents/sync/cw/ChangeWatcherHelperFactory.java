@@ -45,9 +45,8 @@ public class ChangeWatcherHelperFactory implements IChangeWatcherHelperFactory, 
 	private Map<String, IChangeWatcherHelper> helperCache = new HashMap<String, IChangeWatcherHelper>();
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public IChangeWatcherHelper getHelper(String category) {
-		IChangeWatcherHelper helper = helperCache.get(category);
-		
-		if (helper == null) {
+		IChangeWatcherHelper helper = null;
+		if (!helperCache.containsKey(category)) {
 			// Get the appropriate Helper Component.
 			try {
 				Class clazz = MappedClass.forName(category);
@@ -81,6 +80,7 @@ public class ChangeWatcherHelperFactory implements IChangeWatcherHelperFactory, 
 			return null;
 		}
 		else {
+			helper = helperCache.get(category);
 			return helper;
 		}
 	}

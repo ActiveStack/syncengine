@@ -721,6 +721,8 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 	 */
 	// TODO: This function should also validate that the user is valid against the ServiceProvider's API.
 	public boolean validateUserByToken(String regAppKey, String aUserId, String aToken, String aClientId) {
+    	log.debug("[AuthService] Validating user " + aUserId + " by token " + aToken + ", client " + aClientId + " NO existing clients");
+
 		boolean result = false;
 
 		if (/*StringUtils.hasText(regAppKey) && */StringUtils.hasText(aUserId) && StringUtils.hasText(aToken)) {
@@ -735,12 +737,15 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 
 				Long uniqueResultCount = (Long) query.uniqueResult();
 				if (uniqueResultCount != null && uniqueResultCount > 0) {
+					if (uniqueResultCount > 1) {
+				    	log.error("[AuthService] " + uniqueResultCount + " UserTokens found for  user " + aUserId + ", token " + aToken + ", client " + aClientId);
+					}
 					result = true;
 				}
 				else
-					log.warn("Invalid User in validateUserByToken: User " + aUserId + ", Token " + aToken + ", Client " + aClientId);
+					log.warn("[AuthService] Invalid User in validateUserByToken: User " + aUserId + ", Token " + aToken + ", Client " + aClientId);
 			} catch (Exception e) {
-				log.error("Unable to validateUserByToken", e);
+				log.error("[AuthService] Unable to validateUserByToken", e);
 				result = false;
 			} finally {
 				if (s != null)
@@ -757,6 +762,8 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 	 * @see com.com.percero.agents.auth.services.IAuthService#validateUserByToken(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String)
 	 */
 	public boolean validateUserByToken(String regAppKey, String aUserId, String aToken, String aClientId, Set<String> existingClientIds) {
+    	log.debug("[AuthService] Validating user " + aUserId + " by token " + aToken + ", client " + aClientId + " " + (existingClientIds != null && !existingClientIds.isEmpty() ? existingClientIds.size() + " existing clients" : " 0 existing clients"));
+
 		boolean result = false;
 		
 		if (/*StringUtils.hasText(regAppKey) && */StringUtils.hasText(aUserId) && StringUtils.hasText(aToken)) {
@@ -783,21 +790,21 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 						result = true;
 					}
 					else {
-						log.warn("Unable to update UserToken in validateUserByToken: User " + aUserId + ", Token " + aToken + ", Client " + aClientId);
+						log.warn("[AuthService] Unable to update UserToken in validateUserByToken: User " + aUserId + ", Token " + aToken + ", Client " + aClientId);
 					}
 				}
 				else {
-					log.warn("Invalid User in validateUserByToken: User " + aUserId + ", Token " + aToken + ", Client " + aClientId);
+					log.warn("[AuthService] Invalid User in validateUserByToken: User " + aUserId + ", Token " + aToken + ", Client " + aClientId);
 				}
 			} catch (Exception e) {
-				log.error("Unable to validateUserByToken", e);
+				log.error("[AuthService] Unable to validateUserByToken", e);
 				result = false;
 			} finally {
 				if (s != null)
 					s.close();
 			}
 		} else {
-			log.warn("Invalid User in validateUserByToken");
+			log.warn("[AuthService] Invalid User in validateUserByToken");
 		}
 		
 		return result;

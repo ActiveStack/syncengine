@@ -85,7 +85,9 @@ public class AccountHelper implements IAccountHelper {
     }
 
     public Principal authenticateOAuth(String regAppKey, String svcOAuthKey, String userId, String userToken, String clientId, String clientType, String deviceId, Set<String> existingClientIds) {
-        if (!StringUtils.hasText(clientType)) {
+    	log.debug("[AccountHelper] Authenticating user " + userId + ", token " + userToken + ", client " + clientId + ", device " + deviceId + " " + (existingClientIds == null || existingClientIds.isEmpty() ? "NO existing clients" : existingClientIds.size() + " existing client(s)"));
+
+    	if (!StringUtils.hasText(clientType)) {
             clientType = Client.NON_PERSISTENT_TYPE;
         }
 
@@ -98,10 +100,9 @@ public class AccountHelper implements IAccountHelper {
             } else {
                 validated = authService.validateUserByToken(regAppKey, userId, userToken, clientId);
             }
-            log.debug("ValidateUserByToken Result: " + userId +  " / " + userToken + " / " + clientId + " = " + (validated ? "true" : "false"));
+            log.debug("[AccountHelper] ValidateUserByToken Result: " + userId +  " / " + userToken + " / " + clientId + " = " + (validated ? "true" : "false"));
         } catch (Exception e) {
-            log.error("Error validating User by Token", e);
-            e.printStackTrace();
+            log.error("[AccountHelper] Error validating User by Token", e);
             validated = false;
         }
 
@@ -112,7 +113,7 @@ public class AccountHelper implements IAccountHelper {
 
                 if (userAnchor == null) {
                     // Something went wrong here.
-                    throw new Error("Invalid UserAnchor object.");
+                    throw new Error("[AccountHelper] Invalid UserAnchor object.");
                 }
 
                 List<String> roleList = getUserRoles(userId);
@@ -168,12 +169,13 @@ public class AccountHelper implements IAccountHelper {
                 result = foundUserAnchor;
             }
         } catch (NonUniqueResultException nre) {
-            log.error("More than one UserAnchor objects found for userId " + userId, nre);
+            log.error("[AccountHelper] More than one UserAnchor objects found for userId " + userId, nre);
         }
         return result;
     }
 
     protected IUserAnchor handleUserAnchorNotFound(String regAppKey, String userId, IAuthService authService) {
+    	log.debug("[AccountHelper] Handling UserAnchor NOT Found for user " + userId);
         // Get this person's email addresses from the AuthManager.
         List<ServiceUser> serviceUserList = authService.getServiceUsers(userId);
         IUserAnchor result = addOrUpdateUserAnchorFromServiceUserList(userId, serviceUserList, null);
@@ -183,6 +185,7 @@ public class AccountHelper implements IAccountHelper {
     }
 
     protected void handleUserAnchorFound(String regAppKey, String userId, IAuthService authService, IUserAnchor userAnchor) {
+    	log.debug("[AccountHelper] Handling UserAnchor Found for user " + userId);
         // Get this person's email addresses from the AuthManager.
         List<ServiceUser> serviceUserList = authService.getServiceUsers(userId);
 
@@ -366,7 +369,8 @@ public class AccountHelper implements IAccountHelper {
      }*/
 
     protected IUserAnchor addOrUpdateUserAnchorFromServiceUserList(String userId, List<ServiceUser> serviceUserList, IUserAnchor result) {
-        try {
+    	log.debug("[AccountHelper] Add/Update UserAnchor for user " + userId);
+    	try {
             // TODO: why are we doing this everywhere?
             ManifestHelper.setManifest(manifest);
 
@@ -434,8 +438,11 @@ public class AccountHelper implements IAccountHelper {
 
             // Need to create a new IUserAnchor
             if (result == null) {
-                result = (IUserAnchor) eiUserAnchor.mappedClass.clazz.newInstance();
-                ((IPerceroObject) result).setID(UUID.randomUUID().toString());
+            	String id = UUID.randomUUID().toString();
+            	log.debug("[AccountHelper] NO UserAnchor found for user " + userId + ", creating new UserAnchor with ID " + id);
+
+            	result = (IUserAnchor) eiUserAnchor.mappedClass.clazz.newInstance();
+                ((IPerceroObject) result).setID(id);
                 result.setUserId(userId);
                 if (serviceUserList.size() > 0) {
 
@@ -452,12 +459,14 @@ public class AccountHelper implements IAccountHelper {
                 }
 
                 syncAgentService.systemCreateObject((IPerceroObject) result, null);
+            	log.debug("[AccountHelper] UserAnchor " + id + " created");
 
             }
             else if (result.getUserId() == null || result.getUserId().isEmpty()) {
+            	log.debug("[AccountHelper] Valid UserAnchor found but UserId is NOT set, updating UserAnchor for user " + userId);
                 result.setUserId(userId);
-
                 syncAgentService.systemPutObject((IPerceroObject) result, null, null, null, true);
+            	log.debug("[AccountHelper] UserAnchor updated");
             }
 
             for (IUserIdentifier nextUserIdentifier : identifiersToSave) {
@@ -490,14 +499,16 @@ public class AccountHelper implements IAccountHelper {
                     if (relImpl != null) {
                         relImpl.sourceMappedField.getSetter().invoke(nextUserIdentifier, result);
                         if (isNewObject) {
+                        	log.debug("[AccountHelper] Creating " + nextUserIdentifier.getClass().getCanonicalName() + ":" + ((IPerceroObject) nextUserIdentifier).getID() + " for user " + userId);
                             syncAgentService.systemCreateObject((IPerceroObject) nextUserIdentifier, null);
                         }
                         else {
-                            syncAgentService.systemPutObject((IPerceroObject) nextUserIdentifier, null, null, null, true);
+                        	log.debug("[AccountHelper] Updating " + nextUserIdentifier.getClass().getCanonicalName() + ":" + ((IPerceroObject) nextUserIdentifier).getID() + " for user " + userId);
+                        	syncAgentService.systemPutObject((IPerceroObject) nextUserIdentifier, null, null, null, true);
                         }
                     }
                     else {
-                        log.warn("No UserAnchor found for IUserIdentifier class " + nextUserIdentifier.getClass().getCanonicalName());
+                        log.warn("[AccountHelper] No UserAnchor found for IUserIdentifier class " + nextUserIdentifier.getClass().getCanonicalName());
                     }
                 }
             }

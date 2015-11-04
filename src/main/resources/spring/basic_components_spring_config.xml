@@ -205,7 +205,10 @@
         </property>
     </bean>
 
-    <!-- flyway db -->
+    <bean id="disabled" class="com.googlecode.flyway.core.Flyway" lazy-init="true">
+        <property name="dataSource" ref="dataSource1" />
+    </bean>
+    <!-- flyway db - - >
     <bean id="flyway-project-clean" class="com.googlecode.flyway.core.Flyway"
           init-method="clean" depends-on="dataSourceProject" lazy-init="true">
         <property name="dataSource" ref="dataSourceProject" />
@@ -231,6 +234,7 @@
         <property name="percInit" ref="$pf{flywayProject.InitClass}" />
         <property name="percMigrate" ref="$pf{flywayProject.MigrateClass}" />
     </bean>
+    -->
     <bean id="txMan1"
           class="org.springframework.orm.hibernate3.HibernateTransactionManager">
         <property name="sessionFactory" ref="sessionFactoryAuth" />
@@ -238,7 +242,7 @@
     <tx:annotation-driven transaction-manager="txMan1" />
 
     <!-- depends-on="flyway-auth-main" -->
-    <!-- Project Database connection stuff -->
+    <!-- Project Database connection stuff - - >
     <bean class="com.mchange.v2.c3p0.ComboPooledDataSource"
           destroy-method="close" id="dataSourceProject">
         <property name="driverClass" value="$pf{databaseProject.driverClassName}" />
@@ -247,15 +251,15 @@
         <property name="user" value="$pf{databaseProject.username}" />
         <property name="password" value="$pf{databaseProject.password}" />
 
-        <!-- these are C3P0 properties -->
+        < ! - - these are C3P0 properties - - >
         <property name="acquireIncrement" value="1" />
         <property name="minPoolSize" value="2" />
         <property name="maxPoolSize" value="80" />
         <property name="maxIdleTime" value="300" />
 
-        <!-- UNCOMMENT THIS TO IDENTIFY ANY CONNECTION POOL LEAKS <property name="unreturnedConnectionTimeout"
+        < ! - - UNCOMMENT THIS TO IDENTIFY ANY CONNECTION POOL LEAKS <property name="unreturnedConnectionTimeout"
             value="120"/> < ! - - this time is in seconds; so 2 minutes - - > <property
-            name="debugUnreturnedConnectionStackTraces" value="true" /> -->
+            name="debugUnreturnedConnectionStackTraces" value="true" /> - - >
     </bean>
 
     <bean id="appSessionFactory"
@@ -264,14 +268,14 @@
         <property name="dataSource" ref="dataSourceProject" />
         <property name="hibernateProperties">
             <value>
-                <!--hibernate.dialect=org.hibernate.dialect.MySQLDialect-->
+                < ! - - hibernate.dialect=org.hibernate.dialect.MySQLDialect - - >
                 hibernate.dialect=org.hibernate.dialect.Oracle10gDialect
 
-                <!--hibernate.hbm2ddl.auto=update-->
-                <!-- hibernate.ejb.naming_strategy" value="org.hibernate.cfg.ImprovedNamingStrategy"/> -->
+                < ! - -hibernate.hbm2ddl.auto=update- - >
+                < ! - - hibernate.ejb.naming_strategy" value="org.hibernate.cfg.ImprovedNamingStrategy"/> - - >
                 hibernate.show_sql=false
                 hibernate.format_sql=false
-                <!-- hibernate.current_session_context_class=org.hibernate.context.ThreadLocalSessionContext -->
+                < ! - - hibernate.current_session_context_class=org.hibernate.context.ThreadLocalSessionContext - - >
                 hibernate.connection.aggressive_release=true
                 hibernate.jdbc.batch_size=20
                 hibernate.connection.autocommit=false
@@ -290,5 +294,6 @@
         <property name="sessionFactory" ref="appSessionFactory" />
     </bean>
     <tx:annotation-driven transaction-manager="txManProject" />
+    -->
 
 </beans>
