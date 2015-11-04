@@ -2,8 +2,11 @@ package com.percero.agents.sync.jobs;
 
 import com.esotericsoftware.yamlbeans.YamlException;
 import com.esotericsoftware.yamlbeans.YamlReader;
+import com.google.api.client.util.Value;
 import edu.emory.mathcs.backport.java.util.Collections;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -46,6 +49,12 @@ public class UpdateTableRegistry {
     public static UpdateTableRegistry getInstance(){
         return instance;
     }
+
+    @Autowired(required=false) @Qualifier("updateTableMapFile")
+    private String updateTableMapFile = "updateTableMap.yml";
+
+    @Autowired(required=false) @Qualifier("updateTableConfigFile")
+    private String updateTableConfigFile = "updateTables.yml";
    
     @PostConstruct
     public void init() throws YamlException {
@@ -55,7 +64,7 @@ public class UpdateTableRegistry {
 
     private void loadTableMappings() throws YamlException{
         try{
-            URL ymlUrl = UpdateTableRegistry.class.getClassLoader().getResource("updateTableMap.yml");
+            URL ymlUrl = UpdateTableRegistry.class.getClassLoader().getResource(updateTableMapFile);
             if (ymlUrl == null) {
                 logger.warn("No configuration found for UpdateTableMapping (updateTableMap.yml), skipping UpdateTables");
                 return;
@@ -78,7 +87,7 @@ public class UpdateTableRegistry {
 
     private void loadConnectionFactories() throws YamlException{
         try {
-            URL ymlUrl = UpdateTableRegistry.class.getClassLoader().getResource("updateTables.yml");
+            URL ymlUrl = UpdateTableRegistry.class.getClassLoader().getResource(updateTableConfigFile);
             if (ymlUrl == null) {
                 logger.warn("No configuration found for UpdateTables (updateTables.yml), skipping UpdateTables");
                 return;
