@@ -627,7 +627,7 @@ public class UpdateTableProcessor implements Runnable{
 
             // Found a row to process
             if (numUpdated > 0) {
-                sql = "select * from :tableName where lock_id=:lockId";
+                sql = "select * from :tableName where " + connectionFactory.getLockIdColumnName() + "=:lockId";
                 sql = sql.replace(":tableName", tableName);
                 sql = sql.replace(":lockId", lockId + "");
 
@@ -689,7 +689,7 @@ public class UpdateTableProcessor implements Runnable{
         }
 
         if (updateNum != null && updateNum > 0) {
-            String sql = "select * from :tableName where lock_id=:lock_id";
+            String sql = "select * from :tableName where " + connectionFactory.getLockIdColumnName() + "=:lock_id";
             sql = sql.replace(":tableName", tableName);
             sql = sql.replace(":lock_id", lockId+"");
 
@@ -764,8 +764,8 @@ public class UpdateTableProcessor implements Runnable{
         row.ID          = resultSet.getInt("ID");
         row.tableName   = resultSet.getString("tableName");
         row.rowId       = resultSet.getString("row_id");
-        row.lockId      = resultSet.getInt("lock_id");
-        row.lockDate    = resultSet.getDate("lock_date");
+        row.lockId      = resultSet.getInt(connectionFactory.getLockIdColumnName());
+        row.lockDate    = resultSet.getDate(connectionFactory.getLockDateColumnName());
         try {
             row.type    = UpdateTableRowType.valueOf(resultSet.getString("type"));
         } catch(IllegalArgumentException iae) {

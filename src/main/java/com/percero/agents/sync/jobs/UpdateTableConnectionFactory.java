@@ -56,14 +56,14 @@ public class UpdateTableConnectionFactory {
     }
     
     private String storedProcedureName;
-	private String storedProcedureDefinition;
-
 	public String getStoredProcedureName() {
 		return storedProcedureName;
 	}
 	public void setStoredProcedureName(String storedProcedureName) {
 		this.storedProcedureName = storedProcedureName;
 	}
+	
+	private String storedProcedureDefinition;
 	public String getStoredProcedureDefinition() {
 		return storedProcedureDefinition;
 	}
@@ -71,9 +71,25 @@ public class UpdateTableConnectionFactory {
 		this.storedProcedureDefinition = storedProcedureDefinition;
 	}
 
-    private String updateStatementSql = "update :tableName set lock_id=:lockId, lock_date=NOW() " +
-            "where lock_id is null or " +
-            "lock_date < ':expireThreshold' " +
+	private String lockIdColumnName = "lock_id";
+	public String getLockIdColumnName() {
+		return lockIdColumnName;
+	}
+	public void setLockIdColumnName(String lockIdColumnName) {
+		this.lockIdColumnName = lockIdColumnName;
+	}
+	
+	private String lockDateColumnName = "lock_date";
+	public String getLockDateColumnName() {
+		return lockDateColumnName;
+	}
+	public void setLockDateColumnName(String lockDateColumnName) {
+		this.lockDateColumnName = lockDateColumnName;
+	}
+	
+    private String updateStatementSql = "update :tableName set " + getLockIdColumnName() + "=:lockId, " + getLockDateColumnName() + "=NOW() " +
+            "where " + getLockIdColumnName() + " is null or " +
+            getLockDateColumnName() + " < ':expireThreshold' " +
             "order by time_stamp limit :limit";
 	public String getUpdateStatementSql() {
 		return updateStatementSql;
