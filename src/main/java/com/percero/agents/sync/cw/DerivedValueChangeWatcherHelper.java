@@ -306,6 +306,10 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 	
 	protected void pushUpdate(ClassIDPair classIdPair, String fieldName, String[] params, Object update, Collection<String> clientIds) {
 		// Now push the result to all interested clients.
+		if (clientIds == null || clientIds.isEmpty()) {
+			return;
+		}
+		
 		try {
 			Iterator<String> itrClientIds = clientIds.iterator();
 			while(itrClientIds.hasNext()) {
@@ -320,7 +324,7 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 
 
 	public void pushChangeWatcherUpdate(Collection<Object> clientIds, ClassIDPair classIdPair, String fieldName, String[] params, Object value) {
-		if (clientIds != null && clientIds.size() > 0) {
+		if (clientIds != null && !clientIds.isEmpty()) {
 			try {
 				PushCWUpdateResponse pushUpdateResponse = new PushCWUpdateResponse();
 				pushUpdateResponse.setFieldName(fieldName);
