@@ -299,10 +299,10 @@ public class DAODataProvider implements IDataProvider {
                 IPerceroObject nextDatabaseObject = itrDatabaseObjects.next();
                 String nextCacheKey = RedisKeyUtils.classIdPair(nextDatabaseObject.getClass().getCanonicalName(), nextDatabaseObject.getID());
                 
-                Set<String> classIdList = mapJsonClassIdStrings.get(nextDatabaseObject.getClass().getCanonicalName());
+                Set<String> classIdList = mapJsonClassIdStrings.get(RedisKeyUtils.classIds(nextDatabaseObject.getClass().getCanonicalName()));
                 if (classIdList == null) {
                 	classIdList = new HashSet<String>();
-                	mapJsonClassIdStrings.put(nextDatabaseObject.getClass().getCanonicalName(), classIdList);
+                	mapJsonClassIdStrings.put(RedisKeyUtils.classIds(nextDatabaseObject.getClass().getCanonicalName()), classIdList);
                 }
                 classIdList.add(nextDatabaseObject.getID());
 
@@ -339,10 +339,10 @@ public class DAODataProvider implements IDataProvider {
     			String nextCacheKey = RedisKeyUtils.classIdPair(nextDatabaseObject.getClassName(), nextDatabaseObject.getID());
     			objectStrings.add(nextCacheKey);
     			
-    			Set<String> classIdList = mapJsonClassIdStrings.get(nextDatabaseObject.getClassName());
+    			Set<String> classIdList = mapJsonClassIdStrings.get(RedisKeyUtils.classIds(nextDatabaseObject.getClassName()));
     			if (classIdList == null) {
     				classIdList = new HashSet<String>();
-    				mapJsonClassIdStrings.put(nextDatabaseObject.getClassName(), classIdList);
+    				mapJsonClassIdStrings.put(RedisKeyUtils.classIds(nextDatabaseObject.getClassName()), classIdList);
     			}
     			classIdList.add(nextDatabaseObject.getID());
     		}
