@@ -61,7 +61,7 @@ public class AuthService2 {
         if(serviceUser != null) {
             logger.debug(provider.getID() + " Authentication success");
             serviceUser.setAuthProviderID(provider.getID()); // Set the provider ID just in case the provider didn't
-            UserAccount userAccount = getOrCreateUserAccount(serviceUser, provider, request);
+            UserAccount userAccount = getOrCreateUserAccount(serviceUser, provider);
             ensureAnchorUserExists(serviceUser, userAccount.getUser());
             UserToken userToken = loginUserAccount(userAccount, request.getClientId(), request.getDeviceId());
             userToken = (UserToken) AuthHibernateUtils.cleanObject(userToken);
@@ -175,7 +175,7 @@ public class AuthService2 {
      * @returns UserAccount
      */
     @SuppressWarnings("unchecked")
-	private UserAccount getOrCreateUserAccount(ServiceUser serviceUser, IAuthProvider provider, AuthenticationRequest request){
+	public UserAccount getOrCreateUserAccount(ServiceUser serviceUser, IAuthProvider provider){
 
         UserAccount theFoundUserAccount = null;
         Session s = null;

@@ -588,6 +588,32 @@ public class RedisCacheDataStore implements ICacheDataStore {
 		return template.opsForSet().add(key, value);// ? Long.valueOf(1) : Long.valueOf(0);
 	}
 
+	@Override
+	@Transactional
+	public Long setSetsValues(Map<String, Set<String>> values) {
+		Long result = new Long(0);
+		Iterator<Entry<String, Set<String>>> itr = values.entrySet().iterator();
+		while (itr.hasNext()) {
+			Entry<String, Set<String>> nextEntry = itr.next();
+			result += template.opsForSet().add(nextEntry.getKey(), nextEntry.getValue().toArray());// ? Long.valueOf(1) : Long.valueOf(0);
+			
+		}
+		return result;
+	}
+	
+	@Override
+	@Transactional
+	public Long removeSetsValues(Map<String, Set<String>> values) {
+		Long result = new Long(0);
+		Iterator<Entry<String, Set<String>>> itr = values.entrySet().iterator();
+		while (itr.hasNext()) {
+			Entry<String, Set<String>> nextEntry = itr.next();
+			result += template.opsForSet().remove(nextEntry.getKey(), nextEntry.getValue().toArray());// ? Long.valueOf(1) : Long.valueOf(0);
+			
+		}
+		return result;
+	}
+	
 	/* (non-Javadoc)
 	 * @see com.percero.agents.sync.datastore.IRedisCacheDataStore#getSet(java.lang.String)
 	 */

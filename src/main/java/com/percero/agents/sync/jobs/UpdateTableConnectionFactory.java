@@ -87,10 +87,18 @@ public class UpdateTableConnectionFactory {
 		this.lockDateColumnName = lockDateColumnName;
 	}
 	
+	private String timestampColumnName = "time_stamp";
+	public String getTimestampColumnName() {
+		return timestampColumnName;
+	}
+	public void setTimestampColumnName(String timestampColumnName) {
+		this.timestampColumnName = timestampColumnName;
+	}
+	
     private String updateStatementSql = "update :tableName set " + getLockIdColumnName() + "=:lockId, " + getLockDateColumnName() + "=NOW() " +
             "where " + getLockIdColumnName() + " is null or " +
             getLockDateColumnName() + " < ':expireThreshold' " +
-            "order by time_stamp limit :limit";
+            "order by " + getTimestampColumnName() + " limit :limit";
 	public String getUpdateStatementSql() {
 		return updateStatementSql;
 	}

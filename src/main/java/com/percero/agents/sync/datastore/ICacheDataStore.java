@@ -161,6 +161,9 @@ public interface ICacheDataStore {
 	@Transactional
 	Long setSetValue(String key, Object value);
 
+	Long setSetsValues(Map<String, Set<String>> value);
+	Long removeSetsValues(Map<String, Set<String>> value);
+
 	SetOperations<String, Object> getSet(String key);
 
 	RedisTemplate<String, Object> getTemplate();

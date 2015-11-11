@@ -1,22 +1,24 @@
 package com.percero.agents.sync.services;
 
-import com.percero.agents.sync.access.RedisKeyUtils;
-import com.percero.agents.sync.dao.DAORegistry;
-import com.percero.agents.sync.dao.IDataAccessObject;
-import com.percero.agents.sync.datastore.ICacheDataStore;
-import com.percero.agents.sync.exceptions.SyncDataException;
-import com.percero.agents.sync.exceptions.SyncException;
-import com.percero.agents.sync.metadata.*;
-import com.percero.agents.sync.vo.BaseDataObject;
-import com.percero.agents.sync.vo.ClassIDPair;
-import com.percero.agents.sync.vo.ClassIDPairs;
-import com.percero.agents.sync.vo.IJsonObject;
-import com.percero.framework.vo.IPerceroObject;
-import com.percero.framework.vo.PerceroList;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
+
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.hibernate.PropertyValueException;
@@ -26,12 +28,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import javax.annotation.PostConstruct;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
+import com.percero.agents.sync.access.RedisKeyUtils;
+import com.percero.agents.sync.dao.DAORegistry;
+import com.percero.agents.sync.dao.IDataAccessObject;
+import com.percero.agents.sync.datastore.ICacheDataStore;
+import com.percero.agents.sync.exceptions.SyncDataException;
+import com.percero.agents.sync.exceptions.SyncException;
+import com.percero.agents.sync.metadata.IMappedClassManager;
+import com.percero.agents.sync.metadata.MappedClass;
+import com.percero.agents.sync.metadata.MappedClassManagerFactory;
+import com.percero.agents.sync.metadata.MappedField;
+import com.percero.agents.sync.metadata.MappedFieldList;
+import com.percero.agents.sync.metadata.MappedFieldPerceroObject;
+import com.percero.agents.sync.vo.BaseDataObject;
+import com.percero.agents.sync.vo.ClassIDPair;
+import com.percero.agents.sync.vo.ClassIDPairs;
+import com.percero.agents.sync.vo.IJsonObject;
+import com.percero.framework.vo.IPerceroObject;
+import com.percero.framework.vo.PerceroList;
 
 @Component
 public class DAODataProvider implements IDataProvider {
@@ -270,27 +284,76 @@ public class DAODataProvider implements IDataProvider {
             String key = RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID());
             cacheDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
             setObjectExpiration(key);
+            
+            String classKey = RedisKeyUtils.classIds(perceroObject.getClass().getCanonicalName());
+            cacheDataStore.setSetValue(classKey, perceroObject.getID());
         }
     }
 
     private void putObjectsInRedisCache(List<? extends IPerceroObject> results) {
         if (cacheTimeout > 0) {
             Map<String, String> mapJsonObjectStrings = new HashMap<String, String>(results.size());
+            Map<String, Set<String>> mapJsonClassIdStrings = new HashMap<String, Set<String>>();
             Iterator<? extends IPerceroObject> itrDatabaseObjects = results.iterator();
             while (itrDatabaseObjects.hasNext()) {
                 IPerceroObject nextDatabaseObject = itrDatabaseObjects.next();
                 String nextCacheKey = RedisKeyUtils.classIdPair(nextDatabaseObject.getClass().getCanonicalName(), nextDatabaseObject.getID());
+                
+                Set<String> classIdList = mapJsonClassIdStrings.get(nextDatabaseObject.getClass().getCanonicalName());
+                if (classIdList == null) {
+                	classIdList = new HashSet<String>();
+                	mapJsonClassIdStrings.put(nextDatabaseObject.getClass().getCanonicalName(), classIdList);
+                }
+                classIdList.add(nextDatabaseObject.getID());
 
                 mapJsonObjectStrings.put(nextCacheKey, ((BaseDataObject)nextDatabaseObject).toJson());
             }
 
             // Store the objects in redis.
             cacheDataStore.setValues(mapJsonObjectStrings);
+            // Store the class Id's list in redis.
+            cacheDataStore.setSetsValues(mapJsonClassIdStrings);
             // (Re)Set the expiration.
             cacheDataStore.expire(mapJsonObjectStrings.keySet(), cacheTimeout, TimeUnit.SECONDS);
         }
     }
 
+    private void deleteObjectFromRedisCache(ClassIDPair pair) {
+    	// Now put the object in the cache.
+    	if (cacheTimeout > 0 && pair != null) {
+    		String key = RedisKeyUtils.classIdPair(pair.getClassName(), pair.getID());
+    		cacheDataStore.deleteKey(key);
+    		
+    		String classKey = RedisKeyUtils.classIds(pair.getClassName());
+    		cacheDataStore.removeSetValue(classKey, pair.getID());
+    	}
+    }
+    
+    private void deleteObjectsFromRedisCache(List<ClassIDPair> results) {
+    	if (cacheTimeout > 0) {
+    		Set<String> objectStrings = new HashSet<String>(results.size());
+    		Map<String, Set<String>> mapJsonClassIdStrings = new HashMap<String, Set<String>>();
+    		Iterator<ClassIDPair> itrDatabaseObjects = results.iterator();
+    		while (itrDatabaseObjects.hasNext()) {
+    			ClassIDPair nextDatabaseObject = itrDatabaseObjects.next();
+    			String nextCacheKey = RedisKeyUtils.classIdPair(nextDatabaseObject.getClassName(), nextDatabaseObject.getID());
+    			objectStrings.add(nextCacheKey);
+    			
+    			Set<String> classIdList = mapJsonClassIdStrings.get(nextDatabaseObject.getClassName());
+    			if (classIdList == null) {
+    				classIdList = new HashSet<String>();
+    				mapJsonClassIdStrings.put(nextDatabaseObject.getClassName(), classIdList);
+    			}
+    			classIdList.add(nextDatabaseObject.getID());
+    		}
+    		
+    		// Store the objects in redis.
+    		cacheDataStore.deleteKeys(objectStrings);
+    		// Store the class Id's list in redis.
+    		cacheDataStore.removeSetsValues(mapJsonClassIdStrings);
+    	}
+    }
+    
     private void setObjectExpiration(IPerceroObject perceroObject) {
         setObjectExpiration(RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID()));
     }
@@ -657,22 +720,17 @@ public class DAODataProvider implements IDataProvider {
                 cacheDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
             }
 
+            List<ClassIDPair> pairsToDelete = new ArrayList<ClassIDPair>();
             // Iterate through each changed object and reset the cache for that object.
             if (changedFields != null) {
                 Iterator<ClassIDPair> itrChangedFieldKeyset = changedFields.keySet().iterator();
-                Set<String> keysToDelete = new HashSet<String>();
                 while (itrChangedFieldKeyset.hasNext()) {
                     ClassIDPair thePair = itrChangedFieldKeyset.next();
                     if (!thePair.comparePerceroObject(perceroObject)) {
-                        String nextKey = RedisKeyUtils.classIdPair(thePair.getClassName(), thePair.getID());
-                        keysToDelete.add(nextKey);
+                    	pairsToDelete.add(thePair);
+//                        String nextKey = RedisKeyUtils.classIdPair(thePair.getClassName(), thePair.getID());
+//                        pairsToDelete.add(nextKey);
                     }
-                }
-
-                if (!keysToDelete.isEmpty()) {
-                    cacheDataStore.deleteKeys(keysToDelete);
-                    // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-                    //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
                 }
             }
             else {
@@ -694,24 +752,26 @@ public class DAODataProvider implements IDataProvider {
                     }
                     if (fieldObject != null) {
                         if (fieldObject instanceof IPerceroObject) {
-                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-                            if (cacheDataStore.hasKey(nextKey)) {
-                                cacheDataStore.deleteKey(nextKey);
-                                // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-                                //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-                            }
+                        	pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
+//                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
+//                            if (cacheDataStore.hasKey(nextKey)) {
+//                                cacheDataStore.deleteKey(nextKey);
+//                                // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+//                                //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+//                            }
                         }
                         else if (fieldObject instanceof Collection) {
                             Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
                             while(itrFieldObject.hasNext()) {
                                 Object nextListObject = itrFieldObject.next();
                                 if (nextListObject instanceof IPerceroObject) {
-                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-                                    if (cacheDataStore.hasKey(nextKey)) {
-                                        cacheDataStore.deleteKey(nextKey);
-                                        // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-                                        //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-                                    }
+                                	pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+//                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
+//                                    if (cacheDataStore.hasKey(nextKey)) {
+//                                        cacheDataStore.deleteKey(nextKey);
+//                                        // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+//                                        //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+//                                    }
                                 }
                             }
                         }
@@ -732,29 +792,38 @@ public class DAODataProvider implements IDataProvider {
                     }
                     if (fieldObject != null) {
                         if (fieldObject instanceof IPerceroObject) {
-                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-                            if (cacheDataStore.hasKey(nextKey)) {
-                                cacheDataStore.deleteKey(nextKey);
-                                // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-                                //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-                            }
+                        	pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
+//                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
+//                            if (cacheDataStore.hasKey(nextKey)) {
+//                                cacheDataStore.deleteKey(nextKey);
+//                                // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+//                                //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+//                            }
                         }
                         else if (fieldObject instanceof Collection) {
                             Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
                             while(itrFieldObject.hasNext()) {
                                 Object nextListObject = itrFieldObject.next();
                                 if (nextListObject instanceof IPerceroObject) {
-                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-                                    if (cacheDataStore.hasKey(nextKey)) {
-                                        cacheDataStore.deleteKey(nextKey);
-                                        // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-                                        //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-                                    }
+                                	pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+//                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
+//                                    if (cacheDataStore.hasKey(nextKey)) {
+//                                        cacheDataStore.deleteKey(nextKey);
+//                                        // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+//                                        //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+//                                    }
                                 }
                             }
                         }
                     }
                 }
+            }
+
+            if (!pairsToDelete.isEmpty()) {
+            	deleteObjectsFromRedisCache(pairsToDelete);
+//                cacheDataStore.deleteKeys(pairsToDelete);
+                // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+                //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
             }
         }
 
@@ -783,10 +852,10 @@ public class DAODataProvider implements IDataProvider {
             // Now update the cache.
             // TODO: Field-level updates could be REALLY useful here.  Would avoid A TON of UNNECESSARY work...
             if (result && cacheTimeout > 0) {
-                Set<String> keysToDelete = new HashSet<String>();
+                List<ClassIDPair> objectsToDelete = new ArrayList<ClassIDPair>();
 
-                String key = RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID());
-                keysToDelete.add(key);
+//                String key = RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID());
+                objectsToDelete.add(BaseDataObject.toClassIdPair(perceroObject));
 
                 Iterator<MappedField> itrToManyFields = mappedClass.toManyFields.iterator();
                 while(itrToManyFields.hasNext()) {
@@ -794,16 +863,18 @@ public class DAODataProvider implements IDataProvider {
                     Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
                     if (fieldObject != null) {
                         if (fieldObject instanceof IPerceroObject) {
-                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-                            keysToDelete.add(nextKey);
+                        	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject)fieldObject));
+//                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
+//                            objectsToDelete.add(nextKey);
                         }
                         else if (fieldObject instanceof Collection) {
                             Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
                             while(itrFieldObject.hasNext()) {
                                 Object nextListObject = itrFieldObject.next();
                                 if (nextListObject instanceof IPerceroObject) {
-                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-                                    keysToDelete.add(nextKey);
+                                	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+//                                	String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
+//                                    objectsToDelete.add(nextKey);
                                 }
                             }
                         }
@@ -815,24 +886,27 @@ public class DAODataProvider implements IDataProvider {
                     Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
                     if (fieldObject != null) {
                         if (fieldObject instanceof IPerceroObject) {
-                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-                            keysToDelete.add(nextKey);
+                        	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
+//                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
+//                            objectsToDelete.add(nextKey);
                         }
                         else if (fieldObject instanceof Collection) {
                             Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
                             while(itrFieldObject.hasNext()) {
                                 Object nextListObject = itrFieldObject.next();
                                 if (nextListObject instanceof IPerceroObject) {
-                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-                                    keysToDelete.add(nextKey);
+                                	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+//                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
+//                                    objectsToDelete.add(nextKey);
                                 }
                             }
                         }
                     }
                 }
 
-                if (!keysToDelete.isEmpty()) {
-                    cacheDataStore.deleteKeys(keysToDelete);
+                if (!objectsToDelete.isEmpty()) {
+                	deleteObjectsFromRedisCache(objectsToDelete);
+//                    cacheDataStore.deleteKeys(objectsToDelete);
                 }
             }
 
@@ -1265,15 +1339,15 @@ public class DAODataProvider implements IDataProvider {
         }
     }
 
-    protected void addObjectToCache(IPerceroObject nextPerceroObject) {
-        String key = RedisKeyUtils.classIdPair(nextPerceroObject.getClass().getCanonicalName(), nextPerceroObject.getID());
-        if (cacheTimeout > 0)
-            cacheDataStore.setValue(key, ((BaseDataObject)nextPerceroObject).toJson());
-
-        // (Re)Set the expiration.
-        if (cacheTimeout > 0 && key != null) {
-            cacheDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
-        }
-    }
+//    protected void addObjectToCache(IPerceroObject nextPerceroObject) {
+//        String key = RedisKeyUtils.classIdPair(nextPerceroObject.getClass().getCanonicalName(), nextPerceroObject.getID());
+//        if (cacheTimeout > 0)
+//            cacheDataStore.setValue(key, ((BaseDataObject)nextPerceroObject).toJson());
+//
+//        // (Re)Set the expiration.
+//        if (cacheTimeout > 0 && key != null) {
+//            cacheDataStore.expire(key, cacheTimeout, TimeUnit.SECONDS);
+//        }
+//    }
 
 }

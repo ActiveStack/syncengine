@@ -136,6 +136,10 @@ public abstract class RedisKeyUtils {
 		return "dr";
 	}
 	
+	public static String changeWatcherCustom(String subName) {
+		return (new StringBuilder(INT_64).append(CHANGE_WATCHER_PREFIX).append("CUSTOM")).toString();
+	}
+	
 	public static String changeWatcherClass(String className, String classId) {
 		return (new StringBuilder(INT_128).append(CHANGE_WATCHER_PREFIX).append(className).append(":").append(classId)).toString();
 	}
@@ -218,6 +222,10 @@ public abstract class RedisKeyUtils {
 	
 	public static String changeWatcherTimestamp(String changeWatcherId) {
 		return (new StringBuilder(INT_128).append("cw:time:").append(changeWatcherId)).toString();
+	}
+	
+	public static String classIds(String className) {
+		return (new StringBuilder(INT_64).append("ids:").append(className)).toString();
 	}
 	
 	public static String classIdPair(String className, String classId) {

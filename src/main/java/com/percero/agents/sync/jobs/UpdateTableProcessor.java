@@ -582,24 +582,31 @@ public class UpdateTableProcessor implements Runnable{
     public List<UpdateTableRow> getRows(int numRows){
         List<UpdateTableRow> rows = null;
 
-        try {
-            Random rand = new Random();
+        Random rand = new Random();
 
-            int lockId = rand.nextInt();
-            long now = System.currentTimeMillis();
+        int lockId = rand.nextInt();
+        long now = System.currentTimeMillis();
 
-            DateTime expireThreshold = new DateTime(now - EXPIRATION_TIME);
+        DateTime expireThreshold = new DateTime(now - EXPIRATION_TIME);
 
-            if (StringUtils.hasText(connectionFactory.getStoredProcedureName())) {
-                try {
-                    rows = getStoredProcRow(lockId, expireThreshold, numRows);
-                } catch (Exception e) {
-                    rows = getUpdateSelectRow(lockId, expireThreshold, numRows);
-                }
-            } else {
-                rows = getUpdateSelectRow(lockId, expireThreshold, numRows);
+        if (StringUtils.hasText(connectionFactory.getStoredProcedureName())) {
+            try {
+                rows = getStoredProcRow(lockId, expireThreshold, numRows);
+            } catch (Exception e) {
+            	logger.error("Error running Update Table stored procedure for " + connectionFactory.getJdbcUrl() + "\n     Failing over to get UpdateTable with SELECT statement", e);
+            		try {
+						rows = getUpdateSelectRow(lockId, expireThreshold, numRows);
+					} catch (SQLException e1) {
+						logger.error("Error running Update Table SELECT statement as backup to Stored Procedure\n     UPDATE TABLE NON_FUNCTIONAL " + connectionFactory.getJdbcUrl(), e1);
+					}
             }
-        }catch(Exception e){}
+        } else {
+        	try {
+        		rows = getUpdateSelectRow(lockId, expireThreshold, numRows);
+			} catch (SQLException e1) {
+				logger.error("Error running Update Table SELECT statement as backup to Stored Procedure\n     UPDATE TABLE NON_FUNCTIONAL " + connectionFactory.getJdbcUrl(), e1);
+			}
+        }
 
 
         return rows;
@@ -656,7 +663,8 @@ public class UpdateTableProcessor implements Runnable{
     private List<UpdateTableRow> getStoredProcRow(int lockId, DateTime expireThreshold, int numRows) throws SQLException {
         List<UpdateTableRow> list = new ArrayList<>();
         Integer updateNum = 0;
-        try(CallableStatement cstmt = getConnection().prepareCall("{call " + connectionFactory.getStoredProcedureName() + "(?, ?, ?, ?)}")) {
+        String storedProcSql = connectionFactory.getStoredProcedureName();
+        try(CallableStatement cstmt = getConnection().prepareCall("{call " + storedProcSql + "(?, ?, ?, ?)}")) {
             cstmt.setInt(1, lockId);
             cstmt.setString(2, expireThreshold.toString("Y-MM-dd HH:mm:ss"));
             cstmt.setInt(3, numRows);
@@ -772,7 +780,7 @@ public class UpdateTableProcessor implements Runnable{
             logger.warn("Invalid UpdateTableRow TYPE, ignoring");
             row.type    = UpdateTableRowType.NONE;
         }
-        row.timestamp   = resultSet.getDate("time_stamp");
+        row.timestamp   = resultSet.getDate(connectionFactory.getTimestampColumnName());
 
         return row;
     }

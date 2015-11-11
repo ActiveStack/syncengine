@@ -1,8 +1,20 @@
 package com.percero.agents.sync.cache;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import com.percero.agents.sync.access.RedisKeyUtils;
 import com.percero.agents.sync.datastore.ICacheDataStore;
-import com.percero.agents.sync.hibernate.SyncHibernateUtils;
 import com.percero.agents.sync.metadata.IMappedClassManager;
 import com.percero.agents.sync.metadata.MappedClass;
 import com.percero.agents.sync.metadata.MappedClassManagerFactory;
@@ -13,13 +25,6 @@ import com.percero.agents.sync.services.IDataProvider;
 import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.framework.vo.IPerceroObject;
-import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import sun.misc.Cache;
-
-import java.lang.reflect.InvocationTargetException;
-import java.util.*;
 
 /**
  * Created by jonnysamps on 9/5/15.
@@ -44,6 +49,8 @@ public class CacheManager {
 				if (cacheDataStore.hasKey(key)) {
 					cacheDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
 				}
+
+				List<ClassIDPair> pairsToDelete = new ArrayList<ClassIDPair>();
 				
 				// Iterate through each changed object and reset the cache for that object.
 				if (changedFields != null) {
@@ -58,23 +65,18 @@ public class CacheManager {
 //						}
 //					}
 					Iterator<ClassIDPair> itrChangedFieldKeyset = changedFields.keySet().iterator();
-					Set<String> keysToDelete = new HashSet<String>();
 					while (itrChangedFieldKeyset.hasNext()) {
 						ClassIDPair thePair = itrChangedFieldKeyset.next();
 						if (!thePair.comparePerceroObject(perceroObject)) {
-							String nextKey = RedisKeyUtils.classIdPair(thePair.getClassName(), thePair.getID());
-							keysToDelete.add(nextKey);
+							pairsToDelete.add(thePair);
+//							String nextKey = RedisKeyUtils.classIdPair(thePair.getClassName(), thePair.getID());
 						}
-					}
-					
-					if (!keysToDelete.isEmpty()) {
-						cacheDataStore.deleteKeys(keysToDelete);
-						// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-						//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 					}
 				}
 				else {
-					// No changedFields?  We should never get here?
+					// No changedFields -> VERY INEFFICIENT.
+					// This is typically only reached when using UpdateTables
+					// that have update records that are NOT in the cache.
 					IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 					MappedClass mappedClass = mcm.getMappedClassByClassName(perceroObject.getClass().getName());
 					Iterator<MappedField> itrToManyFields = mappedClass.toManyFields.iterator();
@@ -83,24 +85,26 @@ public class CacheManager {
 						Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
 						if (fieldObject != null) {
 							if (fieldObject instanceof IPerceroObject) {
-								String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-								if (cacheDataStore.hasKey(nextKey)) {
-									cacheDataStore.deleteKey(nextKey);
-									// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-									//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-								}
+								pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
+//								String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
+//								if (cacheDataStore.hasKey(nextKey)) {
+//									cacheDataStore.deleteKey(nextKey);
+//									// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+//									//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+//								}
 							}
 							else if (fieldObject instanceof Collection) {
 								Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
 								while(itrFieldObject.hasNext()) {
 									Object nextListObject = itrFieldObject.next();
 									if (nextListObject instanceof IPerceroObject) {
-										String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-										if (cacheDataStore.hasKey(nextKey)) {
-											cacheDataStore.deleteKey(nextKey);
-											// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-											//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-										}
+										pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+//										String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
+//										if (cacheDataStore.hasKey(nextKey)) {
+//											cacheDataStore.deleteKey(nextKey);
+//											// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+//											//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+//										}
 									}
 								}
 							}
@@ -112,29 +116,38 @@ public class CacheManager {
 						Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
 						if (fieldObject != null) {
 							if (fieldObject instanceof IPerceroObject) {
-								String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-								if (cacheDataStore.hasKey(nextKey)) {
-									cacheDataStore.deleteKey(nextKey);
-									// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-									//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-								}
+								pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
+//								String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
+//								if (cacheDataStore.hasKey(nextKey)) {
+//									cacheDataStore.deleteKey(nextKey);
+//									// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+//									//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+//								}
 							}
 							else if (fieldObject instanceof Collection) {
 								Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
 								while(itrFieldObject.hasNext()) {
 									Object nextListObject = itrFieldObject.next();
 									if (nextListObject instanceof IPerceroObject) {
-										String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-										if (cacheDataStore.hasKey(nextKey)) {
-											cacheDataStore.deleteKey(nextKey);
-											// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-											//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
-										}
+										pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+//										String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
+//										if (cacheDataStore.hasKey(nextKey)) {
+//											cacheDataStore.deleteKey(nextKey);
+//											// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+//											//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+//										}
 									}
 								}
 							}
 						}
 					}
+				}
+				
+				if (!pairsToDelete.isEmpty()) {
+					deleteObjectsFromRedisCache(pairsToDelete);
+//					cacheDataStore.deleteKeys(pairsToDelete);
+					// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+					//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 				}
 			}
         } catch (Exception e){
@@ -145,23 +158,24 @@ public class CacheManager {
     public void handleDeletedObject(IPerceroObject perceroObject, String className, Boolean isShellObject) {
 		if (cacheTimeout > 0) {
 			try {
-				Set<String> keysToDelete = new HashSet<String>();
+				List<ClassIDPair> pairsToDelete = new ArrayList<ClassIDPair>();
 	
-				String key = RedisKeyUtils.classIdPair(className, perceroObject.getID());
-				keysToDelete.add(key);
+//				String key = RedisKeyUtils.classIdPair(className, perceroObject.getID());
+				pairsToDelete.add(BaseDataObject.toClassIdPair(perceroObject));
 				
 				Set<ClassIDPair> relatedClassIdPairs = getRelatedClassIdPairs(perceroObject, className, isShellObject);
 				Iterator<ClassIDPair> itrRelatedClassIdPairs = relatedClassIdPairs.iterator();
 				while (itrRelatedClassIdPairs.hasNext()) {
 					ClassIDPair nextRelatedClassIdPair = itrRelatedClassIdPairs.next();
-					String nextKey = RedisKeyUtils.classIdPair(nextRelatedClassIdPair.getClassName(), nextRelatedClassIdPair.getID());
-					keysToDelete.add(nextKey);
+					pairsToDelete.add(nextRelatedClassIdPair);
+//					String nextKey = RedisKeyUtils.classIdPair(nextRelatedClassIdPair.getClassName(), nextRelatedClassIdPair.getID());
 				}
 	
-				if (!keysToDelete.isEmpty()) {
-					cacheDataStore.deleteKeys(keysToDelete);
-					// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-					//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+				if (!pairsToDelete.isEmpty()) {
+					deleteObjectsFromRedisCache(pairsToDelete);
+//					cacheDataStore.deleteKeys(pairsToDelete);
+//					// TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
+//					//redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
 				}
 			} catch (Exception e) {
 				logger.error(e.getMessage(), e);
@@ -169,14 +183,17 @@ public class CacheManager {
 		}
     }
     
-    public void deleteObjectFromCache(ClassIDPair classIdPair) {
-		String key = RedisKeyUtils.classIdPair(classIdPair.getClassName(), classIdPair.getID());
-		cacheDataStore.deleteKey(key);
-    }
+//    public void deleteObjectFromCache(ClassIDPair classIdPair) {
+//		String key = RedisKeyUtils.classIdPair(classIdPair.getClassName(), classIdPair.getID());
+//		cacheDataStore.deleteKey(key);
+//		
+//		String classKey = RedisKeyUtils.classIds(classIdPair.getClassName());
+//		cacheDataStore.removeSetValue(classKey, classIdPair.getID());
+//    }
     
     
     @SuppressWarnings({ "unchecked", "rawtypes" })
-	public Set<ClassIDPair> getRelatedClassIdPairs(IPerceroObject perceroObject, String className, Boolean isShellObject) throws Exception {
+	private Set<ClassIDPair> getRelatedClassIdPairs(IPerceroObject perceroObject, String className, Boolean isShellObject) throws Exception {
     	Set<ClassIDPair> results = new HashSet<ClassIDPair>();
     	
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -186,7 +203,8 @@ public class CacheManager {
 		while(itrToManyFields.hasNext()) {
 			MappedField nextMappedField = itrToManyFields.next();
 			
-			// If this is a SHELL object, then we need to get ALL objects of this MappedField type.
+//			// If this is a SHELL object, then we need to get ALL objects of this MappedField type.
+			// We only care about Cached values, so if this is a shell object, then only retrieve object keys that are in the cache
 			if (isShellObject) {
 				// If NO reverse mapped field, then nothing to update.
 				if (nextMappedField.getReverseMappedField() != null) {
@@ -256,5 +274,41 @@ public class CacheManager {
 		}
     	
     	return results;
+    }
+
+    public void deleteObjectFromCache(ClassIDPair pair) {
+    	// Now put the object in the cache.
+    	if (cacheTimeout > 0 && pair != null) {
+    		String key = RedisKeyUtils.classIdPair(pair.getClassName(), pair.getID());
+    		cacheDataStore.deleteKey(key);
+    		
+    		String classKey = RedisKeyUtils.classIds(pair.getClassName());
+    		cacheDataStore.removeSetValue(classKey, pair.getID());
+    	}
+    }
+    
+    public void deleteObjectsFromRedisCache(List<ClassIDPair> results) {
+    	if (cacheTimeout > 0) {
+    		Set<String> objectStrings = new HashSet<String>(results.size());
+    		Map<String, Set<String>> mapJsonClassIdStrings = new HashMap<String, Set<String>>();
+    		Iterator<ClassIDPair> itrDatabaseObjects = results.iterator();
+    		while (itrDatabaseObjects.hasNext()) {
+    			ClassIDPair nextDatabaseObject = itrDatabaseObjects.next();
+    			String nextCacheKey = RedisKeyUtils.classIdPair(nextDatabaseObject.getClassName(), nextDatabaseObject.getID());
+    			objectStrings.add(nextCacheKey);
+    			
+    			Set<String> classIdList = mapJsonClassIdStrings.get(nextDatabaseObject.getClassName());
+    			if (classIdList == null) {
+    				classIdList = new HashSet<String>();
+    				mapJsonClassIdStrings.put(nextDatabaseObject.getClassName(), classIdList);
+    			}
+    			classIdList.add(nextDatabaseObject.getID());
+    		}
+    		
+    		// Store the objects in redis.
+    		cacheDataStore.deleteKeys(objectStrings);
+    		// Store the class Id's list in redis.
+    		cacheDataStore.removeSetsValues(mapJsonClassIdStrings);
+    	}
     }
 }
