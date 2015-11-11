@@ -66,7 +66,7 @@ public class UpdateTableRegistry {
         try{
             URL ymlUrl = UpdateTableRegistry.class.getClassLoader().getResource(updateTableMapFile);
             if (ymlUrl == null) {
-                logger.warn("No configuration found for UpdateTableMapping (updateTableMap.yml), skipping UpdateTables");
+                logger.warn("No table mapping found for UpdateTables ("+updateTableMapFile+"), skipping UpdateTables");
                 return;
             }
             File configFile = new File(ymlUrl.getFile());
@@ -81,7 +81,7 @@ public class UpdateTableRegistry {
                 tableMap.put(updateTableMapping.tableName, updateTableMapping);
             }
         }catch (FileNotFoundException e) {
-            logger.warn("No configuration found for UpdateTables (updateTables.yml), skipping UpdateTables");
+            logger.warn("No table mapping found for UpdateTables ("+updateTableMapFile+"), skipping UpdateTables");
         }
     }
 
@@ -89,7 +89,7 @@ public class UpdateTableRegistry {
         try {
             URL ymlUrl = UpdateTableRegistry.class.getClassLoader().getResource(updateTableConfigFile);
             if (ymlUrl == null) {
-                logger.warn("No configuration found for UpdateTables (updateTables.yml), skipping UpdateTables");
+                logger.warn("No configuration found for UpdateTables ("+updateTableConfigFile+"), skipping UpdateTables");
                 return;
             }
             File configFile = new File(ymlUrl.getFile());
@@ -110,7 +110,7 @@ public class UpdateTableRegistry {
             }
         }
         catch (FileNotFoundException e) {
-            logger.warn("No configuration found for UpdateTables (updateTables.yml), skipping UpdateTables");
+            logger.warn("No configuration found for UpdateTables ("+updateTableConfigFile+"), skipping UpdateTables");
         }
 
     }
