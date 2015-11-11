@@ -22,6 +22,7 @@ import com.percero.agents.sync.metadata.MappedField;
 import com.percero.agents.sync.metadata.MappedFieldPerceroObject;
 import com.percero.agents.sync.services.DataProviderManager;
 import com.percero.agents.sync.services.IDataProvider;
+import com.percero.agents.sync.services.SyncAgentService;
 import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.framework.vo.IPerceroObject;
@@ -163,7 +164,7 @@ public class CacheManager {
 //				String key = RedisKeyUtils.classIdPair(className, perceroObject.getID());
 				pairsToDelete.add(BaseDataObject.toClassIdPair(perceroObject));
 				
-				Set<ClassIDPair> relatedClassIdPairs = getRelatedClassIdPairs(perceroObject, className, isShellObject);
+				Set<ClassIDPair> relatedClassIdPairs = getRelatedCachedClassIdPairs(perceroObject, className, isShellObject);
 				Iterator<ClassIDPair> itrRelatedClassIdPairs = relatedClassIdPairs.iterator();
 				while (itrRelatedClassIdPairs.hasNext()) {
 					ClassIDPair nextRelatedClassIdPair = itrRelatedClassIdPairs.next();
@@ -193,7 +194,7 @@ public class CacheManager {
     
     
     @SuppressWarnings({ "unchecked", "rawtypes" })
-	private Set<ClassIDPair> getRelatedClassIdPairs(IPerceroObject perceroObject, String className, Boolean isShellObject) throws Exception {
+	private Set<ClassIDPair> getRelatedCachedClassIdPairs(IPerceroObject perceroObject, String className, Boolean isShellObject) throws Exception {
     	Set<ClassIDPair> results = new HashSet<ClassIDPair>();
     	
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -209,13 +210,24 @@ public class CacheManager {
 				// If NO reverse mapped field, then nothing to update.
 				if (nextMappedField.getReverseMappedField() != null) {
 					MappedClass reverseMappedClass = nextMappedField.getReverseMappedField().getMappedClass();
-					IDataProvider reverseDataProvider = DataProviderManager.getInstance().getDataProviderByName(reverseMappedClass.className);
-					Set<ClassIDPair> allClassIdPairs = reverseDataProvider.getAllClassIdPairsByName(reverseMappedClass.className);
-					Iterator<ClassIDPair> itrAllClassIdPairs = allClassIdPairs.iterator();
-					while (itrAllClassIdPairs.hasNext()) {
-						ClassIDPair nextAllClassIdPair = itrAllClassIdPairs.next();
-						results.add(nextAllClassIdPair);
+//					IDataProvider reverseDataProvider = DataProviderManager.getInstance().getDataProviderByName(reverseMappedClass.className);
+
+					MappedClass nextReverseMappedClass = reverseMappedClass;
+					while (nextReverseMappedClass != null) {
+						String nextClassName = nextReverseMappedClass.className;
+						String key = RedisKeyUtils.classIds(nextClassName);
+						Set<String> classIds = (Set<String>) cacheDataStore.getSetValue(key);
+						for(String nextClassId : classIds) {
+							results.add(new ClassIDPair(nextClassId, nextClassName));
+						}
+						nextReverseMappedClass = nextReverseMappedClass.parentMappedClass;
 					}
+//					Set<ClassIDPair> allClassIdPairs = reverseDataProvider.getAllClassIdPairsByName(reverseMappedClass.className);
+//					Iterator<ClassIDPair> itrAllClassIdPairs = allClassIdPairs.iterator();
+//					while (itrAllClassIdPairs.hasNext()) {
+//						ClassIDPair nextAllClassIdPair = itrAllClassIdPairs.next();
+//						results.add(nextAllClassIdPair);
+//					}
 				}
 			}
 			else {
@@ -245,13 +257,23 @@ public class CacheManager {
 				// If NO reverse mapped field, then nothing to update.
 				if (nextMappedField.getReverseMappedField() != null) {
 					MappedClass reverseMappedClass = nextMappedField.getReverseMappedField().getMappedClass();
-					IDataProvider reverseDataProvider = DataProviderManager.getInstance().getDataProviderByName(reverseMappedClass.className);
-					Set<ClassIDPair> allClassIdPairs = reverseDataProvider.getAllClassIdPairsByName(reverseMappedClass.className);
-					Iterator<ClassIDPair> itrAllClassIdPairs = allClassIdPairs.iterator();
-					while (itrAllClassIdPairs.hasNext()) {
-						ClassIDPair nextAllClassIdPair = itrAllClassIdPairs.next();
-						results.add(nextAllClassIdPair);
+					MappedClass nextReverseMappedClass = reverseMappedClass;
+					while (nextReverseMappedClass != null) {
+						String nextClassName = nextReverseMappedClass.className;
+						String key = RedisKeyUtils.classIds(nextClassName);
+						Set<String> classIds = (Set<String>) cacheDataStore.getSetValue(key);
+						for(String nextClassId : classIds) {
+							results.add(new ClassIDPair(nextClassId, nextClassName));
+						}
+						nextReverseMappedClass = nextReverseMappedClass.parentMappedClass;
 					}
+//					IDataProvider reverseDataProvider = DataProviderManager.getInstance().getDataProviderByName(reverseMappedClass.className);
+//					Set<ClassIDPair> allClassIdPairs = reverseDataProvider.getAllClassIdPairsByName(reverseMappedClass.className);
+//					Iterator<ClassIDPair> itrAllClassIdPairs = allClassIdPairs.iterator();
+//					while (itrAllClassIdPairs.hasNext()) {
+//						ClassIDPair nextAllClassIdPair = itrAllClassIdPairs.next();
+//						results.add(nextAllClassIdPair);
+//					}
 				}
 			}
 			else {
@@ -297,10 +319,10 @@ public class CacheManager {
     			String nextCacheKey = RedisKeyUtils.classIdPair(nextDatabaseObject.getClassName(), nextDatabaseObject.getID());
     			objectStrings.add(nextCacheKey);
     			
-    			Set<String> classIdList = mapJsonClassIdStrings.get(nextDatabaseObject.getClassName());
+    			Set<String> classIdList = mapJsonClassIdStrings.get(RedisKeyUtils.classIds(nextDatabaseObject.getClassName()));
     			if (classIdList == null) {
     				classIdList = new HashSet<String>();
-    				mapJsonClassIdStrings.put(nextDatabaseObject.getClassName(), classIdList);
+    				mapJsonClassIdStrings.put(RedisKeyUtils.classIds(nextDatabaseObject.getClassName()), classIdList);
     			}
     			classIdList.add(nextDatabaseObject.getID());
     		}
