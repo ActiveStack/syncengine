@@ -1113,7 +1113,7 @@ public class DAODataProvider implements IDataProvider {
                 BaseDataObject nextCompareToPerceroObject = (BaseDataObject) itrCompareToList.next();
                 nextCompareToPerceroObject = (BaseDataObject) findById(BaseDataObject.toClassIdPair(nextCompareToPerceroObject), null);
 
-                if (nextBasePerceroObject.getClass() == nextCompareToPerceroObject.getClass() && nextBasePerceroObject.getID().equalsIgnoreCase(nextCompareToPerceroObject.getID())) {
+                if (nextCompareToPerceroObject != null && nextBasePerceroObject != null && nextBasePerceroObject.getClass() == nextCompareToPerceroObject.getClass() && nextBasePerceroObject.getID().equalsIgnoreCase(nextCompareToPerceroObject.getID())) {
                     matchFound = true;
                     break;
                 }
