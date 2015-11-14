@@ -2,6 +2,7 @@ package com.percero.agents.sync.jobs;
 
 import java.sql.CallableStatement;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
@@ -115,15 +116,13 @@ public class UpdateTableProcessor implements Runnable{
                 List<UpdateTableRow> successfulRows = new ArrayList<>();
                 for(UpdateTableRow row : rows) {
                     try {
-                        if (processRow(row)) {
-                            result.addResult(row.getType().toString());
-                            successfulRows.add(row);
-                        } else {
-                            result.addResult(row.getType().toString(), false, "");
-                        }
+                        processRow(row);
+                        result.addResult(row.getType().toString());
+                        successfulRows.add(row);
                     } catch (Exception e) {
                         logger.warn("Failed to process update: " + e.getMessage(), e);
                         result.addResult(row.getType().toString(), false, e.getMessage());
+                        releaseRowLock(row);
                     }
                 }
                 deleteRows(successfulRows);
@@ -149,40 +148,35 @@ public class UpdateTableProcessor implements Runnable{
         }
     }
 
-    protected boolean processRow(UpdateTableRow row) throws Exception{
-        boolean result = true;
+    protected void processRow(UpdateTableRow row) throws Exception{
         if(row.getRowId() != null)
             switch (row.getType()){
                 case DELETE:
-                    result = processDeleteSingle(row);
+                    processDeleteSingle(row);
                     break;
                 case UPDATE:
-                    result = processUpdateSingle(row);
+                    processUpdateSingle(row);
                     break;
                 case INSERT:
-                    result = processInsertSingle(row);
+                    processInsertSingle(row);
                     break;
                 default: // Don't know how to process
-                    result = true;
                     break;
             }
         else
             switch (row.getType()){
                 case DELETE:
-                    result = processDeleteTable(row);
+                    processDeleteTable(row);
                     break;
                 case UPDATE:
-                    result = processUpdateTable(row);
+                    processUpdateTable(row);
                     break;
                 case INSERT:
-                    result = processInsertTable(row);
+                    processInsertTable(row);
                     break;
                 default: // Don't know how to process
-                    result = true;
                     break;
             }
-
-        return result;
     }
 
     /**
@@ -191,7 +185,7 @@ public class UpdateTableProcessor implements Runnable{
      * @return
      */
     @SuppressWarnings("rawtypes")
-    protected boolean processUpdateSingle(UpdateTableRow row) throws Exception{
+    protected void processUpdateSingle(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
         
         for(Class clazz : classes) {
@@ -204,8 +198,6 @@ public class UpdateTableProcessor implements Runnable{
             ClassIDPair pair = new ClassIDPair(row.getRowId(), className);
             handleUpdateClassIdPair(dataProvider, pair);
         }
-        
-        return true;
     }
 
     /**
@@ -214,7 +206,7 @@ public class UpdateTableProcessor implements Runnable{
      * @return
      */
     @SuppressWarnings("rawtypes")
-    protected boolean processUpdateTable(UpdateTableRow row) throws Exception{
+    protected void processUpdateTable(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         for(Class clazz : classes) {
@@ -254,8 +246,6 @@ public class UpdateTableProcessor implements Runnable{
 
             updateReferences(className);
         }
-
-        return true;
     }
 
     /**
@@ -344,7 +334,7 @@ public class UpdateTableProcessor implements Runnable{
      * @return
      */
     @SuppressWarnings("rawtypes")
-    protected boolean processInsertSingle(UpdateTableRow row) throws Exception{
+    protected void processInsertSingle(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         for(Class clazz : classes) {
@@ -356,8 +346,6 @@ public class UpdateTableProcessor implements Runnable{
 
         	classNamesToUpdateReferences.add(className);
         }
-
-        return true;
     }
 
     /**
@@ -366,7 +354,7 @@ public class UpdateTableProcessor implements Runnable{
      * @return
      */
     @SuppressWarnings("rawtypes")
-    protected boolean processInsertTable(UpdateTableRow row) throws Exception {
+    protected void processInsertTable(UpdateTableRow row) throws Exception {
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         for(Class clazz : classes) {
@@ -385,8 +373,6 @@ public class UpdateTableProcessor implements Runnable{
 
         	classNamesToUpdateReferences.add(className);
         }
-
-        return true;
     }
 
     /**
@@ -395,7 +381,7 @@ public class UpdateTableProcessor implements Runnable{
      * @return
      */
     @SuppressWarnings("rawtypes")
-    protected boolean processDeleteSingle(UpdateTableRow row) throws Exception{
+    protected void processDeleteSingle(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         for(Class clazz : classes){
@@ -412,8 +398,6 @@ public class UpdateTableProcessor implements Runnable{
 
         	classNamesToUpdateReferences.add(className);
         }
-
-        return true;
     }
 
     /**
@@ -422,7 +406,7 @@ public class UpdateTableProcessor implements Runnable{
      * @return
      */
     @SuppressWarnings("rawtypes")
-    protected boolean processDeleteTable(UpdateTableRow row) throws Exception{
+    protected void processDeleteTable(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         for(Class clazz : classes){
@@ -465,8 +449,6 @@ public class UpdateTableProcessor implements Runnable{
 
         	classNamesToUpdateReferences.add(className);
         }
-
-        return true;
     }
 
     @SuppressWarnings("rawtypes")
@@ -723,13 +705,14 @@ public class UpdateTableProcessor implements Runnable{
      * @param rows
      */
     protected void deleteRows(List<UpdateTableRow> rows){
-        try(Statement statement = getConnection().createStatement()){
-
-            String sql = "delete from :tableName where ID in (:idList)";
-            sql = sql.replace(":tableName", tableName);
-            sql = sql.replace(":idList", listIdJoin(rows));
-
-            int numUpdated = statement.executeUpdate(sql);
+    	if (rows == null || rows.isEmpty()) {
+    		return;
+    	}
+    	String sql = "delete from " + tableName + " where " + connectionFactory.getLockIdColumnName() + "=" + rows.get(0).getLockId();
+    	
+        try(PreparedStatement statement = getConnection().prepareStatement(sql)){
+        	
+        	int numUpdated = statement.executeUpdate(sql);
             if(numUpdated != rows.size()){
                 logger.warn("Expected to delete "+rows.size()+", instead "+numUpdated);
             }
@@ -738,23 +721,40 @@ public class UpdateTableProcessor implements Runnable{
         }
     }
 
-    /**
-     * Utility function that takes a list of rows and returns a comma separated string
-     * @param list
-     */
-    private String listIdJoin(List<UpdateTableRow> list){
-        StringBuilder sb = new StringBuilder();
-        String separator = ",";
-        for (UpdateTableRow row : list) {
-            if(sb.length() != 0)
-                sb.append(separator);
-
-            sb.append(row.getID());
-        }
-        return sb.toString();
+    protected void releaseRowLock(UpdateTableRow row){
+    	if (row == null) {
+    		return;
+    	}
+    	String sql = "UPDATE " + tableName + " SET " + connectionFactory.getLockIdColumnName() + "=NULL, " + connectionFactory.getLockDateColumnName() + "=NULL where ID=" + row.getID();
+    	
+    	try(PreparedStatement statement = getConnection().prepareStatement(sql)){
+    		
+    		int numUpdated = statement.executeUpdate(sql);
+    		if(numUpdated != 1){
+    			logger.warn("Expected to update 1, instead "+numUpdated);
+    		}
+    	}catch(SQLException e){
+    		logger.warn(e.getMessage(), e);
+    	}
     }
+    
+//    /**
+//     * Utility function that takes a list of rows and returns a comma separated string
+//     * @param list
+//     */
+//    private String listIdJoin(List<UpdateTableRow> list){
+//        StringBuilder sb = new StringBuilder();
+//        String separator = ",";
+//        for (UpdateTableRow row : list) {
+//            if(sb.length() != 0)
+//                sb.append(separator);
+//
+//            sb.append(row.getID());
+//        }
+//        return sb.toString();
+//    }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings({ "rawtypes" })
     public List<Class> getClassesForTableName(String tableName){
         List<Class> result = new ArrayList<>();
 
