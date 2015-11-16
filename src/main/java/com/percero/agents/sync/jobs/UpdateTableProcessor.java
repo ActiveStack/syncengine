@@ -196,7 +196,10 @@ public class UpdateTableProcessor implements Runnable{
             IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
             
             ClassIDPair pair = new ClassIDPair(row.getRowId(), className);
-            handleUpdateClassIdPair(dataProvider, pair);
+            
+            if (pair != null && StringUtils.hasText(pair.getID()) && StringUtils.hasText(pair.getClassName())) {
+            	handleUpdateClassIdPair(dataProvider, pair);
+            }
         }
     }
 
@@ -261,7 +264,10 @@ public class UpdateTableProcessor implements Runnable{
 
         for(String ID : Ids) {
             ClassIDPair pair = new ClassIDPair(ID, className);
-            handleUpdateClassIdPair(dataProvider, pair);
+            
+            if (pair != null && StringUtils.hasText(pair.getID()) && StringUtils.hasText(pair.getClassName())) {
+            	handleUpdateClassIdPair(dataProvider, pair);
+            }
         }
     }
 
@@ -284,7 +290,7 @@ public class UpdateTableProcessor implements Runnable{
 			// use the cache).
 			changedFields = dataProvider
 					.getChangedMappedFields(perceroObject, oldValue);
-			if (changedFields == null || changedFields.size() > 0) {
+			if (changedFields != null && !changedFields.isEmpty()) {
 				// Something has changed.
 				cacheManager.updateCachedObject(perceroObject, changedFields);
 				postPutHelper.postPutObject(pair, null, null, true, changedFields);

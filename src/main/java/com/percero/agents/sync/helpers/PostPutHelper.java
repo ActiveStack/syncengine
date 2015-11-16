@@ -64,7 +64,7 @@ public class PostPutHelper {
 				Map.Entry<ClassIDPair, Collection<MappedField>> nextEntry = itrChangedFieldEntryset.next();
 				ClassIDPair nextPair = nextEntry.getKey();
 				
-				if (nextPair.equals(pair)) {
+				if (nextPair != null && nextPair.equals(pair)) {
 					pairChangedFields = nextEntry.getValue();
 					break;
 				}
@@ -90,6 +90,10 @@ public class PostPutHelper {
 			while (itrChangedFieldEntryset.hasNext()) {
 				Map.Entry<ClassIDPair, Collection<MappedField>> nextEntry = itrChangedFieldEntryset.next();
 				ClassIDPair thePair = nextEntry.getKey();
+				if (thePair == null) {
+					continue;
+				}
+
 				Collection<MappedField> changedMappedFields = nextEntry.getValue();
 				
 				// If thePair is NOT the object being updated, then need to run the postPutHelper for the Pair object as well.
@@ -149,7 +153,9 @@ public class PostPutHelper {
 						Iterator<MappedField> itrChangedFields = changedFields.iterator();
 						while (itrChangedFields.hasNext()) {
 							MappedField nextChangedField = itrChangedFields.next();
-							pushUpdateResponse.addUpdatedField(nextChangedField.getField().getName());
+							if (nextChangedField != null) {
+								pushUpdateResponse.addUpdatedField(nextChangedField.getField().getName());
+							}
 						}
 					}
 
@@ -182,7 +188,9 @@ public class PostPutHelper {
 					Iterator<MappedField> itrChangedFields = changedFields.iterator();
 					while (itrChangedFields.hasNext()) {
 						MappedField nextChangedField = itrChangedFields.next();
-						pushUpdateResponse.addUpdatedField(nextChangedField.getField().getName());
+						if (nextChangedField != null) {
+							pushUpdateResponse.addUpdatedField(nextChangedField.getField().getName());
+						}
 					}
 				}
 				

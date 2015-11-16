@@ -1021,7 +1021,7 @@ public class DAODataProvider implements IDataProvider {
                             MappedFieldPerceroObject nextMappedFieldPerceroObject = (MappedFieldPerceroObject) nextMappedField;
 
                             IPerceroObject oldReversePerceroObject = (IPerceroObject) nextMappedFieldPerceroObject.getGetter().invoke(oldObject);
-                            if (oldReversePerceroObject != null) {
+                            if (oldReversePerceroObject != null && StringUtils.hasText(oldReversePerceroObject.getID())) {
                                 ClassIDPair oldReversePair = new ClassIDPair(oldReversePerceroObject.getID(), oldReversePerceroObject.getClass().getCanonicalName());
                                 Collection<MappedField> oldReverseChangedFields = result.get(oldReversePair);
                                 if (oldReverseChangedFields == null) {
@@ -1032,7 +1032,7 @@ public class DAODataProvider implements IDataProvider {
                             }
 
                             IPerceroObject newReversePerceroObject = (IPerceroObject) nextMappedFieldPerceroObject.getGetter().invoke(newObject);
-                            if (newReversePerceroObject != null) {
+                            if (newReversePerceroObject != null && StringUtils.hasText(newReversePerceroObject.getID())) {
                                 ClassIDPair newReversePair = new ClassIDPair(newReversePerceroObject.getID(), newReversePerceroObject.getClass().getCanonicalName());
                                 Collection<MappedField> changedFields = result.get(newReversePair);
                                 if (changedFields == null) {
@@ -1073,6 +1073,9 @@ public class DAODataProvider implements IDataProvider {
                             Iterator itrNewChangedList = newChangedList.iterator();
                             while (itrNewChangedList.hasNext()) {
                                 BaseDataObject nextNewChangedObject = (BaseDataObject) itrNewChangedList.next();
+                                if (!StringUtils.hasText(nextNewChangedObject.getID())) {
+                                	continue;
+                                }
                                 ClassIDPair nextNewReversePair = BaseDataObject.toClassIdPair(nextNewChangedObject);
 
                                 // Old object is not in new list, so add to list of changed fields.
