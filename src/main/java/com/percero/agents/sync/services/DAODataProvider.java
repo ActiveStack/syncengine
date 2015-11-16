@@ -1073,7 +1073,7 @@ public class DAODataProvider implements IDataProvider {
                             Iterator itrNewChangedList = newChangedList.iterator();
                             while (itrNewChangedList.hasNext()) {
                                 BaseDataObject nextNewChangedObject = (BaseDataObject) itrNewChangedList.next();
-                                if (!StringUtils.hasText(nextNewChangedObject.getID())) {
+                                if (nextNewChangedObject == null || !StringUtils.hasText(nextNewChangedObject.getID())) {
                                 	continue;
                                 }
                                 ClassIDPair nextNewReversePair = BaseDataObject.toClassIdPair(nextNewChangedObject);
@@ -1107,6 +1107,9 @@ public class DAODataProvider implements IDataProvider {
 
         while (itrBaseList.hasNext()) {
             BaseDataObject nextBasePerceroObject = (BaseDataObject) itrBaseList.next();
+            if (nextBasePerceroObject == null || !StringUtils.hasText(nextBasePerceroObject.getID())) {
+            	continue;
+            }
             ClassIDPair nextBasePair = BaseDataObject.toClassIdPair(nextBasePerceroObject);
             nextBasePerceroObject = (BaseDataObject) findById(nextBasePair, null);
 
