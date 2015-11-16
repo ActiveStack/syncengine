@@ -836,10 +836,19 @@ public class DAODataProvider implements IDataProvider {
     ////////////////////////////////////////////////////
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public Boolean deleteObject(ClassIDPair theClassIdPair, String userId) throws SyncException {
+    	
+    	if (theClassIdPair == null || !StringUtils.hasText(theClassIdPair.getID())) {
+    		// Invalid object.
+    		return false;
+    	}
 
         IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(theClassIdPair.getClassName());
         IPerceroObject perceroObject = dao.retrieveObject(theClassIdPair, null, false);	// Retrieve the full object so we can update the cache if the delete is successful.
         Boolean result = dao.deleteObject(theClassIdPair, userId);
+        
+        if (perceroObject == null) {
+        	return true;
+        }
 
         try {
             MappedClass mappedClass = MappedClassManagerFactory.getMappedClassManager().getMappedClassByClassName(perceroObject.getClass().getCanonicalName());
