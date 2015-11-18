@@ -1469,10 +1469,10 @@ public class SyncAgentDataProvider implements IDataProvider {
 		String className = compareObject.getClass().getCanonicalName();
 		IPerceroObject oldObject = systemGetById(new ClassIDPair(compareObject.getID(), className), ignoreCache);
 		
-		return getChangedMappedFields(oldObject, compareObject);
+		return getChangedMappedFields(oldObject, compareObject, ignoreCache);
 	}
 	@SuppressWarnings("rawtypes")
-	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject oldObject, IPerceroObject compareObject) {
+	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject oldObject, IPerceroObject compareObject, boolean ignoreCache) {
 		Map<ClassIDPair, Collection<MappedField>> result = new HashMap<ClassIDPair, Collection<MappedField>>();
 
 		// Validate both objects.

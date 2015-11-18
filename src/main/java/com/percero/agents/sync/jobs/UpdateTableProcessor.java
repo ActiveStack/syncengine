@@ -281,7 +281,7 @@ public class UpdateTableProcessor implements Runnable{
         if (perceroObject == null) {
         	return;
         }
-
+        
         Map<ClassIDPair, Collection<MappedField>> changedFields = null;
         if (oldValue != null) {
 			// dataProvider.getChangedMappedFields is typically used to
@@ -289,7 +289,7 @@ public class UpdateTableProcessor implements Runnable{
 			// this case (we just need to tell getChangedMappedFields to NOT
 			// use the cache).
 			changedFields = dataProvider
-					.getChangedMappedFields(perceroObject, oldValue);
+					.getChangedMappedFields(perceroObject, oldValue, oldValue != null);
 			if (changedFields != null && !changedFields.isEmpty()) {
 				// Something has changed.
 				cacheManager.updateCachedObject(perceroObject, changedFields);

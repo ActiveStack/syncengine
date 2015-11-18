@@ -443,7 +443,7 @@ public class RedisDataProvider implements IDataProvider {
 
 	@Override
 	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(
-			IPerceroObject oldObject, IPerceroObject compareObject) {
+			IPerceroObject oldObject, IPerceroObject compareObject, boolean ignoreCache) {
 		// TODO Auto-generated method stub
 		return null;
 	}

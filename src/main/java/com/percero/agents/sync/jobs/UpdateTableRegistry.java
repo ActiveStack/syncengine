@@ -1,15 +1,5 @@
 package com.percero.agents.sync.jobs;
 
-import com.esotericsoftware.yamlbeans.YamlException;
-import com.esotericsoftware.yamlbeans.YamlReader;
-import com.google.api.client.util.Value;
-import edu.emory.mathcs.backport.java.util.Collections;
-import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Component;
-
-import javax.annotation.PostConstruct;
 import java.beans.PropertyVetoException;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -19,6 +9,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.annotation.PostConstruct;
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
+
+import com.esotericsoftware.yamlbeans.YamlException;
+import com.esotericsoftware.yamlbeans.YamlReader;
+
+import edu.emory.mathcs.backport.java.util.Collections;
 
 /**
  * @author Collin Brown

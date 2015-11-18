@@ -53,7 +53,7 @@ public interface IDataProvider {
 	 */
 	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject);
 	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject newObject, boolean ignoreCache);
-	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject oldObject, IPerceroObject compareObject);
+	public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject oldObject, IPerceroObject compareObject, boolean ignoreCache);
 	
 	/**
 	 * Given the mappedField, returns ALL objects in the relationship described by the mappedField.

@@ -12,6 +12,7 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import com.percero.agents.sync.access.RedisKeyUtils;
 import com.percero.agents.sync.datastore.ICacheDataStore;
@@ -68,7 +69,7 @@ public class CacheManager {
 					Iterator<ClassIDPair> itrChangedFieldKeyset = changedFields.keySet().iterator();
 					while (itrChangedFieldKeyset.hasNext()) {
 						ClassIDPair thePair = itrChangedFieldKeyset.next();
-						if (!thePair.comparePerceroObject(perceroObject)) {
+						if (thePair != null && StringUtils.hasText(thePair.getID()) && !thePair.comparePerceroObject(perceroObject)) {
 							pairsToDelete.add(thePair);
 //							String nextKey = RedisKeyUtils.classIdPair(thePair.getClassName(), thePair.getID());
 						}

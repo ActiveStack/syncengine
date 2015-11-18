@@ -1000,11 +1000,11 @@ public class DAODataProvider implements IDataProvider {
         String className = newObject.getClass().getCanonicalName();
         IPerceroObject oldObject = findById(new ClassIDPair(newObject.getID(), className), null, ignoreCache);
 
-        return getChangedMappedFields(oldObject, newObject);
+        return getChangedMappedFields(oldObject, newObject, ignoreCache);
     }
     
-    @SuppressWarnings("rawtypes")
-    public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject oldObject, IPerceroObject newObject) {
+    @SuppressWarnings({ "unchecked" })
+    public Map<ClassIDPair, Collection<MappedField>> getChangedMappedFields(IPerceroObject oldObject, IPerceroObject newObject, boolean ignoreCache) {
         Map<ClassIDPair, Collection<MappedField>> result = new HashMap<ClassIDPair, Collection<MappedField>>();
         Collection<MappedField> baseObjectResult = null;
         ClassIDPair basePair = new ClassIDPair(newObject.getID(), newObject.getClass().getCanonicalName());
@@ -1012,6 +1012,7 @@ public class DAODataProvider implements IDataProvider {
         String className = newObject.getClass().getCanonicalName();
         IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
         MappedClass mc = mcm.getMappedClassByClassName(className);
+
         Iterator<MappedField> itrMappedFields = mc.externalizableFields.iterator();
         while (itrMappedFields.hasNext()) {
             MappedField nextMappedField = itrMappedFields.next();
@@ -1054,20 +1055,19 @@ public class DAODataProvider implements IDataProvider {
                         else if (nextMappedField instanceof MappedFieldList) {
                             MappedFieldList nextMappedFieldList = (MappedFieldList) nextMappedField;
 
-                            List oldReverseList = (List) nextMappedFieldList.getGetter().invoke(oldObject);
+                            List<IPerceroObject> oldReverseList = (List<IPerceroObject>) nextMappedFieldList.getGetter().invoke(oldObject);
                             if (oldReverseList == null)
-                                oldReverseList = new ArrayList();
+                                oldReverseList = new ArrayList<IPerceroObject>();
 
-                            List newReverseList = (List) nextMappedFieldList.getGetter().invoke(newObject);
+                            List<IPerceroObject> newReverseList = (List<IPerceroObject>) nextMappedFieldList.getGetter().invoke(newObject);
                             if (newReverseList == null)
-                                newReverseList = new ArrayList();
+                                newReverseList = new ArrayList<IPerceroObject>();
 
                             // Compare each item in the lists.
-                            Collection oldChangedList = retrieveObjectsNotInCollection(oldReverseList, newReverseList);
-                            Iterator itrOldChangedList = oldChangedList.iterator();
+                            Collection<ClassIDPair> oldChangedList = retrieveObjectsNotInCollection(oldReverseList, newReverseList);
+                            Iterator<ClassIDPair> itrOldChangedList = oldChangedList.iterator();
                             while (itrOldChangedList.hasNext()) {
-                                BaseDataObject nextOldChangedObject = (BaseDataObject) itrOldChangedList.next();
-                                ClassIDPair nextOldReversePair = BaseDataObject.toClassIdPair(nextOldChangedObject);
+                            	ClassIDPair nextOldReversePair = itrOldChangedList.next();
 
                                 // Old object is not in new list, so add to list of changed fields.
                                 Collection<MappedField> changedFields = result.get(nextOldReversePair);
@@ -1078,14 +1078,10 @@ public class DAODataProvider implements IDataProvider {
                                 changedFields.add(nextMappedField.getReverseMappedField());
                             }
 
-                            Collection newChangedList = retrieveObjectsNotInCollection(newReverseList, oldReverseList);
-                            Iterator itrNewChangedList = newChangedList.iterator();
+                            Collection<ClassIDPair> newChangedList = retrieveObjectsNotInCollection(newReverseList, oldReverseList);
+                            Iterator<ClassIDPair> itrNewChangedList = newChangedList.iterator();
                             while (itrNewChangedList.hasNext()) {
-                                BaseDataObject nextNewChangedObject = (BaseDataObject) itrNewChangedList.next();
-                                if (nextNewChangedObject == null || !StringUtils.hasText(nextNewChangedObject.getID())) {
-                                	continue;
-                                }
-                                ClassIDPair nextNewReversePair = BaseDataObject.toClassIdPair(nextNewChangedObject);
+                            	ClassIDPair nextNewReversePair = itrNewChangedList.next();
 
                                 // Old object is not in new list, so add to list of changed fields.
                                 Collection<MappedField> changedFields = result.get(nextNewReversePair);
@@ -1107,35 +1103,37 @@ public class DAODataProvider implements IDataProvider {
         return result;
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    private Collection retrieveObjectsNotInCollection(Collection baseList, Collection compareToList) {
-        Collection result = new HashSet();
-        Iterator itrBaseList = baseList.iterator();
-        Iterator itrCompareToList = null;
+    private Collection<ClassIDPair> retrieveObjectsNotInCollection(Collection<IPerceroObject> baseList, Collection<IPerceroObject> compareToList) {
+        Collection<ClassIDPair> result = new HashSet<ClassIDPair>();
+        Iterator<IPerceroObject> itrBaseList = baseList.iterator();
+        Iterator<IPerceroObject> itrCompareToList = null;
         boolean matchFound = false;
 
         while (itrBaseList.hasNext()) {
-            BaseDataObject nextBasePerceroObject = (BaseDataObject) itrBaseList.next();
+            IPerceroObject nextBasePerceroObject = itrBaseList.next();
             if (nextBasePerceroObject == null || !StringUtils.hasText(nextBasePerceroObject.getID())) {
             	continue;
             }
-            ClassIDPair nextBasePair = BaseDataObject.toClassIdPair(nextBasePerceroObject);
-            nextBasePerceroObject = (BaseDataObject) findById(nextBasePair, null);
 
             itrCompareToList = compareToList.iterator();
             matchFound = false;
             while (itrCompareToList.hasNext()) {
-                BaseDataObject nextCompareToPerceroObject = (BaseDataObject) itrCompareToList.next();
-                nextCompareToPerceroObject = (BaseDataObject) findById(BaseDataObject.toClassIdPair(nextCompareToPerceroObject), null);
+                IPerceroObject nextCompareToPerceroObject = itrCompareToList.next();
 
-                if (nextCompareToPerceroObject != null && nextBasePerceroObject != null && nextBasePerceroObject.getClass() == nextCompareToPerceroObject.getClass() && nextBasePerceroObject.getID().equalsIgnoreCase(nextCompareToPerceroObject.getID())) {
+				if (nextCompareToPerceroObject != null
+						&& nextBasePerceroObject != null
+						&& nextBasePerceroObject.getClass() == nextCompareToPerceroObject
+								.getClass()
+						&& nextBasePerceroObject.getID().equalsIgnoreCase(
+								nextCompareToPerceroObject.getID())) {
                     matchFound = true;
                     break;
                 }
             }
 
             if (!matchFound) {
-                result.add(nextBasePerceroObject);
+            	ClassIDPair nextBasePair = BaseDataObject.toClassIdPair(nextBasePerceroObject);
+                result.add(nextBasePair);
             }
         }
 
