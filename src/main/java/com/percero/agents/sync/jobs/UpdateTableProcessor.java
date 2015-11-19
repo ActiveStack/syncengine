@@ -59,6 +59,7 @@ public class UpdateTableProcessor implements Runnable{
     protected DataProviderManager dataProviderManager;
     protected IAccessManager accessManager;
     protected int maxRowsToProcess = INFINITE_ROWS; // No max
+    protected UpdateTablePoller poller;
 
     private Connection connection;
 
@@ -69,7 +70,8 @@ public class UpdateTableProcessor implements Runnable{
                                 PostPutHelper postPutHelper,
                                 CacheManager cacheManager,
                                 DataProviderManager dataProviderManager,
-                                IAccessManager accessManager)
+                                IAccessManager accessManager,
+                                UpdateTablePoller poller)
     {
         this.tableName          = tableName;
         this.connectionFactory  = connectionFactory;
@@ -80,10 +82,11 @@ public class UpdateTableProcessor implements Runnable{
         this.dataProviderManager= dataProviderManager;
         this.accessManager      = accessManager;
         this.maxRowsToProcess   = connectionFactory.getWeight();
+        this.poller				= poller;
         
         classNamesToUpdateReferences = new HashSet<String>();
     }
-
+    
     
 	// TODO: This should be moved to be stored in a database table. Could
 	// possibly use the existing "entire table update" mechanism to handle this
@@ -145,6 +148,11 @@ public class UpdateTableProcessor implements Runnable{
                 Connection conn = getConnection();
                 conn.close();
             }catch(Exception e){}
+        }
+        
+        // Callback
+        if (poller != null) {
+        	poller.processorCallback(this);
         }
     }
 
