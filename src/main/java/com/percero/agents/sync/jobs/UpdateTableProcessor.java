@@ -188,18 +188,24 @@ public class UpdateTableProcessor implements Runnable{
     protected void processUpdateSingle(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
         
-        for(Class clazz : classes) {
-            String className = clazz.getCanonicalName();
-
-            IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-            MappedClass mappedClass = mcm.getMappedClassByClassName(className);
-            IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-            
-            ClassIDPair pair = new ClassIDPair(row.getRowId(), className);
-            
-            if (pair != null && StringUtils.hasText(pair.getID()) && StringUtils.hasText(pair.getClassName())) {
-            	handleUpdateClassIdPair(dataProvider, pair);
-            }
+        if (classes == null || classes.isEmpty()) {
+        	logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+        }
+        else {
+        	logger.debug("Processing " + classes.size() + " class(es) for UpdateTable UPDATE, table " + row.getTableName());
+	        for(Class clazz : classes) {
+	            String className = clazz.getCanonicalName();
+	
+	            IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+	            MappedClass mappedClass = mcm.getMappedClassByClassName(className);
+	            IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
+	            
+	            ClassIDPair pair = new ClassIDPair(row.getRowId(), className);
+	            
+	            if (pair != null && StringUtils.hasText(pair.getID()) && StringUtils.hasText(pair.getClassName())) {
+	            	handleUpdateClassIdPair(dataProvider, pair);
+	            }
+	        }
         }
     }
 
@@ -212,42 +218,48 @@ public class UpdateTableProcessor implements Runnable{
     protected void processUpdateTable(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
-        for(Class clazz : classes) {
-            String className = clazz.getCanonicalName();
-
-            // If there are any clients that have asked for all objects in a class then we have to push everything
-            if (accessManager.getNumClientsInterestedInWholeClass(className) > 0) {
-
-                IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-                MappedClass mappedClass = mcm.getMappedClassByClassName(className);
-                IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-
-                Integer pageNumber = 0;
-                Integer pageSize = 25;
-                Integer total = -1;
-
-                while (total < 0 || pageNumber * pageSize <= total) {
-                    PerceroList<IPerceroObject> objectsToUpdate = dataProvider.getAllByName(className, pageNumber, pageSize, true, null);
-                    pageNumber++;
-                    total = objectsToUpdate.getTotalLength();
-                    if (total <= 0) {
-                        break;
-                    }
-
-                    Set<String> objectIds = new HashSet<String>(objectsToUpdate.size());
-                    Iterator<IPerceroObject> itrObjectsToUpdate = objectsToUpdate.iterator();
-                    while (itrObjectsToUpdate.hasNext()) {
-                        IPerceroObject nextObjectToUpdate = itrObjectsToUpdate.next();
-                        objectIds.add(nextObjectToUpdate.getID());
-                    }
-
-                    processUpdates(className, objectIds);
-                }
-            } else {
-                processUpdates(className, accessManager.getClassAccessJournalIDs(className));
-            }
-
-            updateReferences(className);
+        if (classes == null || classes.isEmpty()) {
+        	logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+        }
+        else {
+        	logger.debug("Processing " + classes.size() + " class(es) for UpdateTable UPDATE, table " + row.getTableName());
+	        for(Class clazz : classes) {
+	            String className = clazz.getCanonicalName();
+	
+	            // If there are any clients that have asked for all objects in a class then we have to push everything
+	            if (accessManager.getNumClientsInterestedInWholeClass(className) > 0) {
+	
+	                IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+	                MappedClass mappedClass = mcm.getMappedClassByClassName(className);
+	                IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
+	
+	                Integer pageNumber = 0;
+	                Integer pageSize = 25;
+	                Integer total = -1;
+	
+	                while (total < 0 || pageNumber * pageSize <= total) {
+	                    PerceroList<IPerceroObject> objectsToUpdate = dataProvider.getAllByName(className, pageNumber, pageSize, true, null);
+	                    pageNumber++;
+	                    total = objectsToUpdate.getTotalLength();
+	                    if (total <= 0) {
+	                        break;
+	                    }
+	
+	                    Set<String> objectIds = new HashSet<String>(objectsToUpdate.size());
+	                    Iterator<IPerceroObject> itrObjectsToUpdate = objectsToUpdate.iterator();
+	                    while (itrObjectsToUpdate.hasNext()) {
+	                        IPerceroObject nextObjectToUpdate = itrObjectsToUpdate.next();
+	                        objectIds.add(nextObjectToUpdate.getID());
+	                    }
+	
+	                    processUpdates(className, objectIds);
+	                }
+	            } else {
+	                processUpdates(className, accessManager.getClassAccessJournalIDs(className));
+	            }
+	
+	            updateReferences(className);
+	        }
         }
     }
 
@@ -343,14 +355,20 @@ public class UpdateTableProcessor implements Runnable{
     protected void processInsertSingle(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
-        for(Class clazz : classes) {
-            String className = clazz.getCanonicalName();
-
-            // We do not use PostCreateHelper here because we are going to do all
-            // that extra work for the whole class in updateReferences.
-            postPutHelper.postPutObject(new ClassIDPair(row.getRowId(), className), null, null, true, null);
-
-        	classNamesToUpdateReferences.add(className);
+        if (classes == null || classes.isEmpty()) {
+        	logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+        }
+        else {
+        	logger.debug("Processing " + classes.size() + " class(es) for UpdateTable INSERT, table " + row.getTableName());
+	        for(Class clazz : classes) {
+	            String className = clazz.getCanonicalName();
+	
+	            // We do not use PostCreateHelper here because we are going to do all
+	            // that extra work for the whole class in updateReferences.
+	            postPutHelper.postPutObject(new ClassIDPair(row.getRowId(), className), null, null, true, null);
+	
+	        	classNamesToUpdateReferences.add(className);
+	        }
         }
     }
 
@@ -363,21 +381,27 @@ public class UpdateTableProcessor implements Runnable{
     protected void processInsertTable(UpdateTableRow row) throws Exception {
         List<Class> classes = getClassesForTableName(row.getTableName());
 
-        for(Class clazz : classes) {
-            String className = clazz.getCanonicalName();
-
-            // if any client needs all of this class then the only choice we have is to push everything
-            if (accessManager.getNumClientsInterestedInWholeClass(className) > 0 /* || true */) {
-                Set<ClassIDPair> allClassIdPairs = getAllClassIdPairsForTable(row.getTableName());
-                for (ClassIDPair classIdPair : allClassIdPairs) {
-                    // We do not use PostCreateHelper here because we are going to
-                    // do all that extra work for the whole class in
-                    // updateReferences.
-                    postPutHelper.postPutObject(classIdPair, null, null, true, null);
-                }
-            }
-
-        	classNamesToUpdateReferences.add(className);
+        if (classes == null || classes.isEmpty()) {
+        	logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+        }
+        else {
+        	logger.debug("Processing " + classes.size() + " class(es) for UpdateTable INSERT, table " + row.getTableName());
+	        for(Class clazz : classes) {
+	            String className = clazz.getCanonicalName();
+	
+	            // if any client needs all of this class then the only choice we have is to push everything
+	            if (accessManager.getNumClientsInterestedInWholeClass(className) > 0 /* || true */) {
+	                Set<ClassIDPair> allClassIdPairs = getAllClassIdPairsForTable(row.getTableName());
+	                for (ClassIDPair classIdPair : allClassIdPairs) {
+	                    // We do not use PostCreateHelper here because we are going to
+	                    // do all that extra work for the whole class in
+	                    // updateReferences.
+	                    postPutHelper.postPutObject(classIdPair, null, null, true, null);
+	                }
+	            }
+	
+	        	classNamesToUpdateReferences.add(className);
+	        }
         }
     }
 
@@ -389,20 +413,26 @@ public class UpdateTableProcessor implements Runnable{
     @SuppressWarnings("rawtypes")
     protected void processDeleteSingle(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
-
-        for(Class clazz : classes){
-            String className = clazz.getCanonicalName();
-
-            // See if this object is in the cache.  If so, it will help us know which related objects to update.
-            IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-            MappedClass mappedClass = mcm.getMappedClassByClassName(className);
-            IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-            ClassIDPair pair = new ClassIDPair(row.getRowId(), className);
-            IPerceroObject cachedObject = dataProvider.findById(pair, null, false);    // We are hoping to find this object in the cache...
-
-            handleDeletedObject(cachedObject, clazz, className, row.getRowId());
-
-        	classNamesToUpdateReferences.add(className);
+        
+        if (classes == null || classes.isEmpty()) {
+        	logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+        }
+        else {
+        	logger.debug("Processing " + classes.size() + " class(es) for UpdateTable DELETE, table " + row.getTableName());
+	        for(Class clazz : classes){
+	            String className = clazz.getCanonicalName();
+	
+	            // See if this object is in the cache.  If so, it will help us know which related objects to update.
+	            IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+	            MappedClass mappedClass = mcm.getMappedClassByClassName(className);
+	            IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
+	            ClassIDPair pair = new ClassIDPair(row.getRowId(), className);
+	            IPerceroObject cachedObject = dataProvider.findById(pair, null, false);    // We are hoping to find this object in the cache...
+	
+	            handleDeletedObject(cachedObject, clazz, className, row.getRowId());
+	
+	        	classNamesToUpdateReferences.add(className);
+	        }
         }
     }
 
@@ -415,45 +445,51 @@ public class UpdateTableProcessor implements Runnable{
     protected void processDeleteTable(UpdateTableRow row) throws Exception{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
-        for(Class clazz : classes){
-            String className = clazz.getCanonicalName();
-
-            IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-            MappedClass mappedClass = mcm.getMappedClassByClassName(className);
-            IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
-
-            // Get the list of ALL ID's of this class type that have been accessed.
-            Set<String> accessedIds = accessManager.getClassAccessJournalIDs(className);
-
-            if (accessedIds != null && !accessedIds.isEmpty()) {
-                // TODO: If ID "0", then that means someone wants to know about ALL
-                // records of this type. How do we do this?
-
-                // Get a list of ALL ID's of this class type.
-                Set<ClassIDPair> allClassIdPairs = getAllClassIdPairsForTable(row.getTableName());
-
-                // Remove ALL existing/current ID's from our list of accessed ID's.
-                for (ClassIDPair nextClassIdPair : allClassIdPairs) {
-                    accessedIds.remove(nextClassIdPair.getID());
-                }
-
-                // Now we have the list of ID's that have actually been deleted.
-                for (String id : accessedIds) {
-                    // Find the cached object first so that it is NOT removed if the same object is NOT found in the data store.
-                    IPerceroObject cachedObject = dataProvider.findById(new ClassIDPair(id, className), null, false);
-                    // We will know an object has been deleted IFF it does NOT exist in the data store.
-                    IPerceroObject dataStoreObject = dataProvider.findById(new ClassIDPair(id, className), null, true);
-
-                    if (dataStoreObject != null) {
-                        // Object has NOT been deleted.
-                        continue;
-                    }
-
-                    handleDeletedObject(cachedObject, clazz, className, id);
-                }
-            }
-
-        	classNamesToUpdateReferences.add(className);
+        if (classes == null || classes.isEmpty()) {
+        	logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+        }
+        else {
+        	logger.debug("Processing " + classes.size() + " class(es) for UpdateTable DELETE, table " + row.getTableName());
+	        for(Class clazz : classes){
+	            String className = clazz.getCanonicalName();
+	
+	            IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+	            MappedClass mappedClass = mcm.getMappedClassByClassName(className);
+	            IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
+	
+	            // Get the list of ALL ID's of this class type that have been accessed.
+	            Set<String> accessedIds = accessManager.getClassAccessJournalIDs(className);
+	
+	            if (accessedIds != null && !accessedIds.isEmpty()) {
+	                // TODO: If ID "0", then that means someone wants to know about ALL
+	                // records of this type. How do we do this?
+	
+	                // Get a list of ALL ID's of this class type.
+	                Set<ClassIDPair> allClassIdPairs = getAllClassIdPairsForTable(row.getTableName());
+	
+	                // Remove ALL existing/current ID's from our list of accessed ID's.
+	                for (ClassIDPair nextClassIdPair : allClassIdPairs) {
+	                    accessedIds.remove(nextClassIdPair.getID());
+	                }
+	
+	                // Now we have the list of ID's that have actually been deleted.
+	                for (String id : accessedIds) {
+	                    // Find the cached object first so that it is NOT removed if the same object is NOT found in the data store.
+	                    IPerceroObject cachedObject = dataProvider.findById(new ClassIDPair(id, className), null, false);
+	                    // We will know an object has been deleted IFF it does NOT exist in the data store.
+	                    IPerceroObject dataStoreObject = dataProvider.findById(new ClassIDPair(id, className), null, true);
+	
+	                    if (dataStoreObject != null) {
+	                        // Object has NOT been deleted.
+	                        continue;
+	                    }
+	
+	                    handleDeletedObject(cachedObject, clazz, className, id);
+	                }
+	            }
+	
+	        	classNamesToUpdateReferences.add(className);
+	        }
         }
     }
 
