@@ -67,23 +67,12 @@ public class UpdateTablePoller {
     /**
      * Run every minute
      */
-//    @Scheduled(fixedRate=5000, initialDelay=10000)	// Every 5 seconds
-    @Scheduled(fixedRate=5000)	// Every 5 seconds
+//    @Scheduled(fixedRate=5000)	// Every 5 seconds
+    @Scheduled(fixedRate=5000, initialDelay=10000)	// Every 5 seconds
     public void pollUpdateTables() {
         for (UpdateTableConnectionFactory updateTableConnectionFactory : updateTableRegistry.getConnectionFactories()) {
             for (String tableName : updateTableConnectionFactory.getTableNames()) {
-//            	boolean processorRunning = false;
-//            	for(UpdateTableProcessor runningProcessor : runningProcessors) {
-//            		if (runningProcessor.connectionFactory == updateTableConnectionFactory) {
-//            			if (runningProcessor.tableName.equals(tableName)) {
-//            				processorRunning = true;
-//            				break;
-//            			}
-//            		}
-//            	}
-//            	if (!processorRunning) {
-            		doProcessingForTable(updateTableConnectionFactory, tableName);
-//            	}
+        		doProcessingForTable(updateTableConnectionFactory, tableName);
             }
         }
     }
@@ -98,17 +87,25 @@ public class UpdateTablePoller {
     		processSet = Collections.synchronizedSet(new HashSet<UpdateTableProcessor>());
     		runningProcessors.put(processName, processSet);
     	}
-    	while (processSet.size() < connectionFactory.getWeight()) {
-            UpdateTableProcessor processor = getProcessor(connectionFactory, tableName);
-            taskExecutor.execute(processor);
-            processSet.add(processor);
-        }
+    	
+    	if (processSet.size() < connectionFactory.getWeight()) {
+	    	while (processSet.size() < connectionFactory.getWeight()) {
+	            UpdateTableProcessor processor = getProcessor(connectionFactory, tableName);
+	            taskExecutor.execute(processor);
+	            processSet.add(processor);
+	            logger.debug("Starting UpdateTable processor " + processor.getProcessorName() + " [" + processSet.size() + "/" + connectionFactory.getWeight() + "]");
+	        }
+    	}
+    	else {
+    		logger.debug("Processor " + processName + " already at capacity [" + processSet.size() + "/" + connectionFactory.getWeight() + "]");
+    	}
     }
     
     public void processorCallback(UpdateTableProcessor processor) {
     	Set<UpdateTableProcessor> processSet = runningProcessors.get(processor.getProcessorName());
     	if (processSet != null) {
     		processSet.remove(processor);
+    		logger.debug("Removing UpdateTable processor " + processor.getProcessorName() + " [" + processSet.size() + "/" + processor.connectionFactory.getWeight() + "]");
     	}
     }
 
