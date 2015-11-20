@@ -1,6 +1,8 @@
 package com.percero.agents.sync.jobs;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.PostConstruct;
@@ -17,6 +19,8 @@ import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.helpers.PostPutHelper;
 import com.percero.agents.sync.services.DataProviderManager;
 import com.percero.framework.bl.IManifest;
+
+import edu.emory.mathcs.backport.java.util.Collections;
 
 /**
  * Created by jonnysamps on 8/31/15.
@@ -50,7 +54,7 @@ public class UpdateTablePoller {
 	@Autowired
 	TaskExecutor taskExecutor;
 
-	Set<UpdateTableProcessor> runningProcessors = new HashSet<UpdateTableProcessor>();
+	Map<String, Set<UpdateTableProcessor>> runningProcessors = java.util.Collections.synchronizedMap(new HashMap<String, Set<UpdateTableProcessor>>());
 
     public boolean enabled = true;
 
@@ -63,38 +67,49 @@ public class UpdateTablePoller {
     /**
      * Run every minute
      */
-    @Scheduled(fixedRate=5000, initialDelay=10000)	// Every 5 seconds
+//    @Scheduled(fixedRate=5000, initialDelay=10000)	// Every 5 seconds
+    @Scheduled(fixedRate=5000)	// Every 5 seconds
     public void pollUpdateTables() {
         for (UpdateTableConnectionFactory updateTableConnectionFactory : updateTableRegistry.getConnectionFactories()) {
             for (String tableName : updateTableConnectionFactory.getTableNames()) {
-            	boolean processorRunning = false;
-            	for(UpdateTableProcessor runningProcessor : runningProcessors) {
-            		if (runningProcessor.connectionFactory == updateTableConnectionFactory) {
-            			if (runningProcessor.tableName.equals(tableName)) {
-            				processorRunning = true;
-            				break;
-            			}
-            		}
-            	}
-            	if (!processorRunning) {
+//            	boolean processorRunning = false;
+//            	for(UpdateTableProcessor runningProcessor : runningProcessors) {
+//            		if (runningProcessor.connectionFactory == updateTableConnectionFactory) {
+//            			if (runningProcessor.tableName.equals(tableName)) {
+//            				processorRunning = true;
+//            				break;
+//            			}
+//            		}
+//            	}
+//            	if (!processorRunning) {
             		doProcessingForTable(updateTableConnectionFactory, tableName);
-            	}
+//            	}
             }
         }
     }
 
-    public void doProcessingForTable(UpdateTableConnectionFactory connectionFactory, String tableName){
+    @SuppressWarnings("unchecked")
+	public void doProcessingForTable(UpdateTableConnectionFactory connectionFactory, String tableName){
         // Spin `weight` new threads... weight is supposed to be a balancing scale.. but right now we
         // Use it to see how many threads to create.
-        for(int i = 0; i < connectionFactory.getWeight(); i++) {
+    	String processName = connectionFactory.getJdbcUrl() + "::" + tableName;
+    	Set<UpdateTableProcessor> processSet = runningProcessors.get(processName);
+    	if (processSet == null) {
+    		processSet = Collections.synchronizedSet(new HashSet<UpdateTableProcessor>());
+    		runningProcessors.put(processName, processSet);
+    	}
+    	while (processSet.size() < connectionFactory.getWeight()) {
             UpdateTableProcessor processor = getProcessor(connectionFactory, tableName);
             taskExecutor.execute(processor);
-            runningProcessors.add(processor);
+            processSet.add(processor);
         }
     }
     
     public void processorCallback(UpdateTableProcessor processor) {
-    	runningProcessors.remove(processor);
+    	Set<UpdateTableProcessor> processSet = runningProcessors.get(processor.getProcessorName());
+    	if (processSet != null) {
+    		processSet.remove(processor);
+    	}
     }
 
     public UpdateTableProcessor getProcessor(UpdateTableConnectionFactory connectionFactory, String tableName){

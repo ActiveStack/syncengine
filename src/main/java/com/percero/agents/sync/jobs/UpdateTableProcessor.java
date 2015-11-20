@@ -88,6 +88,16 @@ public class UpdateTableProcessor implements Runnable{
     }
     
     
+    public String getProcessorName() {
+    	if (connectionFactory != null && connectionFactory.getJdbcUrl() != null && tableName != null) {
+    		return connectionFactory.getJdbcUrl() + "::" + tableName;
+    	}
+    	else {
+    		return "";
+    	}
+    }
+    
+    
 	// TODO: This should be moved to be stored in a database table. Could
 	// possibly use the existing "entire table update" mechanism to handle this
 	// (for each reverse mapped class)
