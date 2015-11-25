@@ -20,9 +20,7 @@
     <rabbit:listener-container acknowledge="auto" id="defaultListenerContainer">
         <rabbit:listener queue-names="changeWatcher" ref="changeWatcherListener"  />
     </rabbit:listener-container>
-    <rabbit:listener-container acknowledge="auto" >
+    <rabbit:listener-container acknowledge="auto" concurrency="32">
         <rabbit:listener queue-names="checkChangeWatcher" ref="checkChangeWatcherListener" />
     </rabbit:listener-container>
-
-
 </beans>
