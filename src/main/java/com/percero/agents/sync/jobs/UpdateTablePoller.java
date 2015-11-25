@@ -67,9 +67,9 @@ public class UpdateTablePoller {
     /**
      * Run every minute
      */
-//    @Scheduled(fixedRate=5000)	// Every 5 seconds
-    @Scheduled(fixedRate=5000, initialDelay=10000)	// Every 5 seconds
+    @Scheduled(cron="0/5 * * * * *")	// Every 5 seconds
     public void pollUpdateTables() {
+        logger.debug("*** UpdateTablePoller running...");
         for (UpdateTableConnectionFactory updateTableConnectionFactory : updateTableRegistry.getConnectionFactories()) {
             for (String tableName : updateTableConnectionFactory.getTableNames()) {
         		doProcessingForTable(updateTableConnectionFactory, tableName);

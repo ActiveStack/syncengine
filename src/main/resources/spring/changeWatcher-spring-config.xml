@@ -17,10 +17,12 @@
 
     <import resource="basic_components_spring_config.xml"/>
 
-    <rabbit:listener-container acknowledge="auto">
-        <rabbit:listener
-                queue-names="changeWatcher"
-                ref="changeWatcherListener" />
+    <rabbit:listener-container acknowledge="auto" id="defaultListenerContainer">
+        <rabbit:listener queue-names="changeWatcher" ref="changeWatcherListener"  />
     </rabbit:listener-container>
+    <rabbit:listener-container acknowledge="auto" >
+        <rabbit:listener queue-names="checkChangeWatcher" ref="checkChangeWatcherListener" />
+    </rabbit:listener-container>
+
 
 </beans>

@@ -6,8 +6,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.percero.agents.sync.cw.CheckChangeWatcherMessage;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -45,6 +47,9 @@ public class PostPutHelper {
 	public void setPushSyncHelper(IPushSyncHelper value) {
 		pushSyncHelper = value;
 	}
+
+	@Autowired
+	AmqpTemplate template;
 	
 	@Autowired
 	Boolean guaranteeUpdateDelivery = true;
@@ -82,7 +87,8 @@ public class PostPutHelper {
 		
 		// Now run past the ChangeWatcher.
 		if (changedFields == null || changedFields.isEmpty()) {
-			accessManager.checkChangeWatchers(pair, null, null);
+			enqueueCheckChangeWatcher(pair, null, null);
+//			accessManager.checkChangeWatchers(pair, null, null);
 		}
 		else {
 			// TODO: Need to somehow aggregate changes per client/object.
@@ -113,7 +119,10 @@ public class PostPutHelper {
 						fieldNames[i] = nextChangedField.getField().getName();
 						i++;
 					}
-					accessManager.checkChangeWatchers(thePair, fieldNames, null);
+
+					// Swap out inline processing for a worker queue
+					enqueueCheckChangeWatcher(thePair, fieldNames, null);
+//					accessManager.checkChangeWatchers(thePair, fieldNames, null);
 				}
 			}
 //			Iterator<ClassIDPair> itrChangedFieldKeyset = changedFields.keySet().iterator();
@@ -132,6 +141,15 @@ public class PostPutHelper {
 //			}
 		}
 	}
+
+	private void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params){
+		CheckChangeWatcherMessage message = new CheckChangeWatcherMessage();
+		message.classIDPair = classIDPair;
+		message.fieldNames = fieldNames;
+		message.params = params;
+		template.convertAndSend("checkChangeWatcher", message);
+	}
+
 
 	public void pushObjectUpdateJournals(Collection<String> clientIds, ClassIDPair classIdPair, Collection<MappedField> changedFields) {
 		if (classIdPair != null && clientIds != null && !clientIds.isEmpty()) {

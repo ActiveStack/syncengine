@@ -132,6 +132,7 @@
         <constructor-arg value="$pf{changeWatcher.useQueue}" />
     </bean>
     <rabbit:queue name="changeWatcher" />
+    <rabbit:queue name="checkChangeWatcher" />
 
     <!-- Database connection stuff -->
     <bean class="com.mchange.v2.c3p0.ComboPooledDataSource"

@@ -62,7 +62,7 @@
     <rabbit:queue name="getHistory" />
     <rabbit:queue name="changeWatcher" />
 
-    <rabbit:listener-container acknowledge="auto">
+    <rabbit:listener-container acknowledge="auto" id="defaultListenerContainer">
         <rabbit:listener queue-names="authenticateOAuthCode, authenticate, reauthenticate, 42, authenticateOAuthAccessToken, 41, authenticateUserAccount, getServiceUsers, getOAuthRequestToken, getRegAppOAuths, getRegisteredApplication, getAllServiceProviders, logoutUser, testCall, validateUserByToken, 17, disconnectAuth, connect, reconnect, hibernate, upgradeClient, disconnect, logout, create, update, processTransaction, getChangeWatcher, findById, findByIds, findByExample, countAllByName, getAllByName, runQuery, runProcess, createObject, putObject, removeObject, updatesReceived, deletesReceived, searchByExample, delete, getAccessor, getHistory, changeWatcher" ref="perceroAgentListener" />
     </rabbit:listener-container>
 

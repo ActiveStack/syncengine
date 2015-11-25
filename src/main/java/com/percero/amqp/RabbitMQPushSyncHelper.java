@@ -37,6 +37,7 @@ import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.amqp.support.converter.MessageConversionException;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -86,8 +87,12 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	// RabbitMQ Components
 	@Resource
 	AmqpAdmin amqpAdmin;
-	@Resource
+
 	AbstractMessageListenerContainer rabbitMessageListenerContainer;
+	@Resource @Qualifier("defaultListenerContainer")
+	public void setRabbitMessageListenerContainer(AbstractMessageListenerContainer container){
+		rabbitMessageListenerContainer = container;
+	}
 
 	// RabbitMQ environment variables.
 	@Autowired @Value("$pf{gateway.rabbitmq.admin_port:15672}")
