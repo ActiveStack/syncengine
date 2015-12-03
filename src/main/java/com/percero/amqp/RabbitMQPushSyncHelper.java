@@ -61,10 +61,13 @@ import com.rabbitmq.client.ShutdownSignalException;
 
 import edu.emory.mathcs.backport.java.util.Arrays;
 
+import org.slf4j.*;
+
 @Component
 public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationContextAware {
 	
 	private static Logger logger = Logger.getLogger(RabbitMQPushSyncHelper.class);
+    private static final org.slf4j.Logger slf4jLogger = LoggerFactory.getLogger(RabbitMQPushSyncHelper.class);
 
 	public static final String DEFAULT_CHARSET = "UTF-8";
 
@@ -115,6 +118,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@SuppressWarnings("rawtypes")
 	protected void pushJsonToRouting(String objectJson, Class objectClass, String routingKey) {
 		try{
+            printCurrentStackTrace();
+            
 			Message convertedMessage = toMessage(objectJson, objectClass, MessageProperties.CONTENT_TYPE_JSON);
 			template.send(routingKey, convertedMessage);
 		}
@@ -125,6 +130,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	
 	protected void pushMessageToRouting(Message convertedMessage, String routingKey) {
 		try{
+            printCurrentStackTrace();
+            
 			template.send(routingKey, convertedMessage);
 		}
 		catch(Exception e){
@@ -135,6 +142,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@SuppressWarnings("rawtypes")
 	protected void pushStringToRouting(String objectJson, Class objectClass, String routingKey) {
 		try{
+            printCurrentStackTrace();
+            
 			Message convertedMessage = toMessage(objectJson, objectClass, MessageProperties.CONTENT_TYPE_BYTES);
 			template.send(routingKey, convertedMessage);
 		}
@@ -146,6 +155,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@SuppressWarnings("rawtypes")
 	public final Message toMessage(String objectJson, Class objectClass, String contentEncoding)
 			throws MessageConversionException {
+                printCurrentStackTrace();
+                
 		MessageProperties messageProperties = new MessageProperties();
 		messageProperties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
 		messageProperties.setContentEncoding(this.defaultCharset);
@@ -156,6 +167,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@SuppressWarnings("rawtypes")
 	public final Message toMessage(String objectJson, Class objectClass, MessageProperties messageProperties, String contentEncoding)
 			throws MessageConversionException {
+        printCurrentStackTrace();
+                
 		Message message = createMessage(objectJson, objectClass, messageProperties, contentEncoding);
 		return message;
 	}
@@ -163,6 +176,9 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@SuppressWarnings("rawtypes")
 	protected Message createMessage(String aString, Class objectClass, MessageProperties messageProperties, String contentEncoding)
 			throws MessageConversionException {
+                
+        printCurrentStackTrace();
+                
 		byte[] bytes = null;
 		try {
 			String jsonString = aString;
@@ -181,6 +197,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	}
 
 	public void pushSyncResponseToClient(SyncResponse anObject, String clientId) {
+        printCurrentStackTrace();
+        
 		if (anObject != null && StringUtils.hasText(clientId)) {
 			pushJsonToRouting(anObject.toJson(objectMapper), anObject.getClass(), clientId);
 		}
@@ -188,6 +206,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	
 	@SuppressWarnings("rawtypes")
 	public void pushSyncResponseToClients(SyncResponse syncResponse, Collection<String> clientIds) {
+        printCurrentStackTrace();
+        
 		if ( syncResponse != null && clientIds != null && !clientIds.isEmpty() ) {
 			Class objectClass = syncResponse.getClass();
 			
@@ -202,6 +222,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	}
 	
 	public void pushObjectToClients(Object anObject, Collection<String> listClients) {
+        printCurrentStackTrace();
+        
 		if (anObject != null && listClients != null && !listClients.isEmpty() ) {
 			// Route to specific clients.
 			// Optimization: create the JSON string of the object.
@@ -225,6 +247,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 
 	@Override
 	public void pushStringToRoute(String aString, String routeName) {
+        printCurrentStackTrace();
+        
 		if (StringUtils.hasText(routeName)) {
 			pushStringToRouting(aString, String.class, routeName);
 		}
@@ -232,6 +256,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	
 	@Override
 	public Boolean removeClient(String clientId) {
+        printCurrentStackTrace();
+        
 		try {
 			if (!cacheDataStore.getSetIsMember(RedisKeyUtils.eolClients(), clientId)) {
 				logger.debug("RabbitMQ Removing Client " + clientId);
@@ -270,6 +296,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	}
 	
 	protected Boolean deleteQueue(String queue) {
+        printCurrentStackTrace();
+        
 		try {
 			logger.debug("RabbitMQ Deleting Queue " + queue);
 			Queue clientQueue = new Queue(queue, durableQueues);
@@ -289,6 +317,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	
 	@Override
 	public Boolean renameClient(String thePreviousClientId, String clientId) {
+        printCurrentStackTrace();
+        
 		if (!StringUtils.hasText(thePreviousClientId)) {
 			logger.warn("RabbitMQ renameClient previous client not set");
 			return false;
@@ -343,7 +373,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 //	@Scheduled(fixedRate=30000)	// 30 Seconds
 	@Scheduled(fixedRate=300000)	// 5 Minutes
 	public void validateQueues() {
-		
+		printCurrentStackTrace();
+        
 		synchronized (validatingQueues) {
 			if (validatingQueues) {
 				// Currently running.
@@ -513,6 +544,8 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext)
 			throws BeansException {
+        printCurrentStackTrace();
+                
 		this.applicationContext = applicationContext;
 		
 		Map<String, Queue> queues = this.applicationContext.getBeansOfType(Queue.class);
@@ -536,5 +569,19 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 			queueNames.add(nextQueue.getName());
 		}
 	}
+    
+    private void printCurrentStackTrace(){
+        
+        //        System.out.println("**********************************");
+        StringBuffer loggerSb = new StringBuffer();
+        for(StackTraceElement ste : Thread.currentThread().getStackTrace()){
+            loggerSb.append(ste.toString());
+        }
+        slf4jLogger.info("{\"message\" : \"" + loggerSb.toString() + "\"}");
+
+        //        System.out.println("**********************************");
+    }
+
+    
 
 }
