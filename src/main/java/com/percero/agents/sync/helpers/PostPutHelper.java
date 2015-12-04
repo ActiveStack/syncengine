@@ -58,7 +58,7 @@ public class PostPutHelper {
 	}
 
 	public void postPutObject(ClassIDPair pair, String pusherUserId, String pusherClientId, boolean pushToUser, Map<ClassIDPair, Collection<MappedField>> changedFields) throws Exception {
-		
+
 		Collection<String> clientIds = accessManager.getObjectAccessJournals(pair.getClassName(), pair.getID());
 		/*Collection<Object> clientIds = */accessManager.saveUpdateJournalClients(pair, clientIds, guaranteeUpdateDelivery, pusherClientId, pushToUser);
 		
@@ -143,7 +143,7 @@ public class PostPutHelper {
 		}
 	}
 
-	private void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params){
+	public void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params){
 		CheckChangeWatcherMessage message = new CheckChangeWatcherMessage();
 		message.classIDPair = classIDPair;
 		message.fieldNames = fieldNames;

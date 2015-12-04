@@ -101,6 +101,7 @@
 
     <!-- Tasks -->
     <task:annotation-driven />
+    <task:scheduler id="scheduler" pool-size="10" />
     <task:executor id="executorWithCallerRunsPolicy"
                    pool-size="25-50" queue-capacity="0" rejection-policy="CALLER_RUNS" />
 

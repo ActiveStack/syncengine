@@ -20,6 +20,7 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageListener;
 import org.springframework.amqp.support.converter.JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.core.task.TaskExecutor;
@@ -65,7 +66,7 @@ public class PerceroAgentListener implements MessageListener {
     @Autowired
     IPushSyncHelper pushSyncHelper;
 
-    @Autowired
+    @Autowired @Qualifier("executorWithCallerRunsPolicy")
     TaskExecutor taskExecutor;
     @Autowired
     ConnectHandler connectHandler;

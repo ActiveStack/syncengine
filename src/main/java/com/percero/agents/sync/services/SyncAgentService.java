@@ -20,6 +20,7 @@ import javax.annotation.PostConstruct;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.core.task.TaskExecutor;
@@ -114,7 +115,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		accessManager = value;
 	}
 	
-	@Autowired
+	@Autowired @Qualifier("executorWithCallerRunsPolicy")
 	TaskExecutor taskExecutor;
 	public void setTaskExecutor(TaskExecutor value) {
 		taskExecutor = value;

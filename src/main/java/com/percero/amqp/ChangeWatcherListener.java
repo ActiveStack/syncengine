@@ -6,6 +6,7 @@ import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.ChannelAwareMessageListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.core.task.TaskExecutor;
@@ -39,7 +40,7 @@ public class ChangeWatcherListener implements ChannelAwareMessageListener {
 	@Autowired
 	IAccessManager accessManager;
 	
-	@Autowired
+	@Autowired @Qualifier("executorWithCallerRunsPolicy")
 	TaskExecutor taskExecutor;
 
 	@Autowired

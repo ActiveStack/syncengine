@@ -347,7 +347,7 @@ public class UpdateTableProcessor implements Runnable{
                             fieldNames[i] = nextChangedField.getField().getName();
                             i++;
                         }
-                        accessManager.checkChangeWatchers(thePair, fieldNames, null);
+                        postPutHelper.enqueueCheckChangeWatcher(thePair, fieldNames, null);
                     }
                 }
             }
@@ -506,7 +506,8 @@ public class UpdateTableProcessor implements Runnable{
                     }
                 }
 
-                classNamesToUpdateReferences.add(className);
+                // Removed per a conversation with Collin
+//                classNamesToUpdateReferences.add(className);
             }
         }
     }
@@ -588,8 +589,10 @@ public class UpdateTableProcessor implements Runnable{
                                 // This call ignores the cache
                                 BaseDataObject nextObjectToUpdateFromDB = (BaseDataObject) dataProvider.findById(pair, null, true);
 
-                                // Compare their JSON selves for "deep" equality, only push if different
-                                if(!nextObjectToUpdate.toJson().equals(nextObjectToUpdateFromDB.toJson())) {
+
+                                Map<ClassIDPair, Collection<MappedField>> changedFields = dataProvider
+                                        .getChangedMappedFields(nextObjectToUpdateFromDB, nextObjectToUpdate, nextObjectToUpdate != null);
+                                if (changedFields != null && !changedFields.isEmpty()) {
                                     pushPair(pair, mappedField);
                                 }
                             }
@@ -608,8 +611,11 @@ public class UpdateTableProcessor implements Runnable{
                             BaseDataObject cachedObject = (BaseDataObject) dataProvider.findById(pair, null);
                             // This call ignores the cache
                             BaseDataObject objectFromDB = (BaseDataObject) dataProvider.findById(pair, null, true);
+
+                            Map<ClassIDPair, Collection<MappedField>> changedFields = dataProvider
+                                    .getChangedMappedFields(objectFromDB, cachedObject, cachedObject != null);
                             // Only push if different
-                            if(!cachedObject.toJson().equals(objectFromDB.toJson())) {
+                            if (changedFields != null && !changedFields.isEmpty()) {
                                 pushPair(pair, mappedField);
                             }
                         }

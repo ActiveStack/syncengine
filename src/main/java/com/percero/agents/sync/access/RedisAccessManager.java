@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -59,7 +60,7 @@ public class RedisAccessManager implements IAccessManager {
 		userDeviceTimeout = value;
 	}
 	
-	@Autowired
+	@Autowired @Qualifier("executorWithCallerRunsPolicy")
 	protected TaskExecutor taskExecutor;
 	public void setTaskExecutor(TaskExecutor value) {
 		taskExecutor = value;

@@ -9,6 +9,7 @@ import javax.annotation.PostConstruct;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -51,7 +52,7 @@ public class UpdateTablePoller {
     @Autowired
     IAccessManager accessManager;
 
-	@Autowired
+	@Autowired @Qualifier("executorWithCallerRunsPolicy")
 	TaskExecutor taskExecutor;
 
 	Map<String, Set<UpdateTableProcessor>> runningProcessors = java.util.Collections.synchronizedMap(new HashMap<String, Set<UpdateTableProcessor>>());
