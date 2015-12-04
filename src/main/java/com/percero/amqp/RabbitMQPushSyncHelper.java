@@ -544,8 +544,7 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext)
 			throws BeansException {
-        printCurrentStackTrace();
-                
+
 		this.applicationContext = applicationContext;
 		
 		Map<String, Queue> queues = this.applicationContext.getBeansOfType(Queue.class);
@@ -569,20 +568,14 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 			queueNames.add(nextQueue.getName());
 		}
 	}
-    
+
+    private static final Marker marker = MarkerFactory.getMarker("PUSH_STACK_TRACE");
     private void printCurrentStackTrace(){
-        
-        //        System.out.println("**********************************");
         StringBuffer loggerSb = new StringBuffer();
         for(StackTraceElement ste : Thread.currentThread().getStackTrace()){
             loggerSb.append(ste.toString());
             loggerSb.append("\n");
         }
-        slf4jLogger.info("{\"message\" : \"" + loggerSb.toString() + "\"}");
-
-        //        System.out.println("**********************************");
+        slf4jLogger.info(marker, "{\"message\" : \"" + loggerSb.toString() + "\"}");
     }
-
-    
-
 }
