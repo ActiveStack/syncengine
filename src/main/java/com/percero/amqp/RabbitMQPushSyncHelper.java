@@ -576,6 +576,7 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
         StringBuffer loggerSb = new StringBuffer();
         for(StackTraceElement ste : Thread.currentThread().getStackTrace()){
             loggerSb.append(ste.toString());
+            loggerSb.append("\n");
         }
         slf4jLogger.info("{\"message\" : \"" + loggerSb.toString() + "\"}");
 
