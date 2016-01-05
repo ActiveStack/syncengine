@@ -1,5 +1,6 @@
 package com.percero.agents.sync.helpers;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -7,6 +8,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import com.percero.agents.sync.cw.CheckChangeWatcherMessage;
+import com.percero.framework.vo.IPerceroObject;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.amqp.core.AmqpTemplate;
@@ -57,7 +59,11 @@ public class PostPutHelper {
 		guaranteeUpdateDelivery = value;
 	}
 
-	public void postPutObject(ClassIDPair pair, String pusherUserId, String pusherClientId, boolean pushToUser, Map<ClassIDPair, Collection<MappedField>> changedFields) throws Exception {
+	public void postPutObject(ClassIDPair pair, String pusherUserId, String pusherClientID, boolean pushToUser, Map<ClassIDPair, Collection<MappedField>> changedFields) throws Exception {
+		postPutObject(pair, pusherUserId, pusherClientID, pushToUser, changedFields, null);
+	}
+
+	public void postPutObject(ClassIDPair pair, String pusherUserId, String pusherClientId, boolean pushToUser, Map<ClassIDPair, Collection<MappedField>> changedFields, IPerceroObject oldValue) throws Exception {
 
 		Collection<String> clientIds = accessManager.getObjectAccessJournals(pair.getClassName(), pair.getID());
 		/*Collection<Object> clientIds = */accessManager.saveUpdateJournalClients(pair, clientIds, guaranteeUpdateDelivery, pusherClientId, pushToUser);
@@ -87,7 +93,7 @@ public class PostPutHelper {
 		
 		// Now run past the ChangeWatcher.
 		if (changedFields == null || changedFields.isEmpty()) {
-			enqueueCheckChangeWatcher(pair, null, null);
+			enqueueCheckChangeWatcher(pair, null, null, oldValue);
 //			accessManager.checkChangeWatchers(pair, null, null);
 		}
 		else {
@@ -121,7 +127,7 @@ public class PostPutHelper {
 					}
 
 					// Swap out inline processing for a worker queue
-					enqueueCheckChangeWatcher(thePair, fieldNames, null);
+					enqueueCheckChangeWatcher(thePair, fieldNames, null, oldValue);
 //					accessManager.checkChangeWatchers(thePair, fieldNames, null);
 				}
 			}
@@ -143,14 +149,19 @@ public class PostPutHelper {
 		}
 	}
 
-	public void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params){
+	public void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params, IPerceroObject oldValue){
 		CheckChangeWatcherMessage message = new CheckChangeWatcherMessage();
 		message.classIDPair = classIDPair;
 		message.fieldNames = fieldNames;
 		message.params = params;
+		if(oldValue != null)
+			message.oldValueJson = ((BaseDataObject)oldValue).toJson();
 		template.convertAndSend("checkChangeWatcher", message);
 	}
 
+	public void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params){
+		enqueueCheckChangeWatcher(classIDPair, fieldNames, params, null);
+	}
 
 	public void pushObjectUpdateJournals(Collection<String> clientIds, ClassIDPair classIdPair, Collection<MappedField> changedFields) {
 		if (classIdPair != null && clientIds != null && !clientIds.isEmpty()) {

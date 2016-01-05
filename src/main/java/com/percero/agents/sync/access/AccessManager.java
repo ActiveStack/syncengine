@@ -1187,7 +1187,7 @@ public class AccessManager implements IAccessManager {
 	}
 
 	public void checkChangeWatchers(ClassIDPair classIdPair,
-			String fieldName, String[] params) {
+			String fieldName, String[] params, IPerceroObject oldValue) {
 		// TODO Auto-generated method stub
 		
 	}
@@ -1200,13 +1200,13 @@ public class AccessManager implements IAccessManager {
 
 	@Override
 	public void checkChangeWatchers(ClassIDPair classIdPair,
-			String[] fieldNames, String[] params) {
+			String[] fieldNames, String[] params, IPerceroObject oldValue) {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	public void recalculateChangeWatcher(String changeWatcherId) {
+	public void recalculateChangeWatcher(String changeWatcherId, IPerceroObject oldValue) {
 		// TODO Auto-generated method stub
 		
 	}

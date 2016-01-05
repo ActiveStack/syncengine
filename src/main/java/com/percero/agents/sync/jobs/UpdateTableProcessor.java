@@ -318,12 +318,11 @@ public class UpdateTableProcessor implements Runnable{
             // compare a new object, but we can use the cached object in
             // this case (we just need to tell getChangedMappedFields to NOT
             // use the cache).
-            changedFields = dataProvider
-                    .getChangedMappedFields(perceroObject, oldValue, oldValue != null);
+            changedFields = dataProvider.getChangedMappedFields(perceroObject, oldValue, true);
             if (changedFields != null && !changedFields.isEmpty()) {
                 // Something has changed.
                 cacheManager.updateCachedObject(perceroObject, changedFields);
-                postPutHelper.postPutObject(pair, null, null, true, changedFields);
+                postPutHelper.postPutObject(pair, null, null, true, changedFields, oldValue);
 
                 Iterator<Map.Entry<ClassIDPair, Collection<MappedField>>> itrChangedFieldEntryset = changedFields.entrySet().iterator();
                 while (itrChangedFieldEntryset.hasNext()) {
@@ -347,7 +346,7 @@ public class UpdateTableProcessor implements Runnable{
                             fieldNames[i] = nextChangedField.getField().getName();
                             i++;
                         }
-                        postPutHelper.enqueueCheckChangeWatcher(thePair, fieldNames, null);
+                        postPutHelper.enqueueCheckChangeWatcher(thePair, fieldNames, null, oldValue);
                     }
                 }
             }

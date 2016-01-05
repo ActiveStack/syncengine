@@ -36,7 +36,7 @@ public class ChangeWatcherHelper implements IChangeWatcherHelper {
 		accessManager = value;
 	}
 
-	public Object process(String category, String subCategory, String fieldName) {
+	public Object process(String category, String subCategory, String fieldName, IPerceroObject oldValue) {
 		// This is really an error.
 		StringBuilder strBuilder = new StringBuilder("No value calculate method found for: ").append(category).append(":").append(subCategory).append(":").append(fieldName);
 		log.error(strBuilder.toString());
@@ -44,7 +44,7 @@ public class ChangeWatcherHelper implements IChangeWatcherHelper {
 		return null;
 	}
 	
-	public Object process(String category, String subCategory, String fieldName, String[] params) {
+	public Object process(String category, String subCategory, String fieldName, String[] params, IPerceroObject oldValue) {
 		// This is really an error.
 		StringBuilder strBuilder = new StringBuilder("No value process method found for: ").append(category).append(":").append(subCategory).append(":").append(fieldName);
 		for(String nextString : params) {
@@ -56,10 +56,10 @@ public class ChangeWatcherHelper implements IChangeWatcherHelper {
 	}
 	
 	
-	public Object reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp) {
+	public Object reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp, IPerceroObject oldValue) {
 		ChangeWatcherReporting.reprocessCounter++;
 		log.debug(ChangeWatcherReporting.stringResults());
-		return process(category, subCategory, fieldName, params);
+		return process(category, subCategory, fieldName, params, oldValue);
 	}
 	
 	

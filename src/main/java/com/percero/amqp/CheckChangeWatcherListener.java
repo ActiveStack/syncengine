@@ -2,7 +2,7 @@ package com.percero.amqp;
 
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.cw.CheckChangeWatcherMessage;
-import com.percero.agents.sync.metadata.MappedClass;
+import com.percero.agents.sync.vo.BaseDataObject;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -34,11 +34,28 @@ public class CheckChangeWatcherListener implements MessageListener {
         try {
             JsonNode node = om.readTree(message.getBody());
             CheckChangeWatcherMessage checkChangeWatcherMessage = om.readValue(node, CheckChangeWatcherMessage.class);
+            BaseDataObject oldValue = getDeserializeOldValue(checkChangeWatcherMessage.classIDPair.getClassName(),
+                    checkChangeWatcherMessage.oldValueJson);
             accessManager.checkChangeWatchers(checkChangeWatcherMessage.classIDPair,
                     checkChangeWatcherMessage.fieldNames,
-                    checkChangeWatcherMessage.params);
+                    checkChangeWatcherMessage.params,
+                    oldValue);
         }catch(Exception e){
             logger.error(e.getMessage(), e);
         }
+    }
+
+    private BaseDataObject getDeserializeOldValue(String className, String json){
+        if(json == null) return null;
+
+        BaseDataObject result = null;
+
+        try {
+            Class clazz = Class.forName(className);
+            result = (BaseDataObject) clazz.newInstance();
+            result.fromJson(json);
+        }catch(Exception e){ logger.error(e.getMessage(), e); }
+
+        return result;
     }
 }

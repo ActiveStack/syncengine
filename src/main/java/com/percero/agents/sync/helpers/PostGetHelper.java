@@ -113,7 +113,7 @@ public class PostGetHelper {
 			if (changeWatcherHelperFactory != null)
 			{
 				IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(category);
-				Object result = cwh.reprocess(category, subCategory, fieldName, null, otherParams, requestTimestamp);
+				Object result = cwh.reprocess(category, subCategory, fieldName, null, otherParams, requestTimestamp, null);
 				if (result != null && result instanceof IPerceroObject) {
 					return (IPerceroObject) result;
 				}

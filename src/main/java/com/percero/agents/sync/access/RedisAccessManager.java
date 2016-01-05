@@ -14,6 +14,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
+import com.percero.framework.vo.IPerceroObject;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -1319,10 +1320,10 @@ public class RedisAccessManager implements IAccessManager {
 	}
 	
 	public void checkChangeWatchers(ClassIDPair classIdPair) {
-		checkChangeWatchers(classIdPair, null, null);
+		checkChangeWatchers(classIdPair, null, null, null);
 	}
 	
-	public void checkChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params) {
+	public void checkChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params, IPerceroObject oldValue) {
 		Collection<String> changeWatchers = getChangeWatchersForField(classIdPair, fieldNames, params);
 		
 		// If there are ChangeWatchers, then recalculate for each one.
@@ -1338,7 +1339,7 @@ public class RedisAccessManager implements IAccessManager {
 							nextChangeWatcher += ":" + classIdPair.getClassName() + ":" + classIdPair.getID();
 						}
 					}
-					setupRecalculateChangeWatcher(nextChangeWatcher);
+					setupRecalculateChangeWatcher(nextChangeWatcher, oldValue);
 //				}
 //				else {
 //					// Remove this change watcher from the list.
@@ -1463,19 +1464,19 @@ public class RedisAccessManager implements IAccessManager {
 		return result;
 	}
 	
-	protected void setupRecalculateChangeWatcher(String changeWatcherId) {
+	protected void setupRecalculateChangeWatcher(String changeWatcherId, IPerceroObject oldValue) {
 		
 		ChangeWatcherReporting.internalRequestsCounter++;
 		if (useChangeWatcherQueue && pushSyncHelper != null) {
 			pushSyncHelper.pushStringToRoute( (new StringBuilder(changeWatcherId).append(":TS:").append(System.currentTimeMillis())).toString(), changeWatcherRouteName);
 		}
 		else {
-			recalculateChangeWatcher(changeWatcherId);
+			recalculateChangeWatcher(changeWatcherId, oldValue);
 		}
 	}
 	
 	@SuppressWarnings("unchecked")
-	public void recalculateChangeWatcher(String changeWatcherId) {
+	public void recalculateChangeWatcher(String changeWatcherId, IPerceroObject oldValue) {
 		try {
 			// Check to see if a timestamp has been included.
 			String[] changeWatcherTsArray = changeWatcherId.split(":TS:");
@@ -1510,7 +1511,7 @@ public class RedisAccessManager implements IAccessManager {
 				Collection <String> clientIds = (Set<String>) cacheDataStore.getSetValue(RedisKeyUtils.clientWatcher(changeWatcherId));	// The list of ClientID's who are interested in this object.
 				
 				IChangeWatcherHelper cwh = changeWatcherHelperFactory.getHelper(category);
-				cwh.reprocess(category, subCategory, fieldName, clientIds, otherParams, requestTimestamp);
+				cwh.reprocess(category, subCategory, fieldName, clientIds, otherParams, requestTimestamp, oldValue);
 
 				/**
 				// If no clients interested in this value, then remove it from the cache.

@@ -7,6 +7,7 @@ import java.util.Set;
 
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.agents.sync.vo.Client;
+import com.percero.framework.vo.IPerceroObject;
 
 /**
  * Manages client registration and activation throughout the system. The scope of this client 
@@ -213,9 +214,9 @@ public interface IAccessManager {
 	public Long getChangeWatcherResultTimestamp(ClassIDPair classIdPair, String fieldName, String[] params);
 	public Object getChangeWatcherResult(ClassIDPair classIdPair, String fieldName);
 	public Object getChangeWatcherResult(ClassIDPair classIdPair, String fieldName, String[] params);
-	public void checkChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params);
+	public void checkChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params, IPerceroObject oldValue);
 	public void removeChangeWatchersByObject(ClassIDPair classIdPair);
-	public void recalculateChangeWatcher(String changeWatcherId);
+	public void recalculateChangeWatcher(String changeWatcherId, IPerceroObject oldValue);
 	
 	/**
 	 * Takes in a Collection of ClientIDs and returns the sub-set that are valid Clients.
