@@ -20,5 +20,12 @@ public class DateUtils {
 		}
 		return null;
 	}
+    
+    public static Timestamp sqlTimestampFromUtilDate(java.util.Date utilDate){
+        if(utilDate!=null){
+            return new Timestamp(utilDate.getTime());
+        }
+        return null;
+    }
 
 }
