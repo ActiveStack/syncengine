@@ -44,6 +44,8 @@
 	<context:component-scan base-package="com.percero.agents.sync.services" />
 	<context:component-scan base-package="com.percero.agents.sync.hibernate" />
 	<context:component-scan base-package="com.percero.agents.sync.rr" />
+	<context:component-scan base-package="com.percero.agents.sync.jobs" />
+	<context:component-scan base-package="com.percero.agents.sync.cache" />
 	<context:component-scan base-package="com.percero.serial.map" />
 	<context:component-scan base-package="com.percero.agents.auth.services" />
 	<bean class="com.percero.serial.JsonDecoder" />

@@ -1,14 +1,5 @@
 package com.percero.agents.sync.helpers;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import org.apache.log4j.Logger;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.services.IPushSyncHelper;
 import com.percero.agents.sync.services.ISyncAgentService;
@@ -16,6 +7,14 @@ import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.agents.sync.vo.PushDeleteResponse;
 import com.percero.agents.sync.vo.RemovedClassIDPair;
 import com.percero.framework.vo.IPerceroObject;
+import org.apache.log4j.Logger;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 @Component
 public class PostDeleteHelper {
@@ -63,25 +62,27 @@ public class PostDeleteHelper {
 		log.debug("PostDeleteHelper for " + theObject.toString() + " from clientId " + (pusherClientId == null ? "NULL" : pusherClientId));
 
 		ClassIDPair pair = new ClassIDPair(theObject.getID(), theObject.getClass().getCanonicalName());
-		
+		postDeleteObject(pair, pusherUserId, pusherClientId, pushToUser);
+	}
+
+	public void postDeleteObject(ClassIDPair pair, String pusherUserId, String pusherClientId, boolean pushToUser) throws Exception {
 		// Remove all UpdateJournals for the objects.
 		accessManager.removeUpdateJournalsByObject(pair);
 
 		// Notify interested users that this object has been deleted.
 		RemovedClassIDPair removedPair = new RemovedClassIDPair();
-		removedPair.setClassName(theObject.getClass().getName());
-		removedPair.setID(theObject.getID());
+		removedPair.setClassName(pair.getClassName());
+		removedPair.setID(pair.getID());
 
-		List<String> clientIds = accessManager.getObjectAccessJournals(theObject
-				.getClass().getName(), theObject.getID());
-		
+		List<String> clientIds = accessManager.getObjectAccessJournals(pair.getClassName(), pair.getID());
+
 		// Now remove the AccessJournals for this Object.
 		accessManager.removeAccessJournalsByObject(pair);
 		// Now remove the ObjectModJournals for this Object.
 		accessManager.removeObjectModJournalsByObject(pair);
 		// Now remove the HistoricalObjects for this Object.
 		accessManager.removeHistoricalObjectsByObject(pair);
-		
+
 		// Now run past the ChangeWatcher.
 		accessManager.checkChangeWatchers(pair, null, null);
 		// Remove ChangeWatchers associated with this object.
@@ -105,7 +106,6 @@ public class PostDeleteHelper {
 				pushDeleteResponse = new PushDeleteResponse();
 				pushDeleteResponse.setObjectList(new ArrayList<RemovedClassIDPair>());
 				
-//				pushDeleteResponse.setClientId(nextClientId);
 				pushDeleteResponse.getObjectList().add(removedPair);
 
 				pushDeleteResponse.setObjectJson(objectJson);
