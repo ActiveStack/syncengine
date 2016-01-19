@@ -815,7 +815,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 										fieldNames[i] = nextChangedField.getField().getName();
 										i++;
 									}
-									accessManager.checkChangeWatchers(thePair, fieldNames, null);
+									accessManager.checkChangeWatchers(thePair, fieldNames, null, null);
 								}
 							}
 						}

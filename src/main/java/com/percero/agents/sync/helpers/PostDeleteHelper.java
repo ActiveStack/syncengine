@@ -84,7 +84,7 @@ public class PostDeleteHelper {
 		accessManager.removeHistoricalObjectsByObject(pair);
 
 		// Now run past the ChangeWatcher.
-		accessManager.checkChangeWatchers(pair, null, null);
+		accessManager.checkChangeWatchers(pair, null, null, null);
 		// Remove ChangeWatchers associated with this object.
 		accessManager.removeChangeWatchersByObject(pair);
 

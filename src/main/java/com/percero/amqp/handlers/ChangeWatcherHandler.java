@@ -29,7 +29,7 @@ public class ChangeWatcherHandler {
 	IDecoder decoder;
 
 	public Boolean handleChangeWatcher(String changeWatcherId) throws Exception {
-		accessManager.recalculateChangeWatcher(changeWatcherId);
+		accessManager.recalculateChangeWatcher(changeWatcherId, null);
 		return true;
 	}
 }

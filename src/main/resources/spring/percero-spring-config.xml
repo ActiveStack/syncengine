@@ -69,4 +69,12 @@
     <!-- Turn on UpdateTable stuff -->
     <context:component-scan base-package="com.percero.agents.sync.jobs" />
 
+    <!-- Turn on change watcher stuff -->
+    <rabbit:listener-container acknowledge="auto" id="changeWatcherContainer">
+        <rabbit:listener queue-names="changeWatcher" ref="changeWatcherListener"  />
+    </rabbit:listener-container>
+    <rabbit:listener-container acknowledge="auto" concurrency="32">
+        <rabbit:listener queue-names="checkChangeWatcher" ref="checkChangeWatcherListener" />
+    </rabbit:listener-container>
+
 </beans>

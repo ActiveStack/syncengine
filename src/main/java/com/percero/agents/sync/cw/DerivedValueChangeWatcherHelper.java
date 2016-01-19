@@ -95,12 +95,12 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 	}
 	
 	@Override
-	public Object process(String category, String subCategory, String fieldName) {
+	public Object process(String category, String subCategory, String fieldName, IPerceroObject oldValue) {
 		return calculate(fieldName, new ClassIDPair(subCategory, category));
 	}
 
 	@Override
-	public Object process(String category, String subCategory, String fieldName, String[] params) {
+	public Object process(String category, String subCategory, String fieldName, String[] params, IPerceroObject oldValue) {
 		return calculate(fieldName, new ClassIDPair(subCategory, category), params);
 	}
 	
@@ -133,7 +133,7 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 					fieldNames = new String[1];
 					fieldNames[0] = fieldName;
 				}
-				accessManager.checkChangeWatchers(classIdPair, fieldNames, params);
+				accessManager.checkChangeWatchers(classIdPair, fieldNames, params, null);
 			}
 		} catch (Exception e) {
 			log.error("Unable to chech change watchers for " + classIdPair.getID() + " / " + fieldName + " in " + getClass().getCanonicalName());
@@ -182,7 +182,7 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 	}
 
 	@Override
-	public Object reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp) {
+	public Object reprocess(String category, String subCategory, String fieldName, Collection<String> clientIds, String[] params, Long requestTimestamp, IPerceroObject oldValue) {
 		ChangeWatcherReporting.reprocessCounter++;
 		return this.recalculate(fieldName, new ClassIDPair(subCategory, category), clientIds, params, requestTimestamp);
 	}

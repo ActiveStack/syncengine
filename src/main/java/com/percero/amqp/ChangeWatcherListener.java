@@ -81,7 +81,7 @@ public class ChangeWatcherListener implements ChannelAwareMessageListener {
 			if (taskExecutor != null) {
 				taskExecutor.execute(new ChangeWatcherHandlerTask(changeWatcherId));
 			} else {
-				accessManager.recalculateChangeWatcher(changeWatcherId);
+				accessManager.recalculateChangeWatcher(changeWatcherId, null);
 			}
 		}
 	}
