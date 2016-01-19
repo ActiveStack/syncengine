@@ -83,8 +83,6 @@ public class RedisCacheDataStore implements ICacheDataStore {
 		}
 	}
 	
-	
-	@SuppressWarnings("unchecked")
 	private Map<String, PendingExpire> expiresToBeWritten = new ConcurrentHashMap<String, PendingExpire>();
 	/* (non-Javadoc)
 	 * @see com.percero.agents.sync.datastore.IRedisCacheDataStore#postExpires()
