@@ -92,16 +92,18 @@ public class RedisCacheDataStore implements ICacheDataStore {
 	public void postExpires() {
 		log.info("Posting  expire(s)..");
 		int expiredCounter = 0;
+		int failedCounter = 0;
 		for(String key : expiresToBeWritten.keySet()){
 			PendingExpire nextPendingExpire = expiresToBeWritten.get(key);
 			if (expire(nextPendingExpire.key, nextPendingExpire.timeout, nextPendingExpire.timeUnit, true)) {
-				expiresToBeWritten.remove(key);
 				expiredCounter++;
 			} else {
-				log.error("Failed to expire key: " + key);
+				failedCounter++;
 			}
+			expiresToBeWritten.remove(key);
 		}
-		log.info("Expired: " + expiredCounter);
+		log.info("Successully Expired: " + expiredCounter);
+		log.info("Failed to expire: " + failedCounter);
 	}
 	
 	private class PendingExpire {
