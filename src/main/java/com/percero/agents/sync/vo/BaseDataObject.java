@@ -34,6 +34,10 @@ import com.percero.serial.JsonUtils;
 public class BaseDataObject implements Externalizable, IPerceroObject, IJsonObject, Comparable<BaseDataObject> {
 	
 	private static final Logger log = Logger.getLogger(BaseDataObject.class);
+
+	public static final String DATA_SOURCE_CACHE="CACHE";
+
+	public static final String DATA_SOURCE_DATA_STORE="DATA_STORE";
 	
 	public BaseDataObject() {
 		super();
@@ -55,6 +59,16 @@ public class BaseDataObject implements Externalizable, IPerceroObject, IJsonObje
 	public final void setIsClean(Boolean isClean) {
 		this.isClean = isClean;
 	}
+
+	@Transient
+	transient private String dataSource = DATA_SOURCE_DATA_STORE;
+	public final String getDataSource() {
+		return dataSource;
+	}
+	public final void setDataSource(String value) {
+		this. dataSource = value;
+	}
+
 	
 	public String classVersion() {
 		return null;
@@ -102,6 +116,7 @@ public class BaseDataObject implements Externalizable, IPerceroObject, IJsonObje
 	public String retrieveBaseJson() {
 		String objectJson = "\"cn\":\"" + getClass().getCanonicalName() + "\"," + 
 				"\"ID\":\"" + getID() + "\"";
+		//+ "\"dataSource\":\"" + getDataSource() +  "\"" ;
 		
 		return objectJson;
 	}
@@ -123,6 +138,7 @@ public class BaseDataObject implements Externalizable, IPerceroObject, IJsonObje
 	protected void fromJson(JsonObject jsonObject) {
 		// ID
 		this.setID(JsonUtils.getJsonString(jsonObject, "ID"));
+//		this.setDataSource(JsonUtils.getJsonString(jsonObject, "dataSource"));
 	}
 	
 	public static ClassIDPair toClassIdPair(BaseDataObject object) {

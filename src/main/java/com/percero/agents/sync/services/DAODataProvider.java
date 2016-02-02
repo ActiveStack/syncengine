@@ -405,6 +405,9 @@ public class DAODataProvider implements IDataProvider {
             }
         }
 
+        if (result instanceof BaseDataObject) {
+            ((BaseDataObject) result).setDataSource(BaseDataObject.DATA_SOURCE_CACHE);
+        }
         return result;
     }
 
@@ -446,10 +449,17 @@ public class DAODataProvider implements IDataProvider {
                     if (IJsonObject.class.isAssignableFrom(theClass)) {
                         IJsonObject jsonObject = (IJsonObject) theClass.newInstance();
                         jsonObject.fromJson(jsonObjectString);
+                        if (jsonObject instanceof BaseDataObject) {
+                            ((BaseDataObject) jsonObject).setDataSource(BaseDataObject.DATA_SOURCE_CACHE);
+                        }
                         result.put( (((IPerceroObject) jsonObject).getID()), (IPerceroObject) jsonObject );
                     }
                     else {
                         IPerceroObject nextPerceroObject = (IPerceroObject) safeObjectMapper.readValue(jsonObjectString, theClass);
+
+                        if (nextPerceroObject instanceof BaseDataObject) {
+                            ((BaseDataObject) nextPerceroObject).setDataSource(BaseDataObject.DATA_SOURCE_CACHE);
+                        }
                         result.put( nextPerceroObject.getID(), nextPerceroObject);
                     }
 
