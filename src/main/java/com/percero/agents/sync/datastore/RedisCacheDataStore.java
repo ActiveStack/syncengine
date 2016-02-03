@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.percero.agents.sync.services.PerceroRedisTemplate;
 
-import edu.emory.mathcs.backport.java.util.Collections;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class RedisCacheDataStore implements ICacheDataStore {
 
@@ -83,39 +83,27 @@ public class RedisCacheDataStore implements ICacheDataStore {
 		}
 	}
 	
-	
-	@SuppressWarnings("unchecked")
-	private Map<String, PendingExpire> expiresToBeWritten = Collections.synchronizedMap(new HashMap<String, PendingExpire>());
+	private Map<String, PendingExpire> expiresToBeWritten = new ConcurrentHashMap<String, PendingExpire>();
 	/* (non-Javadoc)
 	 * @see com.percero.agents.sync.datastore.IRedisCacheDataStore#postExpires()
 	 */
 	@Override
 	@Scheduled(fixedRate=600000)	// 10 * 60 * 1000 -> Ten Minutes.
 	public void postExpires() {
-		log.info("Posting " +  expiresToBeWritten.size() + " expire" + (expiresToBeWritten.size() == 1 ? "" : "s"));
-		synchronized (expiresToBeWritten) {
-			Collection<String> expireKeysToRemove = new HashSet<String>(expiresToBeWritten.size(), (float)1.0);
-			Iterator<Map.Entry<String, PendingExpire>> itrExpiresEntrySet = expiresToBeWritten.entrySet().iterator();
-			while (itrExpiresEntrySet.hasNext()) {
-				Map.Entry<String, PendingExpire> nextEntry = itrExpiresEntrySet.next();
-				String nextKey = nextEntry.getKey();
-				PendingExpire nextPendingExpire = nextEntry.getValue();
-				expire(nextPendingExpire.key, nextPendingExpire.timeout, nextPendingExpire.timeUnit, true);
-				expireKeysToRemove.add(nextKey);
+		log.info("Posting  expire(s)..");
+		int expiredCounter = 0;
+		int failedCounter = 0;
+		for(String key : expiresToBeWritten.keySet()){
+			PendingExpire nextPendingExpire = expiresToBeWritten.get(key);
+			if (expire(nextPendingExpire.key, nextPendingExpire.timeout, nextPendingExpire.timeUnit, true)) {
+				expiredCounter++;
+			} else {
+				failedCounter++;
 			}
-//			Iterator<String> itrExpires = expiresToBeWritten.keySet().iterator();
-//			while (itrExpires.hasNext()) {
-//				String nextKey = itrExpires.next();
-//				PendingExpire nextPendingExpire = expiresToBeWritten.get(nextKey);
-//				expire(nextPendingExpire.key, nextPendingExpire.timeout, nextPendingExpire.timeUnit, true);
-//				expireKeysToRemove.add(nextKey);
-//			}
-			
-			Iterator<String> itrExpireKeysToRemove = expireKeysToRemove.iterator();
-			while (itrExpireKeysToRemove.hasNext()) {
-				expiresToBeWritten.remove(itrExpireKeysToRemove.next());
-			}
+			expiresToBeWritten.remove(key);
 		}
+		log.info("Successully Expired: " + expiredCounter);
+		log.info("Failed to expire: " + failedCounter);
 	}
 	
 	private class PendingExpire {
