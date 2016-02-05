@@ -1,51 +1,12 @@
 package com.percero.agents.sync.jobs;
 
-import com.mchange.v2.c3p0.ComboPooledDataSource;
-import org.apache.log4j.Logger;
-
-import java.beans.PropertyVetoException;
-import java.sql.Connection;
-import java.sql.SQLException;
+import com.percero.datasource.BaseConnectionFactory;
 
 /**
  * Created by jonnysamps on 9/2/15.
  */
-//@Component
-public class UpdateTableConnectionFactory {
+public class UpdateTableConnectionFactory extends BaseConnectionFactory {
 
-    private static Logger logger = Logger.getLogger(UpdateTableConnectionFactory.class);
-
-    private String driverClassName;
-    public void setDriverClassName(String val){
-        this.driverClassName = val;
-    }
-    public String getDriverClassName(){
-    	return driverClassName;
-    }
-
-    private String username;
-    public void setUsername(String val){
-        this.username = val;
-    }
-    public String getUsername(){
-    	return username;
-    }
-
-    private String password;
-    public void setPassword(String val){
-        this.password = val;
-    }
-    public String getPassword(){
-    	return password;
-    }
-
-    private String jdbcUrl;
-    public void setJdbcUrl(String val){
-        this.jdbcUrl = val;
-    }
-    public String getJdbcUrl(){
-    	return jdbcUrl;
-    }
     
     private String[] tableNames;
     public void setTableNames(String[] val) {
@@ -117,42 +78,4 @@ public class UpdateTableConnectionFactory {
         return this.weight;
     }
 
-    private ComboPooledDataSource cpds;
-
-    public void init() throws PropertyVetoException{
-        try {
-            cpds = new ComboPooledDataSource();
-            cpds.setDriverClass(driverClassName); //loads the jdbc driver
-            cpds.setJdbcUrl(jdbcUrl);
-            cpds.setUser(username);
-            cpds.setPassword(password);
-
-            // the settings below are optional -- c3p0 can work with defaults
-            cpds.setMinPoolSize(10);
-            cpds.setAcquireIncrement(5);
-            cpds.setMaxPoolSize(this.weight);
-            cpds.setTestConnectionOnCheckout(true);
-
-        }catch(PropertyVetoException pve){
-            logger.error(pve.getMessage(), pve);
-            throw pve;
-        }
-    }
-
-    public Connection getConnection() throws SQLException{
-        try{
-        	if (cpds == null) {
-                init();
-            }
-            return cpds.getConnection();
-        }
-        catch(PropertyVetoException e){
-            logger.error(e.getMessage(), e);
-            throw new SQLException(e);
-        }
-        catch(SQLException e){
-        	logger.error(e.getMessage(), e);
-        	throw e;
-        }
-    }
 }
