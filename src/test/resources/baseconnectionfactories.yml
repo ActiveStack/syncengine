@@ -1,0 +1,11 @@
+# ---
+name: TEST
+preferredConnectionPool: hikari
+driverClassName: org.h2.Driver
+jdbcUrl: jdbc:h2:~/test
+username: sa
+password: pass
+testQuery: SELECT 1 FROM dual
+maxIdleTime: 1000
+minPoolSize: 5
+maxPoolSize: 25
