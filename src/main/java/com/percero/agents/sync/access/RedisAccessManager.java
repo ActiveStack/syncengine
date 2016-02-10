@@ -1164,33 +1164,70 @@ public class RedisAccessManager implements IAccessManager {
 	public void removeChangeWatchersByObject(ClassIDPair classIdPair) {
 		removeChangeWatchers(classIdPair.getClassName(), classIdPair.getID());
 	}
+	/**
+	 * 
+	 * @param category
+	 * @param subCategory
+	 */
 	@SuppressWarnings("unchecked")
 	public void removeChangeWatchers(String category, String subCategory) {
 		String categoryKey = RedisKeyUtils.changeWatcherClass(category, subCategory);
 		
-		// Get all change watcher values associated with this object.
+		// Get all change watcher values associated with this
+		// category/sub-category.
+		// For each stored change watcher property, a set of hash keys may exist
+		// that contain both a "RESULT" hash key and a "TIMESTAMP" hash key. The
+		// RESULT was calculated and stored at the TIMESTAMP.
+		// Example:
+		//	"propertyName:r"
+		//	"propertyName:t"
 		Set<String> changeWatcherValueKeys = cacheDataStore.getHashKeys(categoryKey);
 		Iterator<String> itrChangeWatcherValueKeys = changeWatcherValueKeys.iterator();
+
 		while (itrChangeWatcherValueKeys.hasNext()) {
 			String nextChangeWatcherValueKey = itrChangeWatcherValueKeys.next();
-			// If this is a RESULT key, then add it to the list to check.
+
+			// For each RESULT hash key, we need to remove the Change Watcher structure setup in the cache.
 			if (nextChangeWatcherValueKey.endsWith(":" + RedisKeyUtils.RESULT)) {
 				int resultIndex = nextChangeWatcherValueKey.lastIndexOf(":" + RedisKeyUtils.RESULT);
+				
+				// The changeWatcherKey for this property is of the form "<categoryKey>:<propertyName>".
+				// Example:
+				//	"cw:cf:com.namespace.mo.MyObject:ID:someProperty"
 				String changeWatcherKey = categoryKey + ":" + nextChangeWatcherValueKey.substring(0, resultIndex);
 				String key = changeWatcherKey;
+				
+				// The list of clients that are "watching" this change watcher
+				// property is in the cache by the key:
+				// client:<changeWatcherKey>". This set of clients should be
+				// notified when this value changes.
+				// Example:
+				//	"client:cw:cf:com.namespace.mo.MyObject:ID:someProperty"
 				String clientWatcherKey = RedisKeyUtils.clientWatcher(changeWatcherKey);
 				
-				// Remove WatcherFields.
-				// For every watcherField, find the corresponding set and remove this changeWatcherKey
-				//	from that set.
+				// For every watcherField, find the corresponding set and remove
+				// this changeWatcherKey from that set. The set of watchers
+				// fields is the set of properties that this ChangeWatcher is
+				// watching, meaning that if any of those properties change then
+				// this ChangeWatcher should be reprocessed.
+				// This takes the form: "cw:watcher:<changeWatcherKey>"
+				// Example:
+				//	"cw:watcher:cw:cf:com.namespace.mo.MyObject:ID:someProperty"
 				String watcherField = RedisKeyUtils.watcherField(changeWatcherKey);
 				Set<String> watcherFieldValues = (Set<String>) cacheDataStore.getSetValue(watcherField);
 				Iterator<String> itrWatcherFieldValues = watcherFieldValues.iterator();
 				while (itrWatcherFieldValues.hasNext()) {
 					String nextWatcherFieldValue = itrWatcherFieldValues.next();
+					// This represents the reverse lookup: this is the set of
+					// ChangeWatchers to notify when nextWathcerFieldValue
+					// changes. So basically, we are saying "don't notify me"
+					// since this object is being removed.
 					cacheDataStore.removeSetValue(nextWatcherFieldValue, changeWatcherKey);
 				}
 				
+				// This is the list of all properties that this ChangeWatcher is
+				// listening to. Since it is being deleted, we can simply delete
+				// this key from the cache as well.
 				String fieldWatcher = RedisKeyUtils.fieldWatcher(changeWatcherKey);
 				
 				// Now remove all keys associated with this Change Watcher Value.
