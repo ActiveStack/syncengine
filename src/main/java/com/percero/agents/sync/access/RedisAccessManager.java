@@ -1194,7 +1194,7 @@ public class RedisAccessManager implements IAccessManager {
 				// The changeWatcherKey for this property is of the form "<categoryKey>:<propertyName>".
 				// Example:
 				//	"cw:cf:com.namespace.mo.MyObject:ID:someProperty"
-				String changeWatcherKey = categoryKey + ":" + nextChangeWatcherValueKey.substring(0, resultIndex);
+				String changeWatcherKey = RedisKeyUtils.changeWatcher(categoryKey, subCategory, nextChangeWatcherValueKey.substring(0, resultIndex));
 				String key = changeWatcherKey;
 				
 				// The list of clients that are "watching" this change watcher
