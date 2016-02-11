@@ -1164,7 +1164,10 @@ public class RedisAccessManager implements IAccessManager {
 	public void removeChangeWatchersByObject(ClassIDPair classIdPair) {
 		removeChangeWatchers(classIdPair.getClassName(), classIdPair.getID());
 	}
+
 	/**
+	 * Removes all Change Watcher data in the cache related to the
+	 * `category`/`subcategory`
 	 * 
 	 * @param category
 	 * @param subCategory
@@ -1183,7 +1186,6 @@ public class RedisAccessManager implements IAccessManager {
 		//	"propertyName:t"
 		Set<String> changeWatcherValueKeys = cacheDataStore.getHashKeys(categoryKey);
 		Iterator<String> itrChangeWatcherValueKeys = changeWatcherValueKeys.iterator();
-
 		while (itrChangeWatcherValueKeys.hasNext()) {
 			String nextChangeWatcherValueKey = itrChangeWatcherValueKeys.next();
 
@@ -1191,12 +1193,13 @@ public class RedisAccessManager implements IAccessManager {
 			if (nextChangeWatcherValueKey.endsWith(":" + RedisKeyUtils.RESULT)) {
 				int resultIndex = nextChangeWatcherValueKey.lastIndexOf(":" + RedisKeyUtils.RESULT);
 				
-				// The changeWatcherKey for this property is of the form "<categoryKey>:<propertyName>".
+				// The changeWatcherKey for this property is of the form
+				//	"<categoryKey>:<propertyName>".
 				// Example:
 				//	"cw:cf:com.namespace.mo.MyObject:ID:someProperty"
-				String changeWatcherKey = RedisKeyUtils.changeWatcher(categoryKey, subCategory, nextChangeWatcherValueKey.substring(0, resultIndex));
+				String changeWatcherKey = categoryKey + ":" + nextChangeWatcherValueKey.substring(0, resultIndex);
 				String key = changeWatcherKey;
-				
+
 				// The list of clients that are "watching" this change watcher
 				// property is in the cache by the key:
 				// client:<changeWatcherKey>". This set of clients should be
@@ -1361,6 +1364,25 @@ public class RedisAccessManager implements IAccessManager {
 	}
 	
 	public void checkChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params, IPerceroObject oldValue) {
+		if (useChangeWatcherQueue && taskExecutor != null) {
+			taskExecutor.execute(new RedisCheckChangeWatchersTask(this, classIdPair, fieldNames, params, false, oldValue));
+		}
+		else {
+			internalCheckChangeWatchers(classIdPair, fieldNames, params, oldValue);
+		}
+	}
+	
+	public void checkAndRemoveChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params, IPerceroObject oldValue) {
+		if (useChangeWatcherQueue && taskExecutor != null) {
+			taskExecutor.execute(new RedisCheckChangeWatchersTask(this, classIdPair, fieldNames, params, true, oldValue));
+		}
+		else {
+			internalCheckChangeWatchers(classIdPair, fieldNames, params, oldValue);
+			removeChangeWatchersByObject(classIdPair);
+		}
+	}
+	
+	public void internalCheckChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params, IPerceroObject oldValue) {
 		Collection<String> changeWatchers = getChangeWatchersForField(classIdPair, fieldNames, params);
 		
 		// If there are ChangeWatchers, then recalculate for each one.
