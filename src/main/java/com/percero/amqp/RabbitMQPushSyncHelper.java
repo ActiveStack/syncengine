@@ -21,6 +21,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.log4j.Logger;
+import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -334,8 +335,25 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 		// Attempt to move messages from the previous client queue to the new one.
 		try {
 			Message nextExistingMessage = null;
+			
+			// If we find an EOL Message, then we want to make sure it stays in
+			// the previous queue.
+			Message eolMessage = null;
 			while ((nextExistingMessage = template.receive(thePreviousClientId)) != null) {
-				template.send(clientId, nextExistingMessage);
+				JsonNode messageJsonNode = objectMapper.readTree(nextExistingMessage.getBody());
+				if (messageJsonNode.has("EOL")) {
+					// We found an EOL message, keep hold of it so we can resent
+					// to the previous queue.
+					eolMessage = nextExistingMessage;
+				}
+				else {
+					template.send(clientId, nextExistingMessage);
+				}
+			}
+			
+			if (eolMessage != null) {
+				// Make sure the EOL message is left intact in the old queue.
+				template.send(thePreviousClientId, eolMessage);
 			}
 		} catch(AmqpIOException e) {
 			// Most likely due to queue already being deleted.
