@@ -103,7 +103,7 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	String rabbitLogin = "guest";
 	@Autowired @Value("$pf{gateway.rabbitmq.password:guest}")
 	String rabbitPassword = "guest";
-	@Autowired @Value("$pf{gateway.rabbitmq.host:}")
+	@Autowired @Value("$pf{gateway.rabbitmq.host:localhost}")
 	String rabbitHost = null;
 	@Autowired @Value("$pf{gateway.rabbitmq.queue_timeout:43200000}")	// 8 Hours
 	long rabbitQueueTimeout = 43200000;
