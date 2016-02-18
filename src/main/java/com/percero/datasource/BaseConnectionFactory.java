@@ -169,6 +169,7 @@ public class BaseConnectionFactory implements IConnectionFactory {
                 // Default to Hikari Connection Pool.
                 HikariConfig config = new HikariConfig();
                 config.setDriverClassName(driverClassName);
+                config.setRegisterMbeans(true);
                 config.setJdbcUrl(jdbcUrl);
                 config.setUsername(username);
                 config.setPassword(password);
