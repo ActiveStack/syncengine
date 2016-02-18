@@ -800,7 +800,8 @@ public class UpdateTableProcessor implements Runnable{
 
             int numUpdated = statement.executeUpdate(sql);
             if(numUpdated != rows.size()){
-                logger.warn("Expected to delete "+rows.size()+", instead "+numUpdated);
+                //As discussed with Richard, commenting the log
+//                logger.warn("Expected to delete "+rows.size()+", instead "+numUpdated);
             }
         }catch(SQLException e){
             logger.warn(e.getMessage(), e);
@@ -817,7 +818,8 @@ public class UpdateTableProcessor implements Runnable{
 
             int numUpdated = statement.executeUpdate(sql);
             if(numUpdated != 1){
-                logger.warn("Expected to update 1, instead "+numUpdated);
+                //As discussed with Richard, commenting the log
+//                logger.warn("Expected to update 1, instead "+numUpdated);
             }
         }catch(SQLException e){
             logger.warn(e.getMessage(), e);
