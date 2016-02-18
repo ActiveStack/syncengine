@@ -216,6 +216,7 @@ public interface IAccessManager {
 	public Object getChangeWatcherResult(ClassIDPair classIdPair, String fieldName, String[] params);
 	public void checkChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params, IPerceroObject oldValue);
 	public void removeChangeWatchersByObject(ClassIDPair classIdPair);
+	public void checkAndRemoveChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params, IPerceroObject oldValue);
 	public void recalculateChangeWatcher(String changeWatcherId, IPerceroObject oldValue);
 	
 	/**

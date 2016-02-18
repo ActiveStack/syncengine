@@ -1295,6 +1295,13 @@ public class AccessManager implements IAccessManager {
 		
 	}
 
+	@Override
+	public void checkAndRemoveChangeWatchers(ClassIDPair classIdPair, String[] fieldNames, String[] params,
+			IPerceroObject oldValue) {
+		// TODO Auto-generated method stub
+		
+	}
+
 	/* (non-Javadoc)
 	 * @see com.com.percero.agents.sync.services.IAccessManager#removeDeleteJournals(java.util.List)
 	 *

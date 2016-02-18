@@ -1,0 +1,27 @@
+# ---
+name: TEST
+preferredConnectionPool: hikari
+driverClassName: org.h2.Driver
+jdbcUrl: jdbc:h2:~/test
+username: sa
+password: pass
+testQuery: SELECT 1 FROM dual
+maxIdleTime: 1000
+minPoolSize: 5
+maxPoolSize: 25
+tableNames:
+ - update_table_1
+ - update_table_2
+weight: 50
+storedProcedureName: UPDATE_TABLE_LOCK_BATCH
+storedProcedureDefinition: My Stored Proc
+---
+driverClassName: org.h2.Driver
+jdbcUrl: jdbc:h2:~/test
+username: sa
+password: pass
+tableNames:
+ - update_table_1
+weight: 55
+storedProcedureName: UPDATE_TABLE_LOCK_BATCH
+storedProcedureDefinition: My Stored Proc

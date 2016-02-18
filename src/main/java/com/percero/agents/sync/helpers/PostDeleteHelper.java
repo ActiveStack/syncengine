@@ -84,9 +84,7 @@ public class PostDeleteHelper {
 		accessManager.removeHistoricalObjectsByObject(pair);
 
 		// Now run past the ChangeWatcher.
-		accessManager.checkChangeWatchers(pair, null, null, null);
-		// Remove ChangeWatchers associated with this object.
-		accessManager.removeChangeWatchersByObject(pair);
+		accessManager.checkAndRemoveChangeWatchers(pair, null, null, null);
 
 		/*Collection<Object> deleteJournals = */accessManager.saveDeleteJournalClients(pair, clientIds, guaranteeUpdateDelivery, pusherClientId, pushToUser);
 		pushObjectDeleteJournals(clientIds, pair.getClassName(), pair.getID());
