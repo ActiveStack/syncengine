@@ -133,7 +133,7 @@ public class UpdateTableProcessor implements Runnable{
                         result.addResult(row.getType().toString());
                         successfulRows.add(row);
                     } catch (Exception e) {
-                        logger.warn("Failed to process update: " + e.getMessage(), e);
+                        logger.error("Failed to process update: " + e.getMessage(), e);
                         result.addResult(row.getType().toString(), false, e.getMessage());
                         releaseRowLock(row);
                     }
@@ -150,8 +150,8 @@ public class UpdateTableProcessor implements Runnable{
             }
 
             if (!result.isSuccess()) {
-                logger.warn("Update table processor (" + tableName + ") failed. Details:");
-                logger.warn(result);
+                logger.debug("Update table processor (" + tableName + ") failed. Details:");
+                logger.debug(result);
             }
         }finally{
             try {
@@ -207,7 +207,7 @@ public class UpdateTableProcessor implements Runnable{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         if (classes == null || classes.isEmpty()) {
-            logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+            logger.debug("No Classes defined for UpdateTable table " + row.getTableName());
         }
         else {
             logger.debug("Processing " + classes.size() + " class(es) for UpdateTable UPDATE, table " + row.getTableName());
@@ -237,7 +237,7 @@ public class UpdateTableProcessor implements Runnable{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         if (classes == null || classes.isEmpty()) {
-            logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+            logger.debug("No Classes defined for UpdateTable table " + row.getTableName());
         }
         else {
             logger.debug("Processing " + classes.size() + " class(es) for UpdateTable UPDATE, table " + row.getTableName());
@@ -373,7 +373,7 @@ public class UpdateTableProcessor implements Runnable{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         if (classes == null || classes.isEmpty()) {
-            logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+            logger.debug("No Classes defined for UpdateTable table " + row.getTableName());
         }
         else {
             logger.debug("Processing " + classes.size() + " class(es) for UpdateTable INSERT, table " + row.getTableName());
@@ -399,7 +399,7 @@ public class UpdateTableProcessor implements Runnable{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         if (classes == null || classes.isEmpty()) {
-            logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+            logger.debug("No Classes defined for UpdateTable table " + row.getTableName());
         }
         else {
             logger.debug("Processing " + classes.size() + " class(es) for UpdateTable INSERT, table " + row.getTableName());
@@ -432,7 +432,7 @@ public class UpdateTableProcessor implements Runnable{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         if (classes == null || classes.isEmpty()) {
-            logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+            logger.debug("No Classes defined for UpdateTable table " + row.getTableName());
         }
         else {
             logger.debug("Processing " + classes.size() + " class(es) for UpdateTable DELETE, table " + row.getTableName());
@@ -463,7 +463,7 @@ public class UpdateTableProcessor implements Runnable{
         List<Class> classes = getClassesForTableName(row.getTableName());
 
         if (classes == null || classes.isEmpty()) {
-            logger.warn("No Classes defined for UpdateTable table " + row.getTableName());
+            logger.debug("No Classes defined for UpdateTable table " + row.getTableName());
         }
         else {
             logger.debug("Processing " + classes.size() + " class(es) for UpdateTable DELETE, table " + row.getTableName());
@@ -564,7 +564,7 @@ public class UpdateTableProcessor implements Runnable{
                     // Find all of this type and push down an update to all
                     Set<String> ids = accessManager.getClassAccessJournalIDs(mappedField.getMappedClass().className);
 
-                    logger.warn("updateReferences - ids IS NULL : " + (ids == null) );
+                    logger.debug("updateReferences - ids IS NULL : " + (ids == null) );
                     if (ids.contains("0")) {
                         // If there is a 0 ID in the list, then we need to update ALL records of this type.
                         Integer pageNumber = 0;
@@ -573,7 +573,7 @@ public class UpdateTableProcessor implements Runnable{
 
                         while (total < 0 || pageNumber * pageSize <= total) {
                             PerceroList<IPerceroObject> objectsToUpdate = mappedField.getMappedClass().getDataProvider().getAllByName(mappedField.getMappedClass().className, pageNumber, pageSize, true, null);
-                            logger.warn("updateReferences - objectsToUpdate IS NULL : " + (objectsToUpdate == null) );
+                            logger.debug("updateReferences - objectsToUpdate IS NULL : " + (objectsToUpdate == null) );
                             pageNumber++;
                             total = objectsToUpdate.getTotalLength();
                             if (total <= 0) {
@@ -583,16 +583,16 @@ public class UpdateTableProcessor implements Runnable{
                             Iterator<IPerceroObject> itrObjectsToUpdate = objectsToUpdate.iterator();
                             while (itrObjectsToUpdate.hasNext()) {
                                 IDataProvider dataProvider = dataProviderManager.getDefaultDataProvider();
-                                logger.warn("updateReferences - dataProvider IS NULL : " + (dataProvider == null) );
+                                logger.debug("updateReferences - dataProvider IS NULL : " + (dataProvider == null) );
                                 // We assume this is from the cache because some client has requested all of this class
                                 // and since we turned off cache expiration it must be in there.
                                 BaseDataObject nextObjectToUpdate = (BaseDataObject) itrObjectsToUpdate.next();
-                                logger.warn("updateReferences - BaseDataObject IS NULL : " + (nextObjectToUpdate == null) );
+                                logger.debug("updateReferences - BaseDataObject IS NULL : " + (nextObjectToUpdate == null) );
                                 ClassIDPair pair = BaseDataObject.toClassIdPair(nextObjectToUpdate);
-                                logger.warn("updateReferences - BaseDataObject pair IS NULL : " + (pair == null) );
+                                logger.debug("updateReferences - BaseDataObject pair IS NULL : " + (pair == null) );
                                 // This call ignores the cache
                                 BaseDataObject nextObjectToUpdateFromDB = (BaseDataObject) dataProvider.findById(pair, null, true);
-                                logger.warn("updateReferences - nextObjectToUpdateFromDB IS NULL : " + (nextObjectToUpdateFromDB == null) );
+                                logger.debug("updateReferences - nextObjectToUpdateFromDB IS NULL : " + (nextObjectToUpdateFromDB == null) );
 
                                 Map<ClassIDPair, Collection<MappedField>> changedFields = dataProvider
                                         .getChangedMappedFields(nextObjectToUpdateFromDB, nextObjectToUpdate, nextObjectToUpdate != null);
@@ -608,17 +608,17 @@ public class UpdateTableProcessor implements Runnable{
                             String nextIdToUpdate = itrIdsToUpdate.next();
                             ClassIDPair pair = new ClassIDPair(nextIdToUpdate, mappedField.getMappedClass().className);
 
-                            logger.warn("updateReferences - ELSE pair IS NULL : " + (pair == null) );
+                            logger.debug("updateReferences - ELSE pair IS NULL : " + (pair == null) );
 
                             IDataProvider dataProvider = dataProviderManager.getDefaultDataProvider();
-                            logger.warn("updateReferences - ELSE dataProvider IS NULL : " + (dataProvider == null) );
+                            logger.debug("updateReferences - ELSE dataProvider IS NULL : " + (dataProvider == null) );
                             // First call assumes we are getting it from the cache... because we can assume that
                             // All objects that we care about are all cached (since we turned off cache expiration).
                             BaseDataObject cachedObject = (BaseDataObject) dataProvider.findById(pair, null);
-                            logger.warn("updateReferences - ELSE cachedObject IS NULL : " + (cachedObject == null) );
+                            logger.debug("updateReferences - ELSE cachedObject IS NULL : " + (cachedObject == null) );
                             // This call ignores the cache
                             BaseDataObject objectFromDB = (BaseDataObject) dataProvider.findById(pair, null, true);
-                            logger.warn("updateReferences - ELSE BaseDataObject objectFromDB IS NULL : " + (objectFromDB == null) );
+                            logger.debug("updateReferences - ELSE BaseDataObject objectFromDB IS NULL : " + (objectFromDB == null) );
                             Map<ClassIDPair, Collection<MappedField>> changedFields = dataProvider
                                     .getChangedMappedFields(objectFromDB, cachedObject, cachedObject != null);
                             // Only push if different
@@ -723,7 +723,7 @@ public class UpdateTableProcessor implements Runnable{
                     }
 
                     if(count != numUpdated)
-                        logger.warn("Locked a "+numUpdated+" rows but found "+count);
+                        logger.debug("Locked a "+numUpdated+" rows but found "+count);
                 }
             }
         }
@@ -749,7 +749,7 @@ public class UpdateTableProcessor implements Runnable{
             updateNum = cstmt.getInt(4);
         } catch(SQLException e){
 //            	return null;
-            logger.warn(e.getMessage(), e);
+            logger.error(e.getMessage(), e);
 
             // If the stored proc doesn't exist, let's try and create it.
             if (StringUtils.hasText(connectionFactory.getStoredProcedureDefinition()) &&
@@ -762,11 +762,11 @@ public class UpdateTableProcessor implements Runnable{
                     System.out.println(createResult);
                 }
                 catch(SQLSyntaxErrorException ssee) {
-                    logger.warn("Unable to create UpdateTable stored procedure: " + ssee.getMessage());
+                    logger.error("Unable to create UpdateTable stored procedure: " + ssee.getMessage());
                     throw ssee;
                 }
                 catch(Exception e1) {
-                    logger.warn("Unable to create UpdateTable stored procedure: " + e1.getMessage());
+                    logger.error("Unable to create UpdateTable stored procedure: " + e1.getMessage());
                     throw e1;
                 }
             }
@@ -787,7 +787,7 @@ public class UpdateTableProcessor implements Runnable{
                 }
 
                 if(count != updateNum)
-                    logger.warn("Locked a "+updateNum+" rows but found "+count);
+                    logger.error("Locked a "+updateNum+" rows but found "+count);
             }
         }
 
@@ -812,7 +812,7 @@ public class UpdateTableProcessor implements Runnable{
 //                logger.warn("Expected to delete "+rows.size()+", instead "+numUpdated);
             }
         }catch(SQLException e){
-            logger.warn(e.getMessage(), e);
+            logger.error(e.getMessage(), e);
         }
     }
 
@@ -830,7 +830,7 @@ public class UpdateTableProcessor implements Runnable{
 //                logger.warn("Expected to update 1, instead "+numUpdated);
             }
         }catch(SQLException e){
-            logger.warn(e.getMessage(), e);
+            logger.error(e.getMessage(), e);
         }
     }
 
@@ -873,7 +873,7 @@ public class UpdateTableProcessor implements Runnable{
         try {
             row.type    = UpdateTableRowType.valueOf(resultSet.getString("type"));
         } catch(IllegalArgumentException iae) {
-            logger.warn("Invalid UpdateTableRow TYPE, ignoring");
+            logger.error("Invalid UpdateTableRow TYPE, ignoring");
             row.type    = UpdateTableRowType.NONE;
         }
         row.timestamp   = resultSet.getDate(connectionFactory.getTimestampColumnName());
