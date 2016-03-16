@@ -135,6 +135,51 @@
     <rabbit:queue name="changeWatcher" />
     <rabbit:queue name="checkChangeWatcher" />
 
+	<!-- Queues -->
+    <rabbit:queue name="authenticateOAuthCode" />
+    <rabbit:queue name="authenticate" />
+    <rabbit:queue name="reauthenticate" />
+    <rabbit:queue name="42" />
+    <rabbit:queue name="authenticateOAuthAccessToken" />
+    <rabbit:queue name="41" />
+    <rabbit:queue name="authenticateUserAccount" />
+    <rabbit:queue name="getAllServiceProviders" />
+    <rabbit:queue name="getRegisteredApplication" />
+    <rabbit:queue name="getRegAppOAuths" />
+    <rabbit:queue name="getOAuthRequestToken" />
+    <rabbit:queue name="getServiceUsers" />
+    <rabbit:queue name="logoutUser" />
+    <rabbit:queue name="testCall" />
+    <rabbit:queue name="validateUserByToken" />
+    <rabbit:queue name="17" />
+    <rabbit:queue name="disconnectAuth" />
+    <rabbit:queue name="create" />
+    <rabbit:queue name="update" />
+    <rabbit:queue name="processTransaction" />
+    <rabbit:queue name="connect" />
+    <rabbit:queue name="reconnect" />
+    <rabbit:queue name="hibernate" />
+    <rabbit:queue name="upgradeClient" />
+    <rabbit:queue name="getChangeWatcher" />
+    <rabbit:queue name="disconnect" />
+    <rabbit:queue name="logout" />
+    <rabbit:queue name="findById" />
+    <rabbit:queue name="findByIds" />
+    <rabbit:queue name="findByExample" />
+    <rabbit:queue name="countAllByName" />
+    <rabbit:queue name="getAllByName" />
+    <rabbit:queue name="runQuery" />
+    <rabbit:queue name="runProcess" />
+    <rabbit:queue name="putObject" />
+    <rabbit:queue name="removeObject" />
+    <rabbit:queue name="createObject" />
+    <rabbit:queue name="searchByExample" />
+    <rabbit:queue name="delete" />
+    <rabbit:queue name="updatesReceived" />
+    <rabbit:queue name="deletesReceived" />
+    <rabbit:queue name="getAccessor" />
+    <rabbit:queue name="getHistory" />
+
     <!-- Database connection stuff -->
     <bean class="com.mchange.v2.c3p0.ComboPooledDataSource"
           destroy-method="close" id="dataSource1">
