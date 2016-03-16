@@ -904,75 +904,60 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 		ServiceUser serviceUser = null;
 
 		try {
-
-			if (anonAuthEnabled && StringUtils.hasText(anonAuthCode)) {
-				if (refreshToken != null && refreshToken.equals(anonAuthCode)) {
-					serviceUser = new ServiceUser();
-					serviceUser.setFirstName("ANON");
-					serviceUser.setLastName("ANON");
-					serviceUser.setId("ANON");
-					serviceUser.setAuthProviderID(AuthProvider.ANON.toString());
-					serviceUser.setRefreshToken(anonAuthCode);
-
-					List<String> roles = new ArrayList<String>();
-					String[] roleNames = anonAuthRoleNames.split(",");
-					for(int i = 0; i < roleNames.length; i++) {
-						if (roleNames[i] != null && !roleNames[i].isEmpty())
-							roles.add(roleNames[i]);
-					}
-					serviceUser.setRoleNames(roles);
-					serviceUser.setAreRoleNamesAccurate(true);
-					return serviceUser;
-				}
-			}
-
-			/**if (AuthProvider.LINKEDIN.equals(authProviderID)) {
-				//				LinkedInHelper linkedInHelper = new LinkedInHelper();
-				//				ServiceUser liServiceUser = linkedInHelper.getServiceUser(
-				//						svcOauth.getAppKey(), svcOauthSecret.getAppToken(), 
-				//						accessToken,
-				//						refreshToken,
-				//						svcOauth.getServiceApplication().getAppDomain());
-				//				serviceUser = liServiceUser;
-			}
-			else */if (AuthProvider.FACEBOOK.equals(authProviderID)) {
+			if (AuthProvider.FACEBOOK.name().equalsIgnoreCase(authProviderID)) {
 				ServiceUser fbServiceUser = facebookHelper.getServiceUser(
 						accessToken,
 						accountId);
 				serviceUser = fbServiceUser;
 			}
-			else if (AuthProvider.GOOGLE.equals(authProviderID)) {
+			else if (AuthProvider.GOOGLE.name().equalsIgnoreCase(authProviderID)) {
 				ServiceUser glServiceUser = googleHelper.authenticateAccessToken(accessToken, refreshToken, accountId);
 				//ServiceUser glServiceUser = googleHelper.retrieveServiceUser(accountId);
 				serviceUser = glServiceUser;
 			}
-			else if (AuthProvider.GITHUB.equals(authProviderID)) {
+			else if (AuthProvider.GITHUB.name().equalsIgnoreCase(authProviderID)) {
 				ServiceUser glServiceUser = githubHelper.getServiceUser(accessToken, refreshToken);
 				serviceUser = glServiceUser;
 			}
-			else if (AuthProvider.LINKEDIN.equals(authProviderID)) {
+			else if (AuthProvider.LINKEDIN.name().equalsIgnoreCase(authProviderID)) {
 				ServiceUser liServiceUser = linkedInHelper.getServiceUser(accessToken, refreshToken);
 				serviceUser = liServiceUser;
 			}
-			else if(AuthProvider.ANON.equals(authProviderID)){
-				serviceUser = new ServiceUser();
-				serviceUser.setEmails(new ArrayList<String>());
-				serviceUser.getEmails().add("blargblarg@com.percero.com");
-				serviceUser.setAccessToken("blargblarg");
-				serviceUser.setFirstName("ANONYMOUS");
-				serviceUser.setId("ANONYMOUS");
-				serviceUser.setAuthProviderID(AuthProvider.ANON.toString());
+			else if(AuthProvider.ANON.name().equalsIgnoreCase(authProviderID)){
+				// We only allow anonymous if anonAuthEnabled is TRUE AND the anonAuthCode matches the refresh token.
+				if (anonAuthEnabled && StringUtils.hasText(anonAuthCode)) {
+					if (refreshToken != null && refreshToken.equals(anonAuthCode)) {
+						serviceUser = new ServiceUser();
+						serviceUser.setFirstName("ANON");
+						serviceUser.setLastName("ANON");
+						serviceUser.setId("ANON");
+						serviceUser.setAuthProviderID(AuthProvider.ANON.toString());
+						serviceUser.setRefreshToken(anonAuthCode);
+
+						List<String> roles = new ArrayList<String>();
+						String[] roleNames = anonAuthRoleNames != null ? anonAuthRoleNames.split(",") : new String[0];
+						for(int i = 0; i < roleNames.length; i++) {
+							if (roleNames[i] != null && !roleNames[i].isEmpty())
+								roles.add(roleNames[i]);
+						}
+						serviceUser.setRoleNames(roles);
+						serviceUser.setAreRoleNamesAccurate(true);
+					}
+				}
 			}
-			else
-			{
+			else {
 				log.warn("ServiceProvider not yet supported: " + authProviderID);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error("Error getting Service User from Auth Provider", e);
 		}
 
-		if (serviceUser != null)
+		if (serviceUser != null) {
+			// In case the client has used a different casing of the Auth
+			// Provider ID, we want to return the exact same casing.
+			//	Ex: LinkedIn vs. linkedIn
 			serviceUser.setAuthProviderID(authProviderID);
+		}
 
 		return serviceUser;
 	}
