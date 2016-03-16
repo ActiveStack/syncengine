@@ -14,13 +14,11 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
-import com.percero.framework.vo.IPerceroObject;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -34,8 +32,8 @@ import com.percero.agents.sync.helpers.RedisPostClientHelper;
 import com.percero.agents.sync.services.IPushSyncHelper;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.agents.sync.vo.Client;
+import com.percero.framework.vo.IPerceroObject;
 
-@Component
 public class RedisAccessManager implements IAccessManager {
 	
 	private static Logger log = Logger.getLogger(RedisAccessManager.class);
@@ -285,7 +283,7 @@ public class RedisAccessManager implements IAccessManager {
 		// Make sure this is a valid client.
 		Boolean isValidClient = findClientByClientIdUserId(clientId, userId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "Unable to upgradeClient", clientId);
 		
 		Set<String> previousClientIds = null;
 		if (deviceId != null && deviceId.length() > 0) {
