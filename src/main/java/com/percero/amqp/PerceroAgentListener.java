@@ -145,7 +145,13 @@ public class PerceroAgentListener implements MessageListener {
                 handleAuthRequest((AuthRequest) ob, key, replyTo);
             }
         } catch (Exception e) {
-            logger.error("Unable to process message", e);
+            try {
+            	// Attempt to print out the unrecognizable message.
+            	logger.error("Unable to process message: " + new String(message.getBody()), e);
+            } catch(Exception e1) {
+            	// Else just report the exception.
+            	logger.error("Unable to process message", e);
+            }
         }
     }
 

@@ -13,16 +13,23 @@ public class ClientException extends SyncException{
 		super(name, code, desc, t);
 	}
 	
-	public ClientException(String name, Integer code, String desc) {
+	public ClientException(String name, Integer code, String desc, String clientId) {
 		super(name, code, desc);
-	}
-	
-	public ClientException(String name, Integer code) {
-		super(name, code);
+		this.clientId = clientId;
 	}
 	
 	public ClientException() {
 		super();
+	}
+
+	private String clientId;
+	
+	public String getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(String clientId) {
+		this.clientId = clientId;
 	}
 	
 }

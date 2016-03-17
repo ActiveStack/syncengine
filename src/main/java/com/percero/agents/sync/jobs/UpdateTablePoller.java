@@ -2,6 +2,7 @@ package com.percero.agents.sync.jobs;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -54,28 +55,33 @@ public class UpdateTablePoller {
 
 	@Autowired @Qualifier("executorWithCallerRunsPolicy")
 	TaskExecutor taskExecutor;
+	
+	UpdateTableProcessReporter reporter = null;
 
 	Map<String, Set<UpdateTableProcessor>> runningProcessors = java.util.Collections.synchronizedMap(new HashMap<String, Set<UpdateTableProcessor>>());
 
     public boolean enabled = true;
-
-    @PostConstruct
-    public void init(){
-        // Get the reporter going
-        UpdateTableProcessReporter.getInstance();
-    }
 
     /**
      * Run every minute
      */
     @Scheduled(cron="0/5 * * * * *")	// Every 5 seconds
     public void pollUpdateTables() {
-        logger.debug("*** UpdateTablePoller running...");
-        for (UpdateTableConnectionFactory updateTableConnectionFactory : updateTableRegistry.getConnectionFactories()) {
-            for (String tableName : updateTableConnectionFactory.getTableNames()) {
-        		doProcessingForTable(updateTableConnectionFactory, tableName);
-            }
-        }
+    	List<UpdateTableConnectionFactory> connectionFactories = updateTableRegistry.getConnectionFactories();
+    	
+    	// Only attempt to process Update Tables if they are configured.
+    	if (connectionFactories != null && !connectionFactories.isEmpty()) {
+    		if (reporter == null) {
+    	        // Get the reporter going
+    			reporter = UpdateTableProcessReporter.getInstance();
+    		}
+	        logger.debug("*** UpdateTablePoller running...");
+	        for (UpdateTableConnectionFactory updateTableConnectionFactory : connectionFactories) {
+	            for (String tableName : updateTableConnectionFactory.getTableNames()) {
+	        		doProcessingForTable(updateTableConnectionFactory, tableName);
+	            }
+	        }
+    	}
     }
 
     @SuppressWarnings("unchecked")

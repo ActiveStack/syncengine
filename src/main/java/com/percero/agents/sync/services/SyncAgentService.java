@@ -255,7 +255,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	public String getDataId(String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 
 		String dataId = (String) cacheDataStore.listIndex(RedisKeyUtils.dataRecord());
 
@@ -276,7 +276,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	public PerceroList<IPerceroObject> getAllByName(String className, Integer pageNumber, Integer pageSize, Boolean returnTotal, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		Class theClass = MappedClass.forName(className);
 
@@ -307,7 +307,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 
 		Iterator<String> itrClassNames = classNames.iterator();
 		while(itrClassNames.hasNext()) {
@@ -332,7 +332,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		try {
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -353,7 +353,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		if (!StringUtils.hasText(processName))
 			throw new SyncException(SyncException.INVALID_PROCESS_ERROR, SyncException.INVALID_PROCESS_ERROR_CODE);
@@ -415,7 +415,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		// Only ChangeWatcherValueHelper's have the "get" function.
 		IChangeWatcherValueHelper cwh = (IChangeWatcherValueHelper) changeWatcherHelperFactory.getHelper(classIdPair.getClassName());
@@ -434,7 +434,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			List<String> excludeProperties, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		if (theQueryObject instanceof IPerceroObject) {
 			IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -466,7 +466,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	public Object findUnique(Object theQueryObject, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		Class objectClass = theQueryObject.getClass();
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -503,7 +503,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			List<String> excludeProperties, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 		MappedClass mappedClass = mcm.getMappedClassByClassName(theQueryObject.getClass().getCanonicalName());
@@ -531,7 +531,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	public Object findById(String aClassName, String anId, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		// Get the MappedClass and determine which DataProvider provides data for this object.
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -643,7 +643,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	public List<? extends Object> getHistory(String aClassName, String anId, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		// Get the MappedClass and determine which DataProvider provides data for this object.
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -666,7 +666,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		String userId = accessManager.getClientUserId(clientId);
 		
@@ -696,7 +696,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 
 		// Get the MappedClass and determine which DataProvider provides data for this object.
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
@@ -950,7 +950,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 			
 		if (perceroObject != null) {
 			String userId = accessManager.getClientUserId(clientId);
@@ -1125,7 +1125,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		try {
 			
@@ -1271,7 +1271,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			Map<ClassIDPair, MappedField> objectsToUpdate = mappedClass.getRelatedClassIdPairMappedFieldMap(perceroObject, false);
 			
 			// If the result has been set to false, it means that deletion/update of one of the related objects failed.
-			if (result && dataProvider.deleteObject(BaseDataObject.toClassIdPair(perceroObject), null)) {
+			if (result && dataProvider.deleteObject(BaseDataObject.toClassIdPair(perceroObject), userId)) {
 				// Also store historical record, if necessary.
 				if (storeHistory && (perceroObject instanceof IHistoryObject))
 				{
@@ -1321,7 +1321,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	public void updatesReceived(ClassIDPair[] theObjects, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 
 		// Remove UpdateJournals for this client.
 		accessManager.deleteUpdateJournals(clientId, theObjects);
@@ -1330,7 +1330,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	public void deletesReceived(ClassIDPair[] theObjects, String clientId) throws Exception {
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 		
 		// Remove DeleteJournals for this client.
 		accessManager.deleteDeleteJournals(clientId, theObjects);

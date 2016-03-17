@@ -21,6 +21,7 @@ public class SyncException extends Exception {
 	public static final String METHOD_NOT_IMPLEMENTED = "methodNotImplemented";
 	public static final Integer METHOD_NOT_IMPLEMENTED_CODE = -106;
 	
+	public static final Integer PROCESS_ERROR_CODE = -1000;
 	
 	public SyncException(String name, Integer code, String desc, Throwable t) {
 		super(desc, t);

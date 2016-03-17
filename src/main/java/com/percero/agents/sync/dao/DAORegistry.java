@@ -24,6 +24,10 @@ public class DAORegistry {
 	@SuppressWarnings({ "unchecked" })
 	private Map<String, IDataAccessObject<? extends IPerceroObject>> dataAccessObjects = Collections.synchronizedMap(new HashMap<String, IDataAccessObject<? extends IPerceroObject>>());
 	
+	public Map<String, IDataAccessObject<? extends IPerceroObject>> getDataAccessObjects() {
+		return dataAccessObjects;
+	}
+	
 	public void registerDataAccessObject(String name, IDataAccessObject<? extends IPerceroObject> dataAccessObject) {
 		dataAccessObjects.put(name, dataAccessObject);
 	}

@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -16,6 +17,7 @@ import javax.annotation.Resource;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpGet;
@@ -24,6 +26,9 @@ import org.apache.log4j.Logger;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Instant;
+import org.joda.time.MutableDateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.springframework.amqp.AmqpIOException;
@@ -43,13 +48,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.access.RedisKeyUtils;
 import com.percero.agents.sync.datastore.ICacheDataStore;
@@ -62,9 +67,6 @@ import com.rabbitmq.client.ShutdownSignalException;
 
 import edu.emory.mathcs.backport.java.util.Arrays;
 
-import org.slf4j.*;
-
-@Component
 public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationContextAware {
 	
 	private static Logger logger = Logger.getLogger(RabbitMQPushSyncHelper.class);
@@ -98,16 +100,16 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	}
 
 	// RabbitMQ environment variables.
-	@Autowired @Value("$pf{gateway.rabbitmq.admin_port:15672}")
-	int rabbitAdminPort = 15672;
-	@Autowired @Value("$pf{gateway.rabbitmq.login:guest}")
-	String rabbitLogin = "guest";
-	@Autowired @Value("$pf{gateway.rabbitmq.password:guest}")
-	String rabbitPassword = "guest";
-	@Autowired @Value("$pf{gateway.rabbitmq.host:localhost}")
-	String rabbitHost = null;
-	@Autowired @Value("$pf{gateway.rabbitmq.queue_timeout:43200000}")	// 8 Hours
-	long rabbitQueueTimeout = 43200000;
+	@Value("$pf{gateway.rabbitmq.admin_port:15672}")
+	int rabbitAdminPort;
+	@Value("$pf{gateway.rabbitmq.login:guest}")
+	String rabbitLogin;
+	@Value("$pf{gateway.rabbitmq.password:guest}")
+	String rabbitPassword;
+	@Value("$pf{gateway.rabbitmq.host:localhost}")
+	String rabbitHost;
+	@Value("$pf{gateway.rabbitmq.queue_timeout:43200000}")	// 8 Hours
+	long rabbitQueueTimeout;
 
 	@Autowired
 	ICacheDataStore cacheDataStore;
@@ -385,156 +387,50 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	//	SCHEDULED TASKS
 	//////////////////////////////////////////////////
 	
-	private Boolean validatingQueues = false;
+	Boolean validatingQueues = false;
 //	@Scheduled(fixedRate=600000)	// 10 Minutes
 //	@Scheduled(fixedRate=30000)	// 30 Seconds
 	@Scheduled(fixedRate=300000)	// 5 Minutes
-	public void validateQueues() {
+	public boolean validateQueues() {
 		
-        
 		synchronized (validatingQueues) {
 			if (validatingQueues) {
 				// Currently running.
-				return;
+				return false;
 			}
 			else {
 				validatingQueues = true;
 			}
 		}
 
-		String host = rabbitHost;
-		if (!StringUtils.hasText(host)) {
-			// No Rabbit host configured?  Very strange, but no sense in moving forward here...
-			logger.error("No RabbitMQ host configured?");
-			return;
-		}
-		
-		String uri = "http://" + host + ":" + rabbitAdminPort + "/api/queues/";
-		
-		DefaultHttpClient httpClient = new DefaultHttpClient();
-		httpClient.getCredentialsProvider().setCredentials(new AuthScope(host, rabbitAdminPort), new UsernamePasswordCredentials(rabbitLogin, rabbitPassword));
-		HttpGet httpGet = new HttpGet(uri);
-		
 		try {
-			HttpResponse r = httpClient.execute(httpGet);
-			StringWriter writer = new StringWriter();
-			InputStream is = r.getEntity().getContent();
-			String encoding = null;
-			if (r.getEntity().getContentEncoding() != null) {
-				encoding = r.getEntity().getContentEncoding().getValue();
-				IOUtils.copy(is, writer, encoding);
-			}
-			else {
-				IOUtils.copy(is, writer);
-			}
-			String theString = writer.toString();
-			
-			int numQueues = 0;
-			Set<String> queueNamesToCheck = null;
-			
-			JsonParser parser = new JsonParser();
-			JsonElement jsonQueues = parser.parse(theString);
-			JsonArray jsonQueuesArray = jsonQueues.getAsJsonArray();
-			
-			if (jsonQueuesArray != null) {
-				numQueues = jsonQueuesArray.size();
-				logger.debug("Found " + numQueues + " RabbitMQ Queues to validate...");
-				queueNamesToCheck = new HashSet<String>(numQueues - queueNames.size());
+			Set<QueueProperties> queuesToCheck = retrieveQueueProperties(false);	// We only want NON system queues.
+			Set<String> queueNamesToCheck = new HashSet<String>();
 				
-				Iterator<JsonElement> itrJsonQueuesArray = jsonQueuesArray.iterator();
-				while (itrJsonQueuesArray.hasNext()) {
-					JsonElement nextJsonQueue = itrJsonQueuesArray.next();
-					JsonObject nextJsonQueueObject = nextJsonQueue.getAsJsonObject();
-					
-					JsonElement nextJsonQueueName = nextJsonQueueObject.get("name");
-					String nextQueueName = null;
-					if (nextJsonQueueName != null) {
-						nextQueueName = nextJsonQueueName.getAsString();
-					}
-					else {
-						continue;
-					}
-
-					if (cacheDataStore.getSetIsMember(RedisKeyUtils.eolClients(), nextQueueName)) {
-						JsonElement nextJsonQueueMessages = nextJsonQueueObject.get("messages");
-						int nextQueueMessages = 0;
-						if (nextJsonQueueMessages != null) {
-							nextQueueMessages = nextJsonQueueMessages.getAsInt();
-							
-							if (nextQueueMessages <= 0) {
-								logger.debug("Deleting EOL empty queue " + nextQueueName);
-								deleteQueue(nextQueueName);
-								continue;
-							}
-						}
-					}
-					
-					JsonElement nextJsonQueueConsumers = nextJsonQueueObject.get("consumers");
-					if (nextJsonQueueConsumers != null) {
-						// If the queue has consumers, then leave it alone.
-						int numConsumers = nextJsonQueueConsumers.getAsInt();
-						if (numConsumers == 0) {
-							// If this queue is in the EOL list, then it can simply be deleted.
-							if (cacheDataStore.getSetIsMember(RedisKeyUtils.eolClients(), nextQueueName)) {
-								logger.debug("Deleting EOL no consumers queue " + nextQueueName);
-								deleteQueue(nextQueueName);
-								continue;
-							}
-						}
-						else {
-							// Queue has consumers, so leave alone for now.
-							continue;
-						}
-					}
-					
-					JsonElement nextJsonQueueIdleSince = nextJsonQueueObject.get("idle_since");
-					if (nextJsonQueueIdleSince != null) {
-						try {
-							String strIdleSince = nextJsonQueueIdleSince.getAsString();
-							DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
-							DateTime dateTime = formatter.withOffsetParsed().parseDateTime(strIdleSince);
-							if (dateTime != null) {
-								DateTime currentDateTime = new DateTime(System.currentTimeMillis());
-								currentDateTime = currentDateTime.toDateTime(dateTime.getZone());
-								long timeDiffInMs = currentDateTime.toDate().getTime() - dateTime.toDate().getTime();
-								if (timeDiffInMs < rabbitQueueTimeout) {
-									// Queue has NOT timed out yet.
-									continue;
-								}
-							}
-						} catch(Exception e) {
-							// Do nothing
-							logger.debug("Error getting idle since for queue " + nextQueueName, e);
-							continue;
-						}
-					}
-					else {
-						logger.debug("Unable to determine idle since time, ignoring queue " + nextQueueName);
-						continue;
-					}
-					
-					if (StringUtils.hasText(nextQueueName)) {
-						// Check to see if this queue still valid.
-						if (!queueNames.contains(nextQueueName)) {
-							// Valid Queue, used by system.
-							queueNamesToCheck.add(nextQueueName);
-						}
-					}
+			for(QueueProperties queueProperties : queuesToCheck) {
+				if (checkQueueForDeletion(queueProperties)) {
+					deleteQueue(queueProperties.queueName);
 				}
+				else if (checkQueueForLogout(queueProperties)) {
+					// This queue did not pass the test to be deleted, add
+					// it to the list of valid client queue names to check
+					// for logout.
+					queueNamesToCheck.add(queueProperties.queueName);
+				}
+			}
+			
+			// Check to see if each queue name is a valid client.
+			if (!queueNamesToCheck.isEmpty()) {
+				Set<String> validClients = accessManager.validateClients(queueNamesToCheck);
+				// Remove all valid clients from the queue names.
+				queueNamesToCheck.removeAll(validClients);
 				
-				// Check to see if each queue name is a valid client.
-				if (!queueNamesToCheck.isEmpty()) {
-					Set<String> validClients = accessManager.validateClients(queueNamesToCheck);
-					// Remove all valid clients from the queue names.
-					queueNamesToCheck.removeAll(validClients);
-					
-					// Now delete the remaining INVALID queues.
-					Iterator<String> itrQueuesToDelete = queueNamesToCheck.iterator();
-					while (itrQueuesToDelete.hasNext()) {
-						String nextQueueName = itrQueuesToDelete.next();
-						logger.debug("RabbitMQ Logging out client " + nextQueueName);
-						accessManager.logoutClient(nextQueueName, true);
-					}
+				// Now delete the remaining INVALID queues.
+				Iterator<String> itrQueuesToDelete = queueNamesToCheck.iterator();
+				while (itrQueuesToDelete.hasNext()) {
+					String nextQueueName = itrQueuesToDelete.next();
+					logger.debug("RabbitMQ Logging out client " + nextQueueName);
+					accessManager.logoutClient(nextQueueName, true);
 				}
 			}
 
@@ -552,9 +448,254 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 		
 		// Loop through EOL queues and delete any that now have no clients.
 		
+		return true;
+	}
+	
+	protected Set<QueueProperties> retrieveQueueProperties(boolean includeSystemQueues) throws JsonSyntaxException, ClientProtocolException, IOException {
+		Set<QueueProperties> queuesToCheck = new HashSet<QueueProperties>();
+		
+		JsonParser parser = new JsonParser();
+		JsonElement jsonQueues = parser.parse(retrieveQueuesJsonListAsString());
+		JsonArray jsonQueuesArray = jsonQueues.getAsJsonArray();
+		
+		if (jsonQueuesArray != null) {
+			int numQueues = 0;
+			numQueues = jsonQueuesArray.size();
+			logger.debug("Found " + numQueues + " RabbitMQ Queues to validate...");
+			
+			Iterator<JsonElement> itrJsonQueuesArray = jsonQueuesArray.iterator();
+			while (itrJsonQueuesArray.hasNext()) {
+				JsonElement nextJsonQueue = itrJsonQueuesArray.next();
+				JsonObject nextJsonQueueObject = nextJsonQueue.getAsJsonObject();
+
+				QueueProperties queueProperties = new QueueProperties();
+				
+				JsonElement nextJsonQueueName = nextJsonQueueObject.get("name");
+				if (nextJsonQueueName != null) {
+					queueProperties.queueName = nextJsonQueueName.getAsString();
+					if (!StringUtils.hasText(queueProperties.queueName) || (!includeSystemQueues && queueNames.contains(queueProperties.queueName))) {
+						// No name OR System Queue -> Ignore
+						continue;
+					}
+				}
+				else {
+					// No queue name, so we can't really do much...
+					continue;
+				}
+
+				JsonElement nextJsonQueueMessages = nextJsonQueueObject.get("messages");
+				if (nextJsonQueueMessages != null) {
+					queueProperties.numMessages = nextJsonQueueMessages.getAsInt();
+				}
+				
+				JsonElement nextJsonQueueConsumers = nextJsonQueueObject.get("consumers");
+				if (nextJsonQueueConsumers != null) {
+					// If the queue has consumers, then leave it alone.
+					queueProperties.numConsumers = nextJsonQueueConsumers.getAsInt();
+				}
+				
+				JsonElement nextJsonQueueIdleSince = nextJsonQueueObject.get("idle_since");
+				if (nextJsonQueueIdleSince != null) {
+					try {
+						String strIdleSince = nextJsonQueueIdleSince.getAsString();
+						DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+						MutableDateTime dateTime = formatter.withOffsetParsed().parseMutableDateTime(strIdleSince);
+						if (dateTime != null) {
+							dateTime.setZoneRetainFields(DateTimeZone.UTC);
+							queueProperties.dateTimeIdleSince = dateTime.toInstant();
+						}
+					} catch(Exception e) {
+						logger.debug("Error getting idle since for queue " + queueProperties.queueName, e);
+					}
+				}
+				else {
+					logger.debug("Unable to determine idle since time, ignoring queue " + queueProperties.queueName);
+				}
+				
+				queueProperties.isEolClientsMember = cacheDataStore.getSetIsMember(RedisKeyUtils.eolClients(), queueProperties.queueName);
+
+				queuesToCheck.add(queueProperties);
+			}
+		}
+		
+		return queuesToCheck;
+	}
+	
+	protected String retrieveQueuesJsonListAsString() throws ClientProtocolException, IOException {
+		String host = rabbitHost;
+		if (!StringUtils.hasText(host)) {
+			// No Rabbit host configured?  Very strange, but no sense in moving forward here...
+			logger.error("No RabbitMQ host configured?");
+			return "";
+		}
+		
+		String uri = "http://" + host + ":" + rabbitAdminPort + "/api/queues/";
+		return issueHttpCall(uri, new AuthScope(host, rabbitAdminPort), new UsernamePasswordCredentials(rabbitLogin, rabbitPassword));
+	}
+	
+	protected String issueHttpCall(String uri, AuthScope authScope, Credentials credentials) throws ClientProtocolException, IOException {
+		DefaultHttpClient httpClient = new DefaultHttpClient();
+		httpClient.getCredentialsProvider().setCredentials(authScope , credentials);
+		HttpGet httpGet = new HttpGet(uri);
+	
+		HttpResponse r = httpClient.execute(httpGet);
+		StringWriter writer = new StringWriter();
+		InputStream is = r.getEntity().getContent();
+		String encoding = null;
+		if (r.getEntity().getContentEncoding() != null) {
+			encoding = r.getEntity().getContentEncoding().getValue();
+			IOUtils.copy(is, writer, encoding);
+		}
+		else {
+			IOUtils.copy(is, writer);
+		}
+		return writer.toString();
+	}
+	
+	protected boolean checkQueueForDeletion(QueueProperties queueProperties) {
+		return checkQueueForDeletion(queueProperties.queueName, queueProperties.numMessages, queueProperties.numConsumers, queueProperties.dateTimeIdleSince, queueProperties.isEolClientsMember);
 	}
 
-	private Collection<String> queueNames = null;
+	/**
+	 *  For each existing queue, the queue can be deleted when the following are true:
+	 *	1. The queue is NOT a system queue {@link #queueNames}
+	 *		1. The queue is in the list of EOL Clients {@link RedisKeyUtils#eolClients()} AND
+	 *			1. There are NO messages left in the queue
+	 *			OR
+	 *			2. There are NO consumers of the queue
+	 *		OR
+	 *		2. The queue has been idle for at least {@link #rabbitQueueTimeout} milliseconds AND
+	 *			the queue has no consumers and has contains an EOL message
+	 *			In this case, we are assuming that this is a queue for a client that has gone away
+	 *			and is never coming back.  This timeout should be in the number of days/weeks range.
+	 *
+	 * @param queueName
+	 * @param numMessages
+	 * @param numConsumers
+	 * @param dateTimeIdleSince
+	 * @param isEolClientsMember
+	 * @return
+	 */
+	protected boolean checkQueueForDeletion(String queueName, int numMessages, int numConsumers, Instant dateTimeIdleSince, boolean isEolClientsMember) {
+		if (queueNames.contains(queueName)) {
+			return false;
+		}
+
+		if (isEolClientsMember && (numMessages == 0 || numConsumers == 0)) {
+			logger.debug("Deleting EOL empty queue " + queueName + ": EOL Client with " + numMessages + " Messages and " + numConsumers + " Consumers");
+			return true;
+		}
+		
+		if (numConsumers == 0 && numMessages > 0 && queueHasTimedOut(queueName, dateTimeIdleSince)) {
+			// If this queue has an EOL message and has no
+			// consumers, then we can safely delete it.
+			// If we have gotten here then client is NOT in
+			// the EOL list, thus it is old and can safely
+			// be deleted.
+			Message nextExistingMessage = null;
+			
+			// If we find an EOL Message, 
+			Message eolMessage = null;
+			List<Message> messagesToRequeue = new ArrayList<>();
+			while ((nextExistingMessage = template.receive(queueName)) != null) {
+				try {
+					JsonNode messageJsonNode = objectMapper.readTree(nextExistingMessage.getBody());
+					if (messageJsonNode.has("EOL") && messageJsonNode.get("EOL").getBooleanValue()) {
+						// We found an EOL message -> This queue to be deleted.
+						eolMessage = nextExistingMessage;
+						break;
+					}
+					else {
+						// Re-queue this message...
+						messagesToRequeue.add(nextExistingMessage);
+					}
+				} catch (IOException e) {
+					logger.warn("Error reading queue " + queueName + " message, unable to process");
+				}
+			}
+			
+			if (eolMessage != null) {
+				logger.debug("Deleting EOL no consumers queue " + queueName + ": EOL Client WITH EOL Message");
+				return true;
+			}
+			else {
+				// Need to re-queue the messages.
+				for(Message nextMessage : messagesToRequeue) {
+					template.send(queueName, nextMessage);
+				}
+			}
+		}
+
+		return false;
+	}
+
+	protected boolean checkQueueForLogout(QueueProperties queueProperties) {
+		return checkQueueForLogout(queueProperties.queueName, queueProperties.numMessages, queueProperties.numConsumers, queueProperties.dateTimeIdleSince, queueProperties.isEolClientsMember);
+	}
+	
+	/**
+	 * If a queue meets this criteria, then it should be further investigated for automatic logout.
+	 *	1. The queue is NOT a system queue {@link #queueNames}
+	 *	2. Is NOT a member of EOL Clients list
+	 *	3. Has NO consumers
+	 *	4. The queue has been idle for at least {@link #rabbitQueueTimeout} milliseconds
+	 *		In this case, we are assuming that this is a queue for a client that has gone away
+	 *		and is never coming back.  This timeout should be in the number of days/weeks range.
+	 *
+	 * @param queueName
+	 * @param numMessages
+	 * @param numConsumers
+	 * @param dateTimeIdleSince
+	 * @param isEolClientsMember
+	 * @return
+	 */
+	protected boolean checkQueueForLogout(String queueName, int numMessages, int numConsumers, Instant dateTimeIdleSince, boolean isEolClientsMember) {
+		if (queueNames.contains(queueName)) {
+			return false;
+		}
+
+		if (!isEolClientsMember) {
+			if (numConsumers <= 0) {
+				if (queueHasTimedOut(queueName, dateTimeIdleSince)) {
+					// Queue HAS timed out.
+					logger.debug("Queue Timed Out: " + queueName);
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+
+	/**
+	 *	If the queue has been idle for at least {@link #rabbitQueueTimeout} milliseconds then returns true.
+	 *
+	 * @param queueName
+	 * @param dateTimeIdleSince
+	 * @return
+	 */
+	protected boolean queueHasTimedOut(String queueName, Instant dateTimeIdleSince) {
+		if (queueNames.contains(queueName)) {
+			// System queues can NEVER timeout.
+			return false;
+		}
+
+		boolean queueHasTimedOut = false;
+		if (dateTimeIdleSince != null) {
+			DateTime currentDateTime = new DateTime(System.currentTimeMillis());
+			currentDateTime = currentDateTime.toDateTime(dateTimeIdleSince.getZone());
+			long timeDiffInMs = currentDateTime.toDate().getTime() - dateTimeIdleSince.toDate().getTime();
+			if (timeDiffInMs > rabbitQueueTimeout) {
+				// Queue HAS timed out.
+				logger.debug("Queue Timed Out: " + queueName);
+
+				queueHasTimedOut = true;
+			}
+		}
+		return queueHasTimedOut;
+	}
+
+	Collection<String> queueNames = null;
 	private ApplicationContext applicationContext = null;
 
 	@SuppressWarnings("unchecked")
@@ -585,5 +726,5 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 			queueNames.add(nextQueue.getName());
 		}
 	}
-
+	
 }

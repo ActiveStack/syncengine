@@ -21,6 +21,6 @@ public class ValidClientAspect {
 		//String clientId = "";
 		Boolean isValidClient = accessManager.validateClientByClientId(clientId);
 		if (!isValidClient)
-			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE);
+			throw new ClientException(ClientException.INVALID_CLIENT, ClientException.INVALID_CLIENT_CODE, "", clientId);
 	}
 }
