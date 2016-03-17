@@ -391,6 +391,10 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 //	@Scheduled(fixedRate=600000)	// 10 Minutes
 //	@Scheduled(fixedRate=30000)	// 30 Seconds
 	@Scheduled(fixedRate=300000)	// 5 Minutes
+	public void runValidateQueues() {
+		validateQueues();
+	}
+	
 	public boolean validateQueues() {
 		
 		synchronized (validatingQueues) {
