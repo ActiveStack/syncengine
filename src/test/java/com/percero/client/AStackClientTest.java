@@ -1,14 +1,16 @@
 package com.percero.client;
 
-import com.percero.agents.sync.jobs.UpdateTablePoller;
-import com.percero.test.utils.CleanerUtil;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import static org.junit.Assert.*;
+
+import com.percero.agents.sync.jobs.UpdateTablePoller;
+import com.percero.test.utils.CleanerUtil;
 
 /**
  * Created by jonnysamps on 9/14/15.
@@ -31,7 +33,7 @@ public class AStackClientTest {
         poller.enabled = false;
         cleanerUtil.cleanAll();
     }
-
+    
     @Test
     public void authenticateAnonymously(){
         AStackClient client = clientFactory.getClient();

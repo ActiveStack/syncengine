@@ -1,10 +1,11 @@
 package com.percero.client;
 
-import com.percero.agents.auth.vo.AuthenticationRequest;
-import com.percero.agents.auth.vo.AuthenticationResponse;
-import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import com.percero.agents.auth.services.AuthService2;
+import com.percero.agents.auth.vo.AuthenticationRequest;
+import com.percero.agents.auth.vo.AuthenticationResponse;
 
 /**
  * Main interface for communicating to the backend through AMQP
@@ -14,10 +15,11 @@ import org.springframework.stereotype.Component;
 public class AStackRPCService {
 
     @Autowired
-    AmqpTemplate amqpTemplate;
+    AuthService2 authService2;
 
     public AuthenticationResponse authenticate(AuthenticationRequest request){
-        return (AuthenticationResponse) amqpTemplate.convertSendAndReceive("authenticate", request);
+        AuthenticationResponse response = (AuthenticationResponse) authService2.authenticate(request);
+    	return response;
     }
 
 }

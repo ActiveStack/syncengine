@@ -867,7 +867,7 @@ public class UpdateTableProcessor implements Runnable{
         UpdateTableRow row = new UpdateTableRow();
         row.ID          = resultSet.getInt("ID");
         row.tableName   = resultSet.getString("tableName");
-        row.rowId       = resultSet.getString("row_id");
+        row.rowId       = resultSet.getString(connectionFactory.getRowIdColumnName());
         row.lockId      = resultSet.getInt(connectionFactory.getLockIdColumnName());
         row.lockDate    = resultSet.getDate(connectionFactory.getLockDateColumnName());
         try {

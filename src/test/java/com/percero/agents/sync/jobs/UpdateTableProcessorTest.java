@@ -26,18 +26,28 @@ import java.util.List;
 public class UpdateTableProcessorTest {
 
     @Autowired
-    UpdateTableConnectionFactory connectionFactory;
-    @Autowired
     UpdateTablePoller poller;
     @Autowired
     CleanerUtil cleanerUtil;
     @Autowired
     AuthUtil authUtil;
 
+    UpdateTableConnectionFactory connectionFactory = null;
     String tableName = "update_table";
 
     @Before
     public void before() throws Exception{
+    	
+    	connectionFactory = new UpdateTableConnectionFactory();
+    	connectionFactory.setDriverClassName("com.mysql.jdbc.Driver");
+    	connectionFactory.setJdbcUrl("jdbc:mysql://localhost:3306/as_Example?autoReconnect=true");
+    	connectionFactory.setUsername("root");
+    	connectionFactory.setPassword("root");
+		connectionFactory.setRowIdColumnName("rowID");
+		connectionFactory.setLockIdColumnName("lockID");
+		connectionFactory.setLockDateColumnName("lockDate");
+		connectionFactory.setTimestampColumnName("timestamp");
+    	
         // Disable the poller so it doesn't step on our toes
         poller.enabled = false;
         cleanerUtil.cleanAll();
@@ -50,28 +60,28 @@ public class UpdateTableProcessorTest {
         }
     }
 
-    @Test
+    @SuppressWarnings("rawtypes")
+	@Test
     public void getClassForTableName_NoTableAnnotation() throws Exception{
-    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
-        List<Class> clazz = processor.getClassesForTableName("Email");
-        Assert.assertEquals(Email.class, clazz);
+        List<Class> clazzes = processor.getClassesForTableName("Email");
+        Assert.assertTrue(clazzes.contains(Email.class));
     }
 
+    @SuppressWarnings("rawtypes")
     @Test
     public void getClassForTableName_TableAnnotation() throws Exception{
-    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
-        List<Class> clazz = processor.getClassesForTableName("Person");
-        Assert.assertEquals(Person.class, clazz);
+        List<Class> clazzes = processor.getClassesForTableName("Person");
+        Assert.assertTrue(clazzes.contains(Person.class));
     }
 
+    @SuppressWarnings("rawtypes")
     @Test
     public void getClassForTableName_NotFound() throws Exception{
-    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
-        List<Class> clazz = processor.getClassesForTableName("NotAnEntity");
-        Assert.assertNull(clazz);
+        List<Class> clazzes = processor.getClassesForTableName("NotAnEntity");
+        Assert.assertTrue(clazzes.isEmpty());
     }
 
     // Shared setup method
@@ -90,7 +100,6 @@ public class UpdateTableProcessorTest {
     @Test
     public void getRow() throws Exception {
         setupThreeRowsInUpdateTable();
-    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
         List<UpdateTableRow> rows = processor.getRows(1);
         UpdateTableRow row = rows.get(0);
@@ -116,7 +125,6 @@ public class UpdateTableProcessorTest {
     public void processMultipleRows() throws Exception {
         setupThreeRowsInUpdateTable();
 
-    	UpdateTableConnectionFactory connectionFactory = new UpdateTableConnectionFactory();
         UpdateTableProcessor processor = poller.getProcessor(connectionFactory, tableName);
 //        ProcessorResult result = processor.run();
 //        Assert.assertEquals(3, result.getTotal());

@@ -1,5 +1,7 @@
 package com.percero.agents.sync.jobs;
 
+import org.springframework.util.StringUtils;
+
 import com.percero.datasource.BaseConnectionFactory;
 
 /**
@@ -32,6 +34,14 @@ public class UpdateTableConnectionFactory extends BaseConnectionFactory {
 		this.storedProcedureDefinition = storedProcedureDefinition;
 	}
 
+	private String rowIdColumnName = "row_id";
+	public String getRowIdColumnName() {
+		return rowIdColumnName;
+	}
+	public void setRowIdColumnName(String rowIdColumnName) {
+		this.rowIdColumnName = rowIdColumnName;
+	}
+	
 	private String lockIdColumnName = "lock_id";
 	public String getLockIdColumnName() {
 		return lockIdColumnName;
@@ -56,11 +66,14 @@ public class UpdateTableConnectionFactory extends BaseConnectionFactory {
 		this.timestampColumnName = timestampColumnName;
 	}
 	
-    private String updateStatementSql = "update :tableName set " + getLockIdColumnName() + "=:lockId, " + getLockDateColumnName() + "=NOW() " +
-            "where " + getLockIdColumnName() + " is null or " +
-            getLockDateColumnName() + " < ':expireThreshold' " +
-            "order by " + getTimestampColumnName() + " limit :limit";
+    private String updateStatementSql = null;
 	public String getUpdateStatementSql() {
+		if (!StringUtils.hasText(updateStatementSql)) {
+			updateStatementSql = "update :tableName set " + getLockIdColumnName() + "=:lockId, " + getLockDateColumnName() + "=NOW() " +
+		            "where " + getLockIdColumnName() + " is null or " +
+		            getLockDateColumnName() + " < ':expireThreshold' " +
+		            "order by " + getTimestampColumnName() + " limit :limit";
+		}
 		return updateStatementSql;
 	}
 	public void setUpdateStatementSql(String updateStatementSql) {

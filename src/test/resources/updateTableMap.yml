@@ -1,0 +1,8 @@
+tableName: Email
+classNames:
+ - com.percero.example.Email
+---
+tableName: Person
+classNames:
+ - com.percero.example.Person
+---
