@@ -34,6 +34,7 @@
     <context:component-scan base-package="com.percero.amqp" />
 
     <!-- General Bean Definitions -->
+    <context:component-scan base-package="com.percero.agents.sync.connectors" />
     <context:component-scan base-package="com.percero.agents.sync.helpers" />
     <context:component-scan base-package="com.percero.agents.sync.datastore" />
     <context:component-scan base-package="com.percero.agents.sync.hibernate" />
@@ -154,7 +155,7 @@
     <rabbit:queue name="getAccessor" />
     <rabbit:queue name="getHistory" />
 
-    <rabbit:listener-container acknowledge="auto" concurrency="$pf{gateway.rabbitmq.concurrency:1}">
+    <rabbit:listener-container acknowledge="auto" concurrency="$pf{gateway.rabbitmq.concurrency:1}" id="defaultListenerContainer">
         <rabbit:listener
                 queue-names="authenticateOAuthCode, authenticate, reauthenticate, 42, authenticateOAuthAccessToken, 41, authenticateUserAccount, getServiceUsers, getOAuthRequestToken, getRegAppOAuths, getRegisteredApplication, getAllServiceProviders, logoutUser, testCall, validateUserByToken, 17, disconnectAuth, connect, reconnect, hibernate, upgradeClient, disconnect, logout, create, update, processTransaction, getChangeWatcher, findById, findByIds, findByExample, countAllByName, getAllByName, runQuery, runProcess, createObject, putObject, removeObject, updatesReceived, deletesReceived, searchByExample, delete, getAccessor, getHistory"
                 ref="perceroAgentListener" />
@@ -174,7 +175,7 @@
           destroy-method="close" id="dataSource1">
         <property name="driverClass" value="$pf{databaseAuth.driverClassName}" />
         <property name="jdbcUrl"
-                  value="jdbc:mysql://$pf{databaseAuth.host}:$pf{databaseAuth.port}/$pf{databaseAuth.dbname}?autoReconnect=true" />
+                  value="$pf{databaseAuth.jdbcUrl}" />
         <property name="user" value="$pf{databaseAuth.username}" />
         <property name="password" value="$pf{databaseAuth.password}" />
 
@@ -276,7 +277,7 @@
           destroy-method="close" id="dataSourceProject">
         <property name="driverClass" value="$pf{databaseProject.driverClassName}" />
         <property name="jdbcUrl"
-                  value="jdbc:mysql://$pf{databaseProject.host}:$pf{databaseProject.port}/$pf{databaseProject.dbname}?autoReconnect=true" />
+                  value="$pf{databaseProject.jdbcUrl}" />
         <property name="user" value="$pf{databaseProject.username}" />
         <property name="password" value="$pf{databaseProject.password}" />
 
