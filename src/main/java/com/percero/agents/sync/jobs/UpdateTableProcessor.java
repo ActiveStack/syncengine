@@ -787,7 +787,7 @@ public class UpdateTableProcessor implements Runnable{
                 }
 
                 if(count != updateNum)
-                    logger.error("Locked a "+updateNum+" rows but found "+count);
+                    logger.debug("Locked a "+updateNum+" rows but found "+count);
             }
         }
 
