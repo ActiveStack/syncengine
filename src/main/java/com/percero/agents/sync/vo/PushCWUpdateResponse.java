@@ -45,128 +45,128 @@ public class PushCWUpdateResponse extends SyncResponse {
 	
 	@SuppressWarnings("rawtypes")
 	public String toJson(ObjectMapper objectMapper) {
-		String objectJson = "{" + super.retrieveJson(objectMapper) + ",\"classIdPair\":";
+		StringBuilder objectJson = new StringBuilder("{").append(super.retrieveJson(objectMapper)).append(",\"classIdPair\":");
 		
 		if (getClassIdPair() != null) {
-			objectJson += getClassIdPair().toEmbeddedJson();
+			objectJson.append(getClassIdPair().toEmbeddedJson());
 		}
 		else {
-			objectJson += "null";
+			objectJson.append("null");
 		}
 
-		objectJson += ",\"fieldName\":";
+		objectJson.append(",\"fieldName\":");
 		if (getFieldName() == null)
-			objectJson += "null";
+			objectJson.append("null");
 		else {
 			if (objectMapper == null)
 				objectMapper = new ObjectMapper();
 			try {
-				objectJson += objectMapper.writeValueAsString(getFieldName());
+				objectJson.append(objectMapper.writeValueAsString(getFieldName()));
 			} catch (JsonGenerationException e) {
-				objectJson += "null";
+				objectJson.append("null");
 				e.printStackTrace();
 			} catch (JsonMappingException e) {
-				objectJson += "null";
+				objectJson.append("null");
 				e.printStackTrace();
 			} catch (IOException e) {
-				objectJson += "null";
+				objectJson.append("null");
 				e.printStackTrace();
 			}
 		}
 		
-		objectJson += ",\"params\":";
+		objectJson.append(",\"params\":");
 		if (getParams() == null)
-			objectJson += "null";
+			objectJson.append("null");
 		else {
-			objectJson += "[";
+			objectJson.append('[');
 			if (objectMapper == null)
 				objectMapper = new ObjectMapper();
 			int paramsCounter = 0;
 			for(String nextParam : getParams()) {
 				try {
 					if (paramsCounter > 0)
-						objectJson += ",";
-					objectJson += objectMapper.writeValueAsString(nextParam);
+						objectJson.append(',');
+					objectJson.append(objectMapper.writeValueAsString(nextParam));
 					paramsCounter++;
 				} catch (JsonGenerationException e) {
-					objectJson += "null";
+					objectJson.append("null");
 					e.printStackTrace();
 				} catch (JsonMappingException e) {
-					objectJson += "null";
+					objectJson.append("null");
 					e.printStackTrace();
 				} catch (IOException e) {
-					objectJson += "null";
+					objectJson.append("null");
 					e.printStackTrace();
 				}
 			}
-			objectJson += "]";
+			objectJson.append(']');
 		}
 		
-		objectJson += ",\"value\":";
+		objectJson.append(",\"value\":");
 		if (value == null) {
-			objectJson += "null";
+			objectJson.append("null");
 		}
 		else {
 			if (getValue() instanceof BaseDataObject) {
-				objectJson += ((BaseDataObject) getValue()).toEmbeddedJson();
+				objectJson.append(((BaseDataObject) getValue()).toEmbeddedJson());
 			}
 			else if (getValue() instanceof Collection) {
 				Collection collection = (Collection) getValue();
 				if (objectMapper == null)
 					objectMapper = new ObjectMapper();
 				
-				objectJson += "[";
+				objectJson.append('[');
 				int collectionCounter = 0;
 				for(Object nextCollectionObject : collection) {
 					if (collectionCounter > 0)
-						objectJson += ",";
+						objectJson.append(',');
 					if (nextCollectionObject instanceof BaseDataObject) {
-						objectJson += ((BaseDataObject) nextCollectionObject).toEmbeddedJson();
+						objectJson.append(((BaseDataObject) nextCollectionObject).toEmbeddedJson());
 					}
 					else {
 						try {
-							objectJson += objectMapper.writeValueAsString(nextCollectionObject);
+							objectJson.append(objectMapper.writeValueAsString(nextCollectionObject));
 						} catch (JsonGenerationException e) {
-							objectJson += "null";
+							objectJson.append("null");
 							e.printStackTrace();
 						} catch (JsonMappingException e) {
-							objectJson += "null";
+							objectJson.append("null");
 							e.printStackTrace();
 						} catch (IOException e) {
-							objectJson += "null";
+							objectJson.append("null");
 							e.printStackTrace();
 						}
 					}
 					
 					collectionCounter++;
 				}
-				objectJson += "]";
+				objectJson.append(']');
 			}
 			else {
 				if (getValue() == null)
-					objectJson += "null";
+					objectJson.append("null");
 				else {
 					if (objectMapper == null)
 						objectMapper = new ObjectMapper();
 					try {
-						objectJson += objectMapper.writeValueAsString(getValue());
+						objectJson.append(objectMapper.writeValueAsString(getValue()));
 					} catch (JsonGenerationException e) {
-						objectJson += "null";
+						objectJson.append("null");
 						e.printStackTrace();
 					} catch (JsonMappingException e) {
-						objectJson += "null";
+						objectJson.append("null");
 						e.printStackTrace();
 					} catch (IOException e) {
-						objectJson += "null";
+						objectJson.append("null");
 						e.printStackTrace();
 					}
 				}
 			}
 		}
 		
-		objectJson += "}";
+		objectJson.append('}');
 		
-		return objectJson;
+		return objectJson.toString();
 	}
 
 }

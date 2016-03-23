@@ -17,15 +17,15 @@ public class FindByIdsResponse extends SyncResponse {
 	
 	@Override
 	public String retrieveBaseJson(ObjectMapper objectMapper) {
-		String objectJson = super.retrieveBaseJson(objectMapper) + ",\"result\":[";
+		StringBuilder objectJson = new StringBuilder(super.retrieveBaseJson(objectMapper) + ",\"result\":[");
 		int counter = 0;
 		for(BaseDataObject nextBDO : getResult()) {
 			if (counter > 0)
-				objectJson += ",";
-			objectJson += nextBDO.toJson(objectMapper);
+				objectJson.append(',');
+			objectJson.append(nextBDO.toJson(objectMapper));
 			counter++;
 		}
-		objectJson += "]";
-		return objectJson;
+		objectJson.append(']');
+		return objectJson.toString();
 	}
 }

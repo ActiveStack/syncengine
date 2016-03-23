@@ -16,8 +16,7 @@ public class FindByIdResponse extends SyncResponse {
 	
 	@Override
 	public String retrieveBaseJson(ObjectMapper objectMapper) {
-		String objectJson = super.retrieveBaseJson(objectMapper) + ",";
-		objectJson += "\"result\":" + (getResult() == null ? "null" : getResult().toJson(objectMapper));
+		String objectJson = super.retrieveBaseJson(objectMapper) + ",\"result\":" + (getResult() == null ? "null" : getResult().toJson(objectMapper));
 		return objectJson;
 	}
 }

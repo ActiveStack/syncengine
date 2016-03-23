@@ -100,47 +100,69 @@ public class SyncResponse {
 	}
 	
 	public String retrieveBaseJson(ObjectMapper objectMapper) {
-		String objectJson = "\"cn\":\"" + getClass().getCanonicalName() + "\"," + 
-				"\"clientId\":" + (getClientId() == null ? "null" : "\"" + getClientId() + "\"") + "," +
-				"\"timestamp\":" + getTimestamp().toString() + ",";
+		StringBuilder objectJson = new StringBuilder("\"cn\":\"").append(getClass().getCanonicalName()).append("\",")
+				.append("\"clientId\":");
+		
+		if (getClientId() == null) {
+			objectJson.append("null");
+		}
+		else {
+			objectJson.append('"').append(getClientId()).append('"');
+		}
+
+		objectJson.append(',').append("\"timestamp\":").append(getTimestamp().toString()).append(',');
 		
 		if (getIds() != null) {
-			objectJson += "\"ids\":[";
+			objectJson.append("\"ids\":[");
 			int idsCounter = 0;
 			for(String nextId : getIds()) {
 				if (idsCounter > 0)
-					objectJson += ",";
-				objectJson += "\"" + nextId + "\"";
+					objectJson.append(',');
+				objectJson.append('"').append(nextId).append('"');
 				idsCounter++;
 			}
-			objectJson += "],";
+			objectJson.append("],");
 		}
 		else {
-			objectJson += "\"ids\":null,";
+			objectJson.append("\"ids\":null,");
 		}
 		
 		try {
 			if (objectMapper == null)
 				objectMapper = new ObjectMapper();
-			objectJson += "\"data\":" + (getData() == null ? "null" : objectMapper.writeValueAsString(getData())) + ",";
+			objectJson.append("\"data\":").append((getData() == null ? "null" : objectMapper.writeValueAsString(getData()))).append(',');
 		} catch (JsonGenerationException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			objectJson += "\"data\":null";
+			objectJson.append("\"data\":null");
 		} catch (JsonMappingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			objectJson += "\"data\":null";
+			objectJson.append("\"data\":null");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			objectJson += "\"data\":null";
+			objectJson.append("\"data\":null");
 		}				
 
-		objectJson += "\"type\":" + (getType() == null ? "null" : "\"" + getType() + "\"") + "," +
-				"\"correspondingMessageId\":" + (getCorrespondingMessageId() == null ? "null" : "\"" + getCorrespondingMessageId() + "\"") + "," +
-				"\"gatewayMessageId\":" + (getGatewayMessageId() == null ? "null" : "\"" + getGatewayMessageId() + "\"");
+		objectJson.append("\"type\":").append((getType() == null ? "null" : "\"" + getType() + "\"")).append(',')
+				.append("\"correspondingMessageId\":");
 		
-		return objectJson;
+		if (getCorrespondingMessageId() == null) {
+			objectJson.append("null");
+		}
+		else {
+			objectJson.append('"').append(getCorrespondingMessageId()).append('"');
+		}
+		objectJson.append(',').append("\"gatewayMessageId\":");
+		
+		if (getGatewayMessageId() == null) {
+			objectJson.append("null");
+		}
+		else {
+			objectJson.append('"').append(getGatewayMessageId()).append('"');
+		}
+		
+		return objectJson.toString();
 	}
 }

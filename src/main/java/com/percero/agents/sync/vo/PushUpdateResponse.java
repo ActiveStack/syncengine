@@ -37,15 +37,15 @@ public class PushUpdateResponse extends SyncResponse {
 	
 	public String toJson(ObjectMapper objectMapper) {
 		if (objectJson == null) {
-			String objectListJson = "";
+			StringBuilder objectListJson = new StringBuilder();
 			int objectCounter = 0;
 			for(BaseDataObject nextObject : getObjectList()) {
 				if (objectCounter > 0)
-					objectListJson += ",";
-				objectListJson += nextObject.toJson();
+					objectListJson.append(',');
+				objectListJson.append(nextObject.toJson());
 				objectCounter++;
 			}
-			return toJson(objectListJson, objectMapper);
+			return toJson(objectListJson.toString(), objectMapper);
 		}
 		else {
 			return toJson(objectJson, objectMapper);
@@ -61,8 +61,8 @@ public class PushUpdateResponse extends SyncResponse {
 	}
 	
 	public String toJson(String objectListJson, ObjectMapper objectMapper) {
-		String objectJson = "{" + super.retrieveJson(objectMapper) + ",\"objectList\":[";
-		objectJson += objectListJson + "],\"updatedFields\":[";
+		StringBuilder objectJson = new StringBuilder("{").append(super.retrieveJson(objectMapper)).append(",\"objectList\":[")
+				.append(objectListJson).append("],\"updatedFields\":[");
 
 		int partialsCounter = 0;
 		if (getUpdatedFields() != null) {
@@ -70,19 +70,19 @@ public class PushUpdateResponse extends SyncResponse {
 			while (itrUpdatedFields.hasNext()) {
 				String nextField = itrUpdatedFields.next();
 				if (partialsCounter > 0)
-					objectJson += ",";
-				objectJson += "\"" + nextField + "\"";	// Because this is a field name we shouldn't need any special string transforms.
+					objectJson.append(',');
+				objectJson.append('"').append(nextField).append('"');	// Because this is a field name we shouldn't need any special string transforms.
 				partialsCounter++;
 			}
 		}
 		else {
-			objectJson += "null";
+			objectJson.append("null");
 		}
 		
-		objectJson += "]";
+		objectJson.append(']');
 
-		objectJson += "}";
-		return objectJson;
+		objectJson.append('}');
+		return objectJson.toString();
 	}
 
 }

@@ -18,15 +18,15 @@ public class PushDeleteResponse extends SyncResponse {
 	
 	public String toJson(ObjectMapper objectMapper) {
 		if (objectJson == null) {
-			String objectListJson = "";
+			StringBuilder objectListJson = new StringBuilder();
 			int objectCounter = 0;
 			for(RemovedClassIDPair nextObject : getObjectList()) {
 				if (objectCounter > 0)
-					objectListJson += ",";
-				objectListJson += nextObject.toEmbeddedJson();
+					objectListJson.append(',');
+				objectListJson.append(nextObject.toEmbeddedJson());
 				objectCounter++;
 			}
-			return toJson(objectListJson, objectMapper);
+			return toJson(objectListJson.toString(), objectMapper);
 		}
 		else {
 			return toJson(objectJson, objectMapper);
@@ -39,8 +39,7 @@ public class PushDeleteResponse extends SyncResponse {
 	}
 	
 	public String toJson(String objectListJson, ObjectMapper objectMapper) {
-		String objectJson = "{" + super.retrieveJson(objectMapper) + ",\"objectList\":[";
-		objectJson += objectListJson + "]}";
+		String objectJson = "{" + super.retrieveJson(objectMapper) + ",\"objectList\":[" + objectListJson + "]}";
 		return objectJson;
 	}
 }

@@ -22,31 +22,31 @@ public class PushObjectUpdate extends SyncResponse {
 	
 	@Override
 	public String retrieveBaseJson(ObjectMapper objectMapper) {
-		String objectJson = super.retrieveBaseJson(objectMapper) + ",";
-		objectJson += "\"result\":" + (getResult() == null ? "null" : getResult().toJson(objectMapper));
+		StringBuilder objectJson = new StringBuilder(super.retrieveBaseJson(objectMapper)).append(',')
+				.append("\"result\":").append((getResult() == null ? "null" : getResult().toJson(objectMapper)));
 
-		objectJson += ",\"fieldNames\":[";
+		objectJson.append(",\"fieldNames\":[");
 		if (getFieldNames() != null && getFieldNames().length > 0) {
 			if (objectMapper == null)
 				objectMapper = new ObjectMapper();
 			for(int i=0; i < getFieldNames().length; i++) {
 				try {
-					objectJson += objectMapper.writeValueAsString(getFieldNames()[i]);
+					objectJson.append(objectMapper.writeValueAsString(getFieldNames()[i]));
 				} catch (JsonGenerationException e) {
-					objectJson += "null";
+					objectJson.append("null");
 					e.printStackTrace();
 				} catch (JsonMappingException e) {
-					objectJson += "null";
+					objectJson.append("null");
 					e.printStackTrace();
 				} catch (IOException e) {
-					objectJson += "null";
+					objectJson.append("null");
 					e.printStackTrace();
 				}
 			}
 		}
-		objectJson += "]";
+		objectJson.append(']');
 
-		return objectJson;
+		return objectJson.toString();
 	}
 	
 	private String[] fieldNames;

@@ -17,15 +17,15 @@ public class SearchByExampleResponse extends SyncResponse {
 	
 	@Override
 	public String retrieveBaseJson(ObjectMapper objectMapper) {
-		String objectJson = super.retrieveBaseJson(objectMapper) + ",\"result\":[";
+		StringBuilder objectJson = new StringBuilder(super.retrieveBaseJson(objectMapper)).append(",\"result\":[");
 		int counter = 0;
 		for(BaseDataObject nextBDO : result) {
 			if (counter > 0)
-				objectJson += ",";
-			objectJson += nextBDO.toJson(objectMapper);
+				objectJson.append(',');
+			objectJson.append(nextBDO.toJson(objectMapper));
 			counter++;
 		}
-		objectJson += "]";
-		return objectJson;
+		objectJson.append(']');
+		return objectJson.toString();
 	}
 }
