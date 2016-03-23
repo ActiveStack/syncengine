@@ -43,7 +43,12 @@ public class SyncMessageHandler {
 			response = handleMessage(request, replyTo);
 		} catch(SyncException e) {
 			if (ClientException.INVALID_CLIENT.equals(e.getName())) {
-				log.debug("Invalid Client - Setting response to NULL");
+				if (e instanceof ClientException) {
+					log.debug("Invalid Client (" + ((ClientException) e).getClientId() + ") - Setting response to NULL", e);
+				}
+				else {
+					log.debug("Invalid Client - Setting response to NULL", e);
+				}
 				
 				// No need to send a response to an invalid client.
 				response = null;
