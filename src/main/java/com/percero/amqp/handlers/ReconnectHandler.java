@@ -91,14 +91,16 @@ public class ReconnectHandler extends SyncMessageHandler {
 			reconnectRequest.getExistingClientIds()[0] = reconnectRequest.getExistingClientId();
 		}
 
+		String matchingClientId = null;
 		for(int i=0; i<reconnectRequest.getExistingClientIds().length; i++) {
 			if ( existingClientIds.contains(reconnectRequest.getExistingClientIds()[i]) ) {
+				matchingClientId = reconnectRequest.getExistingClientIds()[i];
 				foundMatchingClientId = true;
 				break;
 			}
 		}
 		if ( foundMatchingClientId ) {
-			log.debug("RECONNECT: Existing Client IDs Match!");
+			log.debug("RECONNECT: Existing Client IDs Match! " + matchingClientId + "/" + reconnectRequest.getUserId() + " (" + existingClientIds.size() + " clientIds known by server, " + reconnectRequest.getExistingClientIds().length + " clientIds known by client)");
 		}
 		else {
 			log.error("RECONNECT: Existing Client IDs Do NOT Match...");
@@ -128,27 +130,29 @@ public class ReconnectHandler extends SyncMessageHandler {
 			}
 			
 			// Check to see if UserDevice exists.
-			Iterator<String> itrExistingClientIds = existingClientIds.iterator();
-			while (itrExistingClientIds.hasNext()) {
-				String existingClientId = itrExistingClientIds.next();
-				if (existingClientId.equalsIgnoreCase(replyTo)) {
-					// We have already retrieved the Journals for this client IDs.
-					continue;
+			if (existingClientIds != null && !existingClientIds.isEmpty()) {
+				Iterator<String> itrExistingClientIds = existingClientIds.iterator();
+				while (itrExistingClientIds.hasNext()) {
+					String existingClientId = itrExistingClientIds.next();
+					if (existingClientId.equalsIgnoreCase(replyTo)) {
+						// We have already retrieved the Journals for this client IDs.
+						continue;
+					}
+	
+					// ExistingClientId is different than new clientId, need to transfer all messages from old queue and then remove that queue.
+					log.debug("Renaming client " + existingClientId + " to " + replyTo);
+					pushSyncHelper.renameClient(existingClientId, replyTo);
+					
+					// TODO: Do we need to also get updates/deletes for existingClientId?
+	
+					// Push all UpdateJournals for this Client.
+					updateJournals.addAll( accessManager.getClientUpdateJournals(existingClientId, true) );
+					log.debug((updateJournals != null ? updateJournals.size() : 0) + " updateJournal(s) for Client");
+					
+					// Push all DeleteJournals for this Client.
+					deleteJournals.addAll( accessManager.getClientDeleteJournals(existingClientId, true) );
+					log.debug((deleteJournals != null ? deleteJournals.size() : 0) + " deleteJournal(s) for Client");
 				}
-
-				// ExistingClientId is different than new clientId, need to transfer all messages from old queue and then remove that queue.
-				log.debug("Renaming client " + existingClientId + " to " + replyTo);
-				pushSyncHelper.renameClient(existingClientId, replyTo);
-				
-				// TODO: Do we need to also get updates/deletes for existingClientId?
-
-				// Push all UpdateJournals for this Client.
-				updateJournals.addAll( accessManager.getClientUpdateJournals(existingClientId, true) );
-				log.debug((updateJournals != null ? updateJournals.size() : 0) + " updateJournal(s) for Client");
-				
-				// Push all DeleteJournals for this Client.
-				deleteJournals.addAll( accessManager.getClientDeleteJournals(existingClientId, true) );
-				log.debug((deleteJournals != null ? deleteJournals.size() : 0) + " deleteJournal(s) for Client");
 			}
 
 //			syncAgentService.pushClientUpdateJournals(reconnectRequest.getClientId(), updateJournals);
