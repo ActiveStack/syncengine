@@ -569,8 +569,10 @@ public class DAODataProvider implements IDataProvider {
             while (itrResults.hasNext()) {
                 IPerceroObject nextResult = itrResults.next();
                 try {
-                    populateToManyRelationships(nextResult, true, null);
-                    populateToOneRelationships(nextResult, true, null);
+                	if (!shellOnly) {
+	                    populateToManyRelationships(nextResult, true, null);
+	                    populateToOneRelationships(nextResult, true, null);
+                	}
                 } catch (IllegalArgumentException e) {
                     e.printStackTrace();
                     throw new SyncDataException(e);
@@ -584,10 +586,12 @@ public class DAODataProvider implements IDataProvider {
             }
         }
 
-        putObjectsInRedisCache(results);
-
-        // Now clean the objects for the user.
-        results = cleanObject(results, userId);
+        if (!shellOnly) {
+        	putObjectsInRedisCache(results);
+        	
+        	// Now clean the objects for the user.
+        	results = cleanObject(results, userId);
+        }
 
         return results;
     }
