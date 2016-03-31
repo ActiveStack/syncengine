@@ -31,6 +31,10 @@ public class SyncDataException extends SyncException{
 		super(name, code, desc);
 	}
 	
+	public SyncDataException(String name, Integer code, Throwable t) {
+		super(name, code, t);
+	}
+	
 	public SyncDataException(String name, Integer code) {
 		super(name, code);
 	}

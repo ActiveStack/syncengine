@@ -41,6 +41,12 @@ public class SyncException extends Exception {
 		this.setCode(code);
 	}
 	
+	public SyncException(String name, Integer code, Throwable t) {
+		super(t);
+		this.setName(name);
+		this.setCode(code);
+	}
+	
 	public SyncException(Throwable t) {
 		super(t);
 	}
