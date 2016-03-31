@@ -251,7 +251,7 @@ public class GoogleHelper implements IAuthHelper {
 				return serviceUser;
 			}
 		} catch(Exception e) {
-			log.error("Unable to get authenticate oauth code", e);
+			log.error("Unable to get authenticate oauth code: " + e.getMessage());
 			return null;
 		}
 	}
