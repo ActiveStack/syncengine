@@ -1774,5 +1774,11 @@ public class MappedClass implements IMappedClass {
 			this.method = method;
 		}
 	}
-
+	
+	public IPerceroObject newPerceroObject() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+		IPerceroObject result = null;
+		result = (IPerceroObject) clazz.newInstance();		
+		return result;
+	}
+	
 }
