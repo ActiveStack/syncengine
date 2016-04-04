@@ -2,8 +2,10 @@ package com.percero.serial;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
@@ -13,6 +15,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.percero.agents.sync.metadata.MappedClass;
+import com.percero.agents.sync.vo.IJsonObject;
 import com.percero.framework.vo.IPerceroObject;
 
 public class JsonUtils {
@@ -222,4 +225,16 @@ public class JsonUtils {
 		return result;
 	}
 
+    @SuppressWarnings("rawtypes")
+    static final Map<Class, Boolean> iJsonObjectAssignableClasses = new HashMap<Class, Boolean>();
+    @SuppressWarnings("rawtypes")
+	public static boolean isClassAssignableFromIJsonObject(Class clazz) {
+    	Boolean result = iJsonObjectAssignableClasses.get(clazz);
+    	if (result == null) {
+            result = IJsonObject.class.isAssignableFrom(clazz);
+            iJsonObjectAssignableClasses.put(clazz, result);
+    	}
+    	return result;
+    }
+    
 }

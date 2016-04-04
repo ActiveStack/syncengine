@@ -14,11 +14,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.CtField;
-import javassist.CtMethod;
-
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.hibernate.PropertyValueException;
@@ -46,6 +41,12 @@ import com.percero.agents.sync.vo.ClassIDPairs;
 import com.percero.agents.sync.vo.IJsonObject;
 import com.percero.framework.vo.IPerceroObject;
 import com.percero.framework.vo.PerceroList;
+import com.percero.serial.JsonUtils;
+
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.CtField;
+import javassist.CtMethod;
 
 @Component
 public class DAODataProvider implements IDataProvider {
@@ -92,28 +93,42 @@ public class DAODataProvider implements IDataProvider {
     public PerceroList<IPerceroObject> getAllByName(String className, Integer pageNumber, Integer pageSize, Boolean returnTotal, String userId) throws Exception {
         IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(className);
         PerceroList<IPerceroObject> results = dao.getAll(pageNumber, pageSize, returnTotal, userId, false);
+        List<IPerceroObject> resultsToCache = new ArrayList<IPerceroObject>();
 
         if (results != null && !results.isEmpty()) {
             Iterator<? extends IPerceroObject> itrResults = results.iterator();
             while (itrResults.hasNext()) {
                 IPerceroObject nextResult = itrResults.next();
-                try {
-                    populateToManyRelationships(nextResult, true, null);
-                    populateToOneRelationships(nextResult, true, null);
-                } catch (IllegalArgumentException e) {
-                    e.printStackTrace();
-                    throw new SyncDataException(e);
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                    throw new SyncDataException(e);
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
-                    throw new SyncDataException(e);
+                
+                // If the object is in the cache, then we can use that instead of querying the database AGAIN for related objects.
+                IPerceroObject cachedResult = retrieveFromRedisCache(BaseDataObject.toClassIdPair(nextResult));
+                if (cachedResult != null) {
+                	results.set(results.indexOf(nextResult), cachedResult);
+                	nextResult = cachedResult;
+                }
+                else {
+	                try {
+	                    populateToManyRelationships(nextResult, true, null);
+	                    populateToOneRelationships(nextResult, true, null);
+	                    resultsToCache.add(nextResult);
+	                } catch (IllegalArgumentException e) {
+	                    e.printStackTrace();
+	                    throw new SyncDataException(e);
+	                } catch (IllegalAccessException e) {
+	                    e.printStackTrace();
+	                    throw new SyncDataException(e);
+	                } catch (InvocationTargetException e) {
+	                    e.printStackTrace();
+	                    throw new SyncDataException(e);
+	                }
                 }
             }
         }
 
-        putObjectsInRedisCache(results);
+        // We only need to put non-cached results into the cache.
+        if (!resultsToCache.isEmpty()) {
+        	putObjectsInRedisCache(resultsToCache);
+        }
 
         // Now clean the objects for the user.
         List<IPerceroObject> cleanedObjects = cleanObject(results, userId);
@@ -236,8 +251,11 @@ public class DAODataProvider implements IDataProvider {
     public IPerceroObject findById(ClassIDPair classIdPair, String userId) {
         return findById(classIdPair, userId, false);
     }
-    @SuppressWarnings("unchecked")
     public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache) {
+    	return findById(classIdPair, userId, false, false);
+    }
+    @SuppressWarnings("unchecked")
+    public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache, Boolean shellOnly) {
 
         try {
             IPerceroObject result = null;
@@ -249,13 +267,17 @@ public class DAODataProvider implements IDataProvider {
 
                 IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(classIdPair.getClassName());
                 // Retrieve results BEFORE applying access rules so that our cached value represents the full object.
-                result = dao.retrieveObject(classIdPair, null, false);
+                result = dao.retrieveObject(classIdPair, null, shellOnly);
 
                 // Now put the object in the cache.
                 if (result != null) {
-                	populateToManyRelationships(result, true, null);
-                	populateToOneRelationships(result, true, null);
-                    putObjectInRedisCache(result);
+                	if (!shellOnly) {
+                		// No need to populate relationships when only a shell object.
+	                	populateToManyRelationships(result, true, null);
+	                	populateToOneRelationships(result, true, null);
+	                	// We don't want to put a shell object in the cache.
+	                    putObjectInRedisCache(result, false);
+                	}
                 }
                 else {
                     // Not necessarily a problem but could be helpful when debugging.
@@ -265,9 +287,17 @@ public class DAODataProvider implements IDataProvider {
             else {
                 // (Re)Set the expiration.
                 setObjectExpiration(result);
+                
+                if (shellOnly) {
+                	// If we only want a shell object, then don't return the full object from the cache.
+                	IPerceroObject shellResult = result.getClass().newInstance();
+                	shellResult.setID(result.getID());
+                }
             }
 
-            result = cleanObject(result, userId);
+            if (!shellOnly) {
+            	result = cleanObject(result, userId);
+            }
 
             return result;
         } catch(Exception e) {
@@ -278,15 +308,18 @@ public class DAODataProvider implements IDataProvider {
     }
 
 
-    private void putObjectInRedisCache(IPerceroObject perceroObject) {
+    private void putObjectInRedisCache(IPerceroObject perceroObject, boolean onlyIfExists) {
         // Now put the object in the cache.
         if (cacheTimeout > 0 && perceroObject != null) {
             String key = RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID());
-            cacheDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
-            setObjectExpiration(key);
             
-            String classKey = RedisKeyUtils.classIds(perceroObject.getClass().getCanonicalName());
-            cacheDataStore.setSetValue(classKey, perceroObject.getID());
+            if (!onlyIfExists || cacheDataStore.hasKey(key)) {
+	            cacheDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
+	            setObjectExpiration(key);
+	            
+	            String classKey = RedisKeyUtils.classIds(perceroObject.getClass().getCanonicalName());
+	            cacheDataStore.setSetValue(classKey, perceroObject.getID());
+            }
         }
     }
 
@@ -381,7 +414,7 @@ public class DAODataProvider implements IDataProvider {
             String key = RedisKeyUtils.classIdPair(classIdPair.getClassName(), classIdPair.getID());
             String jsonObjectString = (String) cacheDataStore.getValue(key);
             if (jsonObjectString != null) {
-                if (IJsonObject.class.isAssignableFrom(theClass)) {
+                if (JsonUtils.isClassAssignableFromIJsonObject(theClass)) {
                     IJsonObject jsonObject = (IJsonObject) theClass.newInstance();
                     jsonObject.fromJson(jsonObjectString);
                     result = (IPerceroObject) jsonObject;
@@ -446,7 +479,7 @@ public class DAODataProvider implements IDataProvider {
             while (itrJsonObjectStrings.hasNext()) {
                 String jsonObjectString = (String) itrJsonObjectStrings.next();
                 if (jsonObjectString != null) {
-                    if (IJsonObject.class.isAssignableFrom(theClass)) {
+                    if (JsonUtils.isClassAssignableFromIJsonObject(theClass)) {
                         IJsonObject jsonObject = (IJsonObject) theClass.newInstance();
                         jsonObject.fromJson(jsonObjectString);
                         if (jsonObject instanceof BaseDataObject) {
@@ -563,31 +596,44 @@ public class DAODataProvider implements IDataProvider {
     public List<IPerceroObject> findByExample(IPerceroObject theQueryObject, List<String> excludeProperties, String userId, Boolean shellOnly) throws SyncException {
         IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(theQueryObject.getClass().getCanonicalName());
         List<IPerceroObject> results = dao.findByExample(theQueryObject, excludeProperties, userId, shellOnly);
+        List<IPerceroObject> resultsToCache = new ArrayList<IPerceroObject>();
 
         if (results != null && !results.isEmpty()) {
             Iterator<? extends IPerceroObject> itrResults = results.iterator();
             while (itrResults.hasNext()) {
                 IPerceroObject nextResult = itrResults.next();
-                try {
-                	if (!shellOnly) {
-	                    populateToManyRelationships(nextResult, true, null);
-	                    populateToOneRelationships(nextResult, true, null);
-                	}
-                } catch (IllegalArgumentException e) {
-                    e.printStackTrace();
-                    throw new SyncDataException(e);
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                    throw new SyncDataException(e);
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
-                    throw new SyncDataException(e);
-                }
+
+            	if (!shellOnly) {
+            		try {
+		                // If the object is in the cache, then we can use that instead of querying the database AGAIN for related objects.
+		                IPerceroObject cachedResult = retrieveFromRedisCache(BaseDataObject.toClassIdPair(nextResult));
+		                if (cachedResult != null) {
+		                	results.set(results.indexOf(nextResult), cachedResult);
+		                	nextResult = cachedResult;
+		                }
+		                else {
+		                    populateToManyRelationships(nextResult, true, null);
+		                    populateToOneRelationships(nextResult, true, null);
+		                    
+		                    resultsToCache.add(nextResult);
+		                }
+            		} catch (IllegalArgumentException e) {
+            			throw new SyncDataException(e);
+            		} catch (IllegalAccessException e) {
+            			throw new SyncDataException(e);
+            		} catch (InvocationTargetException e) {
+            			throw new SyncDataException(e);
+            		} catch (Exception e) {
+            			throw new SyncDataException(e);
+					}
+            	}
             }
         }
 
         if (!shellOnly) {
-        	putObjectsInRedisCache(results);
+        	if (!resultsToCache.isEmpty()) {
+        		putObjectsInRedisCache(resultsToCache);
+        	}
         	
         	// Now clean the objects for the user.
         	results = cleanObject(results, userId);
@@ -609,12 +655,15 @@ public class DAODataProvider implements IDataProvider {
             else {
                 // Check to see if item already exists.
             	try {
-	                IPerceroObject existingObject = dao.retrieveObject(BaseDataObject.toClassIdPair(perceroObject), null, false);
-	                if (existingObject != null)
-	                {
-	                    populateToManyRelationships(perceroObject, true, null);
-	                    populateToOneRelationships(perceroObject, true, null);
-	                    return (T) cleanObject(perceroObject, userId);
+					// We want to see if this object already exists, we will
+					// check the cache first, then the database.
+					// We search without a UserID in the case that the object
+					// exists, but the user does NOT have access to
+					// it. Then we clean the object after retrieval (if it has
+					// been found)
+	                IPerceroObject existingObject = findById(BaseDataObject.toClassIdPair(perceroObject), null);
+	                if (existingObject != null) {
+	                	return (T) cleanObject(existingObject, userId);
 	                }
             	} catch( Exception e) {
             		log.debug("Error retrieving object on create", e);
@@ -711,52 +760,51 @@ public class DAODataProvider implements IDataProvider {
     @SuppressWarnings("unchecked")
     public <T extends IPerceroObject> T putObject(T perceroObject, Map<ClassIDPair, Collection<MappedField>> changedFields, String userId) throws SyncException {
         IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(perceroObject.getClass().getCanonicalName());
-        perceroObject = (T) dao.updateObject(perceroObject, changedFields, userId);
+        IPerceroObject updateResultObject = (T) dao.updateObject(perceroObject, changedFields, userId);
+        
+        if (updateResultObject == null) {
+        	// The update failed, so we can return here.
+        	return null;
+        }
 
         try {
-            populateToManyRelationships(perceroObject, true, null);
-            populateToOneRelationships(perceroObject, true, null);
+        	// Overwrite the related objects.  No need to go to the database since these could NOT have changed in this update.
+        	overwriteToManyRelationships(updateResultObject, perceroObject);
+        	overwriteToOneRelationships(updateResultObject, perceroObject);
         } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-            throw new SyncException(e);
+            throw new SyncDataException(SyncDataException.UPDATE_OBJECT_ERROR, SyncDataException.UPDATE_OBJECT_ERROR_CODE, e);
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            throw new SyncException(e);
+            throw new SyncException(SyncDataException.UPDATE_OBJECT_ERROR, SyncDataException.UPDATE_OBJECT_ERROR_CODE, e);
         } catch (InvocationTargetException e) {
-            e.printStackTrace();
-            throw new SyncException(e);
+            throw new SyncException(SyncDataException.UPDATE_OBJECT_ERROR, SyncDataException.UPDATE_OBJECT_ERROR_CODE, e);
         }
         // Now update the cache.
         if (cacheTimeout > 0) {
             // TODO: Also need to update the caches of anything object that is related to this object.
-            String key = RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID());
-            if (cacheDataStore.hasKey(key)) {
-                cacheDataStore.setValue(key, ((BaseDataObject)perceroObject).toJson());
-            }
+        	putObjectInRedisCache(updateResultObject, true);
 
-            List<ClassIDPair> pairsToDelete = new ArrayList<ClassIDPair>();
+            List<ClassIDPair> cachePairsToUpdate = new ArrayList<ClassIDPair>();
             // Iterate through each changed object and reset the cache for that object.
             if (changedFields != null) {
-                Iterator<ClassIDPair> itrChangedFieldKeyset = changedFields.keySet().iterator();
-                while (itrChangedFieldKeyset.hasNext()) {
-                    ClassIDPair thePair = itrChangedFieldKeyset.next();
-                    if (!thePair.comparePerceroObject(perceroObject)) {
-                    	pairsToDelete.add(thePair);
-//                        String nextKey = RedisKeyUtils.classIdPair(thePair.getClassName(), thePair.getID());
-//                        pairsToDelete.add(nextKey);
-                    }
-                }
+            	Iterator<Entry<ClassIDPair, Collection<MappedField>>> itrChangedFieldEntrySet = changedFields.entrySet().iterator();
+            	while (itrChangedFieldEntrySet.hasNext()) {
+            		Entry<ClassIDPair, Collection<MappedField>> nextEntry = itrChangedFieldEntrySet.next();
+        			ClassIDPair thePair = nextEntry.getKey();
+        			Collection<MappedField> mappedFields = nextEntry.getValue();
+					handleUpdatedClassIdPair(updateResultObject, thePair, mappedFields, userId);
+            	}
             }
             else {
+            	log.error("No Changed fields when updating object " + perceroObject.getClass().getCanonicalName() + "::" + perceroObject.getID());
                 // No changedFields?  We should never get here?
                 IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-                MappedClass mappedClass = mcm.getMappedClassByClassName(perceroObject.getClass().getName());
+                MappedClass mappedClass = mcm.getMappedClassByClassName(updateResultObject.getClass().getName());
                 Iterator<MappedField> itrToManyFields = mappedClass.toManyFields.iterator();
                 while(itrToManyFields.hasNext()) {
                     MappedField nextMappedField = itrToManyFields.next();
                     Object fieldObject = null;
                     try {
-                        fieldObject = nextMappedField.getGetter().invoke(perceroObject);
+                        fieldObject = nextMappedField.getGetter().invoke(updateResultObject);
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     } catch (IllegalArgumentException e) {
@@ -766,7 +814,7 @@ public class DAODataProvider implements IDataProvider {
                     }
                     if (fieldObject != null) {
                         if (fieldObject instanceof IPerceroObject) {
-                        	pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
+                        	cachePairsToUpdate.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
 //                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
 //                            if (cacheDataStore.hasKey(nextKey)) {
 //                                cacheDataStore.deleteKey(nextKey);
@@ -779,7 +827,7 @@ public class DAODataProvider implements IDataProvider {
                             while(itrFieldObject.hasNext()) {
                                 Object nextListObject = itrFieldObject.next();
                                 if (nextListObject instanceof IPerceroObject) {
-                                	pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+                                	cachePairsToUpdate.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
 //                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
 //                                    if (cacheDataStore.hasKey(nextKey)) {
 //                                        cacheDataStore.deleteKey(nextKey);
@@ -796,7 +844,7 @@ public class DAODataProvider implements IDataProvider {
                     MappedFieldPerceroObject nextMappedField = itrToOneFields.next();
                     Object fieldObject = null;
                     try {
-                        fieldObject = nextMappedField.getGetter().invoke(perceroObject);
+                        fieldObject = nextMappedField.getGetter().invoke(updateResultObject);
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     } catch (IllegalArgumentException e) {
@@ -806,7 +854,7 @@ public class DAODataProvider implements IDataProvider {
                     }
                     if (fieldObject != null) {
                         if (fieldObject instanceof IPerceroObject) {
-                        	pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
+                        	cachePairsToUpdate.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
 //                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
 //                            if (cacheDataStore.hasKey(nextKey)) {
 //                                cacheDataStore.deleteKey(nextKey);
@@ -819,7 +867,7 @@ public class DAODataProvider implements IDataProvider {
                             while(itrFieldObject.hasNext()) {
                                 Object nextListObject = itrFieldObject.next();
                                 if (nextListObject instanceof IPerceroObject) {
-                                	pairsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+                                	cachePairsToUpdate.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
 //                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
 //                                    if (cacheDataStore.hasKey(nextKey)) {
 //                                        cacheDataStore.deleteKey(nextKey);
@@ -833,22 +881,236 @@ public class DAODataProvider implements IDataProvider {
                 }
             }
 
-            if (!pairsToDelete.isEmpty()) {
-            	deleteObjectsFromRedisCache(pairsToDelete);
-//                cacheDataStore.deleteKeys(pairsToDelete);
-                // TODO: Do we simply delete the key?  Or do we refetch the object here and update the key?
-                //redisDataStore.setValue(nextKey, ((BaseDataObject)perceroObject).toJson());
+            if (!cachePairsToUpdate.isEmpty()) {
+                // TODO: Re-fetch the object here and update the key
+            	for(ClassIDPair classIdPair : cachePairsToUpdate) {
+            		IPerceroObject nextUpdatedCachedObject;
+					try {
+						nextUpdatedCachedObject = findById(classIdPair, null, true);
+						if (nextUpdatedCachedObject != null) {
+							String nextKey = RedisKeyUtils.classIdPair(nextUpdatedCachedObject.getClass().getCanonicalName(), nextUpdatedCachedObject.getID());
+							// TODO: Actually update the cached object.
+							cacheDataStore.setValue(nextKey, ((BaseDataObject)nextUpdatedCachedObject).toJson());
+						}
+					} catch (Exception e) {
+						log.error("Error retrieving " + classIdPair.toString() + " from the cache", e);
+					}
+            	}
             }
         }
 
-        return (T) cleanObject(perceroObject, userId);
+        return (T) cleanObject(updateResultObject, userId);
     }
+
+	/**
+	 * @param perceroObject
+	 * @param originalUpdatedObject
+	 * @param perceroIdPair
+	 * @param theRelatedObjectClassIdPair
+	 * @param mappedFields
+	 * @param userId
+	 */
+	protected <T extends IPerceroObject> void handleUpdatedClassIdPair(T originalUpdatedObject, ClassIDPair theRelatedObjectClassIdPair,
+			Collection<MappedField> mappedFields, String userId) {
+
+		// Make sure that theRelatedClassIdPair is not the same as the original object
+		if (!theRelatedObjectClassIdPair.comparePerceroObject(originalUpdatedObject)) {
+			// This should contain at least one field, otherwise nothing as changed (most likely a one-way relationship).
+			if (mappedFields != null && !mappedFields.isEmpty()) {
+				IPerceroObject nextUpdatedCachedObject;
+				try {
+					nextUpdatedCachedObject = retrieveCachedObject(theRelatedObjectClassIdPair);
+					boolean cachedObjectUpdated = false;
+
+					// If the related object is NOT in the cache, then we having nothing to do.
+					if (nextUpdatedCachedObject != null) {
+						for(MappedField nextMappedField : mappedFields) {
+				        	try {
+				        		if (nextMappedField.getMappedClass().toManyFields.contains(nextMappedField)) {
+									if (handleUpdatedClassIdPair_ToManyMappedField(
+											originalUpdatedObject, nextUpdatedCachedObject, nextMappedField, userId)) {
+										cachedObjectUpdated = true;
+									}
+				        		}
+				        		else if (nextMappedField.getMappedClass().toOneFields.contains(nextMappedField)) {
+									if (handleUpdatedClassIdPair_ToOneMappedField(
+											originalUpdatedObject, nextUpdatedCachedObject, nextMappedField, userId)) {
+										cachedObjectUpdated = true;
+									}
+				        		}
+				        	} catch(Exception e) {
+				        		log.error("Unable to retrieve related objects for " + originalUpdatedObject.getClass().getCanonicalName() + "::" + nextMappedField.getField().getName());
+				        	}
+						}
+						
+						if (cachedObjectUpdated) {
+							// Update the cached object.
+							putObjectInRedisCache(nextUpdatedCachedObject, false);
+						}
+					}
+				} catch (Exception e) {
+					log.error("Error updating related object " + theRelatedObjectClassIdPair.toJson(), e);
+				}
+			}
+		}
+	}
+
+	/**
+	 * @param originalUpdatedObject
+	 * @param currentRelatedObject
+	 * @param relatedMappedField
+	 * @param userId
+	 * @return
+	 * @throws IllegalAccessException
+	 * @throws InvocationTargetException
+	 * @throws SyncException
+	 */
+	@SuppressWarnings("unchecked")
+	private <T extends IPerceroObject> boolean handleUpdatedClassIdPair_ToManyMappedField(T originalUpdatedObject,
+			IPerceroObject currentRelatedObject, MappedField relatedMappedField, String userId)
+					throws IllegalAccessException, InvocationTargetException, SyncException {
+		boolean cachedObjectUpdated = false;
+
+		IPerceroObject newRelatedObject = (IPerceroObject) (relatedMappedField.getReverseMappedField() != null ? relatedMappedField.getReverseMappedField().getGetter().invoke(originalUpdatedObject) : null);
+		if (newRelatedObject != null) {
+			List<IPerceroObject> updatedList = (List<IPerceroObject>) relatedMappedField.getGetter().invoke(currentRelatedObject);
+			if (updatedList == null) {
+				updatedList = new ArrayList<IPerceroObject>();
+				relatedMappedField.getSetter().invoke(currentRelatedObject, updatedList);
+			}
+
+			// Find the index of the original object in this related mapped list, if it exists.
+			int collectionIndex = findPerceroObjectInList(originalUpdatedObject,
+					updatedList);
+			
+			if (BaseDataObject.toClassIdPair(currentRelatedObject).comparePerceroObject(newRelatedObject)) {
+				// The perceroObject has been ADDED to the list.
+				if (collectionIndex < 0) {
+					// Only add the perceroObject to the Collection if it is NOT already there.
+		            updatedList.add(originalUpdatedObject);
+		            cachedObjectUpdated = true;
+				}
+			}
+			else {
+				// The perceroObject has been REMOVED from the list.
+				if (collectionIndex >= 0){
+					updatedList.remove(collectionIndex);
+					cachedObjectUpdated = true;
+				}
+			}
+		}
+		else {
+			// We are unable to get a hold of the reverse mapped field, so we default back to the underlying data store.
+		    List<IPerceroObject> allRelatedObjects = findAllRelatedObjects(currentRelatedObject, relatedMappedField, true, userId);
+		    relatedMappedField.getSetter().invoke(currentRelatedObject, allRelatedObjects);
+		    cachedObjectUpdated = true;
+		}
+		return cachedObjectUpdated;
+	}
+
+	/**
+	 * @param originalUpdatedObject
+	 * @param currentRelatedObject
+	 * @param relatedMappedField
+	 * @param userId
+	 * @return
+	 * @throws IllegalAccessException
+	 * @throws InvocationTargetException
+	 * @throws SyncException
+	 */
+	private <T extends IPerceroObject> boolean handleUpdatedClassIdPair_ToOneMappedField(T originalUpdatedObject,
+			IPerceroObject currentRelatedObject, MappedField relatedMappedField, String userId)
+					throws IllegalAccessException, InvocationTargetException, SyncException {
+
+		boolean cachedObjectUpdated = false;
+
+		IPerceroObject newRelatedObject = (IPerceroObject) (relatedMappedField.getReverseMappedField() != null ? relatedMappedField.getReverseMappedField().getGetter().invoke(originalUpdatedObject) : null);
+		if (newRelatedObject != null) {
+			IPerceroObject oldUpdatedObject = (IPerceroObject) relatedMappedField.getGetter().invoke(currentRelatedObject);
+
+			if (BaseDataObject.toClassIdPair(currentRelatedObject).comparePerceroObject(newRelatedObject)) {
+				// If the newRelatedPerceroObject is the same as the
+				// currentRelatedPerceroObject, then we know that this is the NEW
+				// related object.
+				
+				// Only add the perceroObject to the Collection if it is NOT already there.
+				if (!BaseDataObject.toClassIdPair(originalUpdatedObject).comparePerceroObject(oldUpdatedObject)) {
+//					oldRelatedObject.add(originalUpdatedObject);
+					relatedMappedField.getSetter().invoke(currentRelatedObject, originalUpdatedObject);
+					cachedObjectUpdated = true;
+				}
+			}
+			else {
+				// Else, we know that this is the OLD related object.
+				// The perceroObject has been REMOVED from the list.
+				if (oldUpdatedObject != null) {
+//					oldRelatedObject.remove(collectionIndex);
+					boolean isAccessible = relatedMappedField.getField().isAccessible();
+					if (!isAccessible) {
+						relatedMappedField.getField().setAccessible(true);
+					}
+					relatedMappedField.getField().set(currentRelatedObject, null);
+					if (!isAccessible) {
+						relatedMappedField.getField().setAccessible(false);
+					}
+					cachedObjectUpdated = true;
+				}
+			}
+		}
+		else {
+			// We are unable to get a hold of the reverse mapped field, so we default back to the underlying data store.
+			// We need to go to the dataProvider for the related object's class and ask for it.
+			// Though this returns a List, we expect there to be only one result in the list.
+			List<IPerceroObject> allRelatedObjects = findAllRelatedObjects(currentRelatedObject, relatedMappedField, true, userId);
+			IPerceroObject relatedPerceroObject = null;
+			if (allRelatedObjects != null && !allRelatedObjects.isEmpty()) {
+			    relatedPerceroObject = allRelatedObjects.get(0);
+			}
+			relatedMappedField.getSetter().invoke(currentRelatedObject, relatedPerceroObject);
+			cachedObjectUpdated = true;
+		}
+		return cachedObjectUpdated;
+//		
+//		boolean cachedObjectUpdated;
+//		// We need to go to the dataProvider for the related object's class and ask for it.
+//		// Though this returns a List, we expect there to be only one result in the list.
+//		List<IPerceroObject> allRelatedObjects = findAllRelatedObjects(currentRelatedObject, relatedMappedField, true, userId);
+//		IPerceroObject relatedPerceroObject = null;
+//		if (allRelatedObjects != null && !allRelatedObjects.isEmpty()) {
+//		    relatedPerceroObject = allRelatedObjects.get(0);
+//		}
+//		relatedMappedField.getSetter().invoke(currentRelatedObject, relatedPerceroObject);
+//		cachedObjectUpdated = true;
+//		return cachedObjectUpdated;
+	}
+
+	/**
+	 * @param originalUpdatedObject
+	 * @param updatedList
+	 * @return
+	 */
+	protected <T extends IPerceroObject> int findPerceroObjectInList(T originalUpdatedObject,
+			List<IPerceroObject> updatedList) {
+		int index = 0;
+		Iterator<IPerceroObject> itrUpdatedCollection = updatedList.iterator();
+		ClassIDPair perceroIdPair = BaseDataObject.toClassIdPair(originalUpdatedObject);
+
+		while (itrUpdatedCollection.hasNext()) {
+			IPerceroObject nextCollectionObject = itrUpdatedCollection.next();
+			if (perceroIdPair.comparePerceroObject(nextCollectionObject)) {
+				return index;
+			}
+			index++;
+		}
+		
+		return -1;
+	}
 
 
     ////////////////////////////////////////////////////
     //	DELETE
     ////////////////////////////////////////////////////
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({ "unchecked" })
     public Boolean deleteObject(ClassIDPair theClassIdPair, String userId) throws SyncException {
     	
     	if (theClassIdPair == null || !StringUtils.hasText(theClassIdPair.getID())) {
@@ -857,96 +1119,209 @@ public class DAODataProvider implements IDataProvider {
     	}
 
         IDataAccessObject<IPerceroObject> dao = (IDataAccessObject<IPerceroObject>) DAORegistry.getInstance().getDataAccessObject(theClassIdPair.getClassName());
-        IPerceroObject perceroObject = dao.retrieveObject(theClassIdPair, null, false);	// Retrieve the full object so we can update the cache if the delete is successful.
+        IPerceroObject originalDeletedObject = dao.retrieveObject(theClassIdPair, null, false);	// Retrieve the full object so we can update the cache if the delete is successful.
         Boolean result = dao.deleteObject(theClassIdPair, userId);
         
-        if (perceroObject == null) {
+        if (originalDeletedObject == null) {
         	return true;
         }
 
         try {
-            MappedClass mappedClass = MappedClassManagerFactory.getMappedClassManager().getMappedClassByClassName(perceroObject.getClass().getCanonicalName());
+            MappedClass mappedClass = MappedClassManagerFactory.getMappedClassManager().getMappedClassByClassName(originalDeletedObject.getClass().getCanonicalName());
             if (mappedClass == null) {
-                log.warn("Missing MappedClass for " + perceroObject.getClass().getCanonicalName());
-                throw new SyncException(SyncException.MISSING_MAPPED_CLASS_ERROR, SyncException.MISSING_MAPPED_CLASS_ERROR_CODE );
+                log.warn("Missing MappedClass for " + originalDeletedObject.getClass().getCanonicalName());
+                throw new SyncException(SyncException.MISSING_MAPPED_CLASS_ERROR, SyncException.MISSING_MAPPED_CLASS_ERROR_CODE);
             }
 
             // Now delete from cache.
             // Now update the cache.
             // TODO: Field-level updates could be REALLY useful here.  Would avoid A TON of UNNECESSARY work...
             if (result && cacheTimeout > 0) {
-                List<ClassIDPair> objectsToDelete = new ArrayList<ClassIDPair>();
+//                List<ClassIDPair> objectsToDelete = new ArrayList<ClassIDPair>();
 
 //                String key = RedisKeyUtils.classIdPair(perceroObject.getClass().getCanonicalName(), perceroObject.getID());
-                objectsToDelete.add(BaseDataObject.toClassIdPair(perceroObject));
+//                objectsToDelete.add(BaseDataObject.toClassIdPair(originalDeletedObject));
 
                 Iterator<MappedField> itrToManyFields = mappedClass.toManyFields.iterator();
                 while(itrToManyFields.hasNext()) {
-                    MappedField nextMappedField = itrToManyFields.next();
-                    Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
-                    if (fieldObject != null) {
-                        if (fieldObject instanceof IPerceroObject) {
-                        	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject)fieldObject));
-//                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-//                            objectsToDelete.add(nextKey);
-                        }
-                        else if (fieldObject instanceof Collection) {
-                            Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
-                            while(itrFieldObject.hasNext()) {
-                                Object nextListObject = itrFieldObject.next();
-                                if (nextListObject instanceof IPerceroObject) {
-                                	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
-//                                	String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-//                                    objectsToDelete.add(nextKey);
-                                }
-                            }
-                        }
-                    }
+                	handleDeletedClassIDPair_MappedField(originalDeletedObject, itrToManyFields.next());
+//                	
+//                    MappedField nextMappedField = itrToManyFields.next();
+//                    
+//                    Object fieldObject = nextMappedField.getGetter().invoke(originalDeletedObject);
+//                    if (fieldObject != null) {
+//                        if (fieldObject instanceof IPerceroObject) {
+//                        	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject)fieldObject));
+////                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
+////                            objectsToDelete.add(nextKey);
+//                        }
+//                        else if (fieldObject instanceof Collection) {
+//                            Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
+//                            while(itrFieldObject.hasNext()) {
+//                                Object nextListObject = itrFieldObject.next();
+//                                if (nextListObject instanceof IPerceroObject) {
+//                                	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+////                                	String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
+////                                    objectsToDelete.add(nextKey);
+//                                }
+//                            }
+//                        }
+//                    }
                 }
                 Iterator<MappedFieldPerceroObject> itrToOneFields = mappedClass.toOneFields.iterator();
                 while(itrToOneFields.hasNext()) {
-                    MappedFieldPerceroObject nextMappedField = itrToOneFields.next();
-                    Object fieldObject = nextMappedField.getGetter().invoke(perceroObject);
-                    if (fieldObject != null) {
-                        if (fieldObject instanceof IPerceroObject) {
-                        	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
-//                            String nextKey = RedisKeyUtils.classIdPair(fieldObject.getClass().getCanonicalName(), ((IPerceroObject)fieldObject).getID());
-//                            objectsToDelete.add(nextKey);
-                        }
-                        else if (fieldObject instanceof Collection) {
-                            Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
-                            while(itrFieldObject.hasNext()) {
-                                Object nextListObject = itrFieldObject.next();
-                                if (nextListObject instanceof IPerceroObject) {
-                                	objectsToDelete.add(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
-//                                    String nextKey = RedisKeyUtils.classIdPair(nextListObject.getClass().getCanonicalName(), ((IPerceroObject)nextListObject).getID());
-//                                    objectsToDelete.add(nextKey);
-                                }
-                            }
-                        }
-                    }
+                	handleDeletedClassIDPair_MappedField(originalDeletedObject, itrToOneFields.next());
                 }
 
-                if (!objectsToDelete.isEmpty()) {
-                	deleteObjectsFromRedisCache(objectsToDelete);
-//                    cacheDataStore.deleteKeys(objectsToDelete);
-                }
+//                if (!objectsToDelete.isEmpty()) {
+//                	deleteObjectsFromRedisCache(objectsToDelete);
+////                    cacheDataStore.deleteKeys(objectsToDelete);
+//                }
+                deleteObjectFromRedisCache(BaseDataObject.toClassIdPair(originalDeletedObject));
             }
 
         } catch(Exception e) {
-            if (perceroObject != null) {
-                log.error("Unable to delete record from database: " + perceroObject.getClass().getCanonicalName() + ":" + perceroObject.getID(), e);
-            }
-            else {
-                log.error("Unable to delete record from database: NULL Object", e);
-            }
-            throw new SyncDataException(SyncDataException.DELETE_OBJECT_ERROR, SyncDataException.DELETE_OBJECT_ERROR_CODE);
+            log.error("Unable to delete record from database: " + originalDeletedObject.getClass().getCanonicalName() + ":" + originalDeletedObject.getID() + ": " + e.getMessage());
+            throw new SyncDataException(SyncDataException.DELETE_OBJECT_ERROR, SyncDataException.DELETE_OBJECT_ERROR_CODE, e);
         }
 
         return result;
     }
 
+	/**
+	 * @param originalDeletedObject
+	 * @param itrToOneFields
+	 * @return
+	 * @throws Exception 
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private boolean handleDeletedClassIDPair_MappedField(IPerceroObject originalDeletedObject,
+			MappedField mappedField)
+					throws Exception {
+		
+		if (mappedField == null) {
+			return false;
+		}
+		if (mappedField.getReverseMappedField() == null) {
+			// Nothing to do since the related object does not know about the relationship.
+			return true;
+		}
+		
+		Object fieldObject = mappedField.getGetter().invoke(originalDeletedObject);
 
+		// We only need to update this related object(s) if it is set.
+		if (fieldObject != null) {
+		    if (fieldObject instanceof IPerceroObject) {
+		    	fieldObject = retrieveCachedObject(BaseDataObject.toClassIdPair((IPerceroObject) fieldObject));
+				Object theRelatedObject = mappedField.getReverseMappedField().getGetter().invoke(fieldObject);
+				if (theRelatedObject != null) {
+					if (theRelatedObject instanceof IPerceroObject) {
+						// Since the value is set, un-set it and save back to to the data store.
+						mappedField.getReverseMappedField().setToNull((IPerceroObject) fieldObject);
+						putObjectInRedisCache((IPerceroObject) fieldObject, true);
+					}
+					else if (theRelatedObject instanceof List) {
+						int i = 0;
+						for(IPerceroObject nextRelatedObject : (List<IPerceroObject>) theRelatedObject) {
+							if (BaseDataObject.toClassIdPair(originalDeletedObject).comparePerceroObject(nextRelatedObject)) {
+								((List<IPerceroObject>) theRelatedObject).remove(i);
+								break;
+							}
+							i++;
+						}
+						putObjectInRedisCache((IPerceroObject) fieldObject, true);
+					}
+				}
+		    }
+		    else if (fieldObject instanceof Collection) {
+		        Iterator<Object> itrFieldObject = ((Collection) fieldObject).iterator();
+		        while(itrFieldObject.hasNext()) {
+		            Object nextListObject = itrFieldObject.next();
+		            if (nextListObject instanceof IPerceroObject) {
+				    	nextListObject = retrieveCachedObject(BaseDataObject.toClassIdPair((IPerceroObject) nextListObject));
+		        		IPerceroObject theRelatedObject = (IPerceroObject) mappedField.getReverseMappedField().getGetter().invoke(nextListObject);
+		        		if (theRelatedObject != null) {
+		        			// Since the value is set, un-set it and save back to to the data store.
+		        			mappedField.getReverseMappedField().setToNull((IPerceroObject) nextListObject);
+							putObjectInRedisCache((IPerceroObject) nextListObject, true);
+		        		}
+		            }
+		        }
+		    }
+		}
+		return true;
+	}
+
+	/**
+	 * @param originalDeletedObject
+	 * @param currentRelatedObject
+	 * @param relatedMappedField
+	 * @param userId
+	 * @return
+	 * @throws IllegalAccessException
+	 * @throws InvocationTargetException
+	 * @throws SyncException
+	 */
+	private <T extends IPerceroObject> boolean handleDeletedClassIdPair_ToOneMappedField(T originalDeletedObject,
+			IPerceroObject currentRelatedObject, MappedField relatedMappedField, String userId)
+					throws IllegalAccessException, InvocationTargetException, SyncException {
+
+		boolean cachedObjectUpdated = false;
+
+		IPerceroObject newRelatedObject = (IPerceroObject) (relatedMappedField.getReverseMappedField() != null ? relatedMappedField.getReverseMappedField().getGetter().invoke(originalDeletedObject) : null);
+		if (newRelatedObject != null) {
+			IPerceroObject oldDeletedObject = (IPerceroObject) relatedMappedField.getGetter().invoke(currentRelatedObject);
+
+			if (BaseDataObject.toClassIdPair(currentRelatedObject).comparePerceroObject(newRelatedObject)) {
+				// If the newRelatedPerceroObject is the same as the
+				// currentRelatedPerceroObject, then we know that this is the NEW
+				// related object.
+				
+				// Only add the perceroObject to the Collection if it is NOT already there.
+				if (!BaseDataObject.toClassIdPair(originalDeletedObject).comparePerceroObject(oldDeletedObject)) {
+//					oldRelatedObject.add(originalUpdatedObject);
+					relatedMappedField.getSetter().invoke(currentRelatedObject, originalDeletedObject);
+					cachedObjectUpdated = true;
+				}
+			}
+			else {
+				// Else, we know that this is the OLD related object.
+				// The perceroObject has been REMOVED.
+				if (oldDeletedObject != null) {
+					relatedMappedField.setToNull(currentRelatedObject);
+					cachedObjectUpdated = true;
+				}
+			}
+		}
+		else {
+			// We are unable to get a hold of the reverse mapped field, so we default back to the underlying data store.
+			// We need to go to the dataProvider for the related object's class and ask for it.
+			// Though this returns a List, we expect there to be only one result in the list.
+			List<IPerceroObject> allRelatedObjects = findAllRelatedObjects(currentRelatedObject, relatedMappedField, true, userId);
+			IPerceroObject relatedPerceroObject = null;
+			if (allRelatedObjects != null && !allRelatedObjects.isEmpty()) {
+			    relatedPerceroObject = allRelatedObjects.get(0);
+			}
+			relatedMappedField.getSetter().invoke(currentRelatedObject, relatedPerceroObject);
+			cachedObjectUpdated = true;
+		}
+		return cachedObjectUpdated;
+//		
+//		boolean cachedObjectUpdated;
+//		// We need to go to the dataProvider for the related object's class and ask for it.
+//		// Though this returns a List, we expect there to be only one result in the list.
+//		List<IPerceroObject> allRelatedObjects = findAllRelatedObjects(currentRelatedObject, relatedMappedField, true, userId);
+//		IPerceroObject relatedPerceroObject = null;
+//		if (allRelatedObjects != null && !allRelatedObjects.isEmpty()) {
+//		    relatedPerceroObject = allRelatedObjects.get(0);
+//		}
+//		relatedMappedField.getSetter().invoke(currentRelatedObject, relatedPerceroObject);
+//		cachedObjectUpdated = true;
+//		return cachedObjectUpdated;
+	}
+
+
+    
     ////////////////////////////////////////////////////
     //	CLEAN
     ////////////////////////////////////////////////////
@@ -1290,6 +1665,24 @@ public class DAODataProvider implements IDataProvider {
         	}
         }
     }
+    
+    protected void overwriteToManyRelationships(IPerceroObject perceroObject, IPerceroObject sourceObject) {
+        if (perceroObject == null || sourceObject == null) {
+            // Invalid object.
+            log.warn("Invalid object in overwriteToManyRelationships");
+            return;
+        }
+
+        MappedClass mappedClass = MappedClassManagerFactory.getMappedClassManager().getMappedClassByClassName(perceroObject.getClass().getCanonicalName());
+        for(MappedField nextToManyMappedField : mappedClass.toManyFields) {
+
+        	try {
+	            nextToManyMappedField.getSetter().invoke(perceroObject, nextToManyMappedField.getGetter().invoke(sourceObject));
+        	} catch(Exception e) {
+        		log.error("Unable to retrieve related objects for " + perceroObject.getClass().getCanonicalName() + "::" + nextToManyMappedField.getField().getName());
+        	}
+        }
+    }
 
     public void populateToOneRelationships(IPerceroObject perceroObject, Boolean shellOnly,
                                            String userId) throws SyncException, IllegalArgumentException,
@@ -1364,6 +1757,23 @@ public class DAODataProvider implements IDataProvider {
                 nextToOneMappedField.getSetter().invoke(perceroObject, relatedPerceroObject);
             }
         }
+    }
+    
+    protected void overwriteToOneRelationships(IPerceroObject perceroObject, IPerceroObject sourceObject) throws SyncException, IllegalArgumentException,
+    IllegalAccessException, InvocationTargetException {
+    	if (perceroObject == null || sourceObject == null) {
+    		// Invalid object.
+    		log.warn("Invalid object in overwriteToOneRelationships");
+    		return;
+    	}
+    	
+    	MappedClass mappedClass = MappedClassManagerFactory.getMappedClassManager().getMappedClassByClassName(perceroObject.getClass().getCanonicalName());
+    	for(MappedFieldPerceroObject nextToOneMappedField : mappedClass.toOneFields) {
+    		// If perceroObject is the "owner" of this relationship, then we have all the data necessary here.
+    		if (!nextToOneMappedField.isSourceEntity()) {
+    			nextToOneMappedField.getSetter().invoke(perceroObject, nextToOneMappedField.getGetter().invoke(sourceObject));
+    		}
+    	}
     }
 
 //    protected void addObjectToCache(IPerceroObject nextPerceroObject) {

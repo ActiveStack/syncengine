@@ -3,6 +3,7 @@ package com.percero.agents.sync.metadata;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.percero.framework.metadata.IMappedQuery;
+import com.percero.framework.vo.IPerceroObject;
 
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -26,7 +27,22 @@ public class MappedField {
 	private Boolean hasReadAccessRights = false;
 
 	protected MappedField reverseMappedField = null;
+	private boolean reverseMappedFieldValid = false;
 	public MappedField getReverseMappedField() {
+		if (!reverseMappedFieldValid && reverseMappedField == null) {
+			MappedClass mc = this.getMappedClass();
+			if (mc.parentMappedClass != null) {
+				MappedField mf = mc.parentMappedClass.getMappedFieldByName(this.getField().getName());
+
+				// If mf is null it means that this Mapped Field is NOT defined on the corresponding mapped class.
+				if (mf != null) {
+					MappedField reverseMappedField = mf.getReverseMappedField();
+					this.reverseMappedField = reverseMappedField;
+				}
+			}
+
+			reverseMappedFieldValid = true;
+		}
 		return reverseMappedField;
 	}
 
@@ -208,5 +224,16 @@ public class MappedField {
 			else
 				return this.getMappedClass().equals(mfObj.getMappedClass());
 		}		
+	}
+	
+	public void setToNull(IPerceroObject perceroObject) throws IllegalArgumentException, IllegalAccessException {
+		boolean isAccessible = getField().isAccessible();
+		if (!isAccessible) {
+			getField().setAccessible(true);
+		}
+		getField().set(perceroObject, null);
+		if (!isAccessible) {
+			getField().setAccessible(false);
+		}
 	}
 }

@@ -10,6 +10,7 @@ import com.percero.agents.sync.helpers.PostPutHelper;
 import com.percero.agents.sync.metadata.*;
 import com.percero.agents.sync.services.IDataProviderManager;
 import com.percero.agents.sync.services.ISyncAgentService;
+import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.Client;
 import com.percero.framework.bl.IManifest;
 import com.percero.framework.bl.ManifestHelper;
@@ -564,7 +565,7 @@ public class AccountHelper implements IAccountHelper {
 
                 if (!isInaccurateList && !serviceUserRoleExists) {
                     log.warn("Deleting role " + nextUserRole.getRoleName() + " for " + userId);
-                    syncAgentService.systemDeleteObject(nextUserRole, null, true, new HashSet<IPerceroObject>());
+                    syncAgentService.systemDeleteObject(BaseDataObject.toClassIdPair(nextUserRole), null, true);
                 } else
                     updatedUserRoles.add(nextUserRole);
             }

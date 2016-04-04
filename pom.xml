@@ -12,8 +12,8 @@
     <properties>
         <spring.version>3.2.4.RELEASE</spring.version>
         <aspectj.version>1.6.11</aspectj.version>
-        <project.http.version>1.19.0</project.http.version>
-        <project.oauth.version>1.19.0</project.oauth.version>
+        <project.http.version>1.21.0</project.http.version>
+        <project.oauth.version>1.21.0</project.oauth.version>
 		<mockito-core.version>1.9.5</mockito-core.version>
     </properties>
 
@@ -29,11 +29,11 @@
             <version>${aspectj.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.codehaus.jackson</groupId>
-            <artifactId>jackson-mapper-asl</artifactId>
-            <version>1.9.2</version>
-        </dependency>
+		<dependency>
+			<groupId>org.codehaus.jackson</groupId>
+			<artifactId>jackson-mapper-asl</artifactId>
+			<version>1.9.13</version>
+		</dependency>
         <dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate</artifactId>
@@ -217,10 +217,7 @@
         <dependency>
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-oauth2</artifactId>
-            <!-- 
-            <version>v2-rev94-1.20.0</version>
-             -->
-             <version>v2-rev78-1.19.0</version>
+             <version>v2-rev107-1.21.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.http-client</groupId>
@@ -235,7 +232,7 @@
         <dependency>
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-admin-directory</artifactId>
-            <version>directory_v1-rev42-1.19.0</version>
+            <version>directory_v1-rev64-1.21.0</version>
         </dependency>
         <dependency>
             <groupId>com.restfb</groupId>

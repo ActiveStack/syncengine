@@ -12,10 +12,8 @@ import java.util.List;
 import javax.persistence.Transient;
 
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 import org.codehaus.jackson.annotate.JsonTypeInfo;
 import org.codehaus.jackson.map.ObjectMapper;
-import org.mortbay.log.Log;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -25,7 +23,6 @@ import com.percero.agents.sync.helpers.ProcessHelper;
 import com.percero.agents.sync.manager.DataExternalizer;
 import com.percero.agents.sync.metadata.MappedClass;
 import com.percero.agents.sync.metadata.MappedClass.MappedClassMethodPair;
-import com.percero.agents.sync.services.SyncAgentService;
 import com.percero.framework.vo.IPerceroObject;
 import com.percero.serial.JsonUtils;
 
@@ -92,10 +89,14 @@ public class BaseDataObject implements Externalizable, IPerceroObject, IJsonObje
 	}
 
 	public String toJson(Boolean encloseString, ObjectMapper objectMapper) {
-		String objectJson = retrieveJson(objectMapper);
-		if (encloseString)
-			objectJson = "{" + objectJson + "}";
-		return objectJson;
+		StringBuilder objectJson;
+		if (encloseString) {
+			objectJson = new StringBuilder("{").append(retrieveJson(objectMapper)).append('}');
+		}
+		else {
+			objectJson = new StringBuilder(retrieveJson(objectMapper));
+		}
+		return objectJson.toString();
 	}
 	
 	public String retrieveJson(ObjectMapper objectMapper) {
@@ -107,25 +108,27 @@ public class BaseDataObject implements Externalizable, IPerceroObject, IJsonObje
 	}
 	
 	public String toEmbeddedJson(Boolean encloseString) {
-		String objectJson = retrieveEmbeddedJson();
-		if (encloseString)
-			objectJson = "{" + objectJson + "}";
-		return objectJson;
+		StringBuilder objectJson;
+		if (encloseString) {
+			objectJson = new StringBuilder("{").append("\"className\":\"").append(getClass().getCanonicalName()).append("\",").append("\"ID\":\"").append(getID()).append("\"").append('}');
+		}
+		else {
+			objectJson = new StringBuilder("\"className\":\"").append(getClass().getCanonicalName()).append("\",").append("\"ID\":\"").append(getID()).append("\"");
+		}
+		return objectJson.toString();
 	}
 	
 	public String retrieveBaseJson() {
-		String objectJson = "\"cn\":\"" + getClass().getCanonicalName() + "\"," + 
-				"\"ID\":\"" + getID() + "\"";
+		StringBuilder objectJson = new StringBuilder("\"cn\":\"").append(getClass().getCanonicalName()).append("\",").append("\"ID\":\"").append(getID()).append("\"");
 		//+ "\"dataSource\":\"" + getDataSource() +  "\"" ;
 		
-		return objectJson;
+		return objectJson.toString();
 	}
 	
 	public String retrieveEmbeddedJson() {
-		String objectJson = "\"className\":\"" + getClass().getCanonicalName() + "\"," + 
-				"\"ID\":\"" + getID() + "\"";
+		StringBuilder objectJson = new StringBuilder("\"className\":\"").append(getClass().getCanonicalName()).append("\",").append("\"ID\":\"").append(getID()).append("\"");
 		
-		return objectJson;
+		return objectJson.toString();
 	}
 	
 	public void fromJson(String jsonString) {

@@ -228,9 +228,9 @@ public class MappedClass implements IMappedClass {
 			.synchronizedSet(new HashSet<MappedFieldPerceroObject>());
 	public Set<MappedField> externalizableFields = Collections
 			.synchronizedSet(new TreeSet<MappedField>(fieldComparator));
-	public Map<MappedField, MappedField> cascadeRemoveFieldReferences = Collections
+	private Map<MappedField, MappedField> cascadeRemoveFieldReferences = Collections
 			.synchronizedMap(new HashMap<MappedField, MappedField>());
-	public Map<MappedField, MappedField> nulledOnRemoveFieldReferences = Collections
+	private Map<MappedField, MappedField> nulledOnRemoveFieldReferences = Collections
 			.synchronizedMap(new HashMap<MappedField, MappedField>());
 	@SuppressWarnings("rawtypes")
 	public Map<Class, EntityImplementation> entityImplementations = Collections
@@ -1194,7 +1194,7 @@ public class MappedClass implements IMappedClass {
 								}
 							}
 						}
-						referencedMappedClass.cascadeRemoveFieldReferences.put(
+						referencedMappedClass.addCascadeRemoveFieldReferences(
 								nextMappedField, reverseMappedField);
 					}
 
@@ -1297,13 +1297,8 @@ public class MappedClass implements IMappedClass {
 									// if (inheritsFrom &&
 									// nextMappedField.getField().getName().equals(refOneToOne.mappedBy()))
 									// {
-									if (this.clazz == nextRefMappedField
-											.getField().getType()
-											&& nextMappedField
-													.getField()
-													.getName()
-													.equals(refOneToOne
-															.mappedBy())) {
+									if (this.clazz == nextRefMappedField.getField().getType()
+											&& nextMappedField.getField().getName().equals(refOneToOne.mappedBy())) {
 										// Found the referenced field.
 										reverseMappedField = nextRefMappedField;
 										break;
@@ -1329,8 +1324,8 @@ public class MappedClass implements IMappedClass {
 								}
 							}
 						}
-						referencedMappedClass.nulledOnRemoveFieldReferences
-								.put(nextMappedField, reverseMappedField);
+						referencedMappedClass.addNulledOnRemoveFieldReferences
+								(nextMappedField, reverseMappedField);
 						readAccessRightsFieldReferences.add(nextMappedField);
 					}
 
@@ -1378,6 +1373,36 @@ public class MappedClass implements IMappedClass {
 		}
 
 		relationshipsInitialized = true;
+	}
+
+	private void addCascadeRemoveFieldReferences(MappedField nextMappedField, MappedField reverseMappedField) {
+		cascadeRemoveFieldReferences.put(nextMappedField, reverseMappedField);
+	}
+
+	public Map<MappedField, MappedField> getNulledOnRemoveFieldReferences() {
+		Map<MappedField, MappedField> result = new HashMap<MappedField, MappedField>(this.nulledOnRemoveFieldReferences.size());
+		MappedClass mappedClass = this;
+		while (mappedClass != null) {
+			result.putAll(mappedClass.nulledOnRemoveFieldReferences);
+			mappedClass = mappedClass.parentMappedClass;
+		}
+		
+		return result;
+	}
+	
+	public Map<MappedField, MappedField> getCascadeRemoveFieldReferences() {
+		Map<MappedField, MappedField> result = new HashMap<MappedField, MappedField>(this.cascadeRemoveFieldReferences.size());
+		MappedClass mappedClass = this;
+		while (mappedClass != null) {
+			result.putAll(mappedClass.cascadeRemoveFieldReferences);
+			mappedClass = mappedClass.parentMappedClass;
+		}
+		
+		return result;
+	}
+
+	private void addNulledOnRemoveFieldReferences(MappedField nextMappedField, MappedField reverseMappedField) {
+		nulledOnRemoveFieldReferences.put(nextMappedField, reverseMappedField);
 	}
 
 	private void processMappedFieldRelationshipInterface(

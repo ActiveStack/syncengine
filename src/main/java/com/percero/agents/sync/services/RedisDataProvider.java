@@ -447,4 +447,10 @@ public class RedisDataProvider implements IDataProvider {
 		// TODO Auto-generated method stub
 		return null;
 	}
+
+	@Override
+	public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache, Boolean shellOnly) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

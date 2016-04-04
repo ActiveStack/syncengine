@@ -14,11 +14,14 @@ import com.percero.framework.vo.IPerceroObject;
 
 public class MappedFieldList extends MappedField {
 	
+	@SuppressWarnings("rawtypes")
 	private Class listClass = null;
+	@SuppressWarnings("rawtypes")
 	public Class getListClass() {
 		return listClass;
 	}
 
+	@SuppressWarnings("rawtypes")
 	public void setListClass(Class listClass) {
 		this.listClass = listClass;
 	}
@@ -62,6 +65,7 @@ public class MappedFieldList extends MappedField {
 		return (value != null && !value.isEmpty());
 	}
 	
+	@SuppressWarnings("rawtypes")
 	public Boolean compareObjects(Object objectA, Object objectB) throws IllegalArgumentException,
 	IllegalAccessException, InvocationTargetException {
 		List valueA = (List) getValue(objectA);

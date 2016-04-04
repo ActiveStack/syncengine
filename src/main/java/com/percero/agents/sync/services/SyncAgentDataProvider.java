@@ -434,6 +434,10 @@ public class SyncAgentDataProvider implements IDataProvider {
 	}
 	@Override
 	public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache) {
+		return findById(classIdPair, userId, false, false);
+	}
+	@Override
+	public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache, Boolean shellOnly) {
 		boolean hasReadQuery = false;
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 		MappedClass mappedClass = mcm.getMappedClassByClassName(classIdPair.getClassName());
@@ -463,7 +467,14 @@ public class SyncAgentDataProvider implements IDataProvider {
 					if (s == null)
 						s = appSessionFactory.openSession();
 //					((BaseDataObject)result).setIsClean(false);
-					result = (IPerceroObject) SyncHibernateUtils.cleanObject(result, s, userId);
+					if (shellOnly) {
+						IPerceroObject shellResult = result.getClass().newInstance();
+						shellResult.setID(result.getID());
+						result = shellResult;
+					}
+					else {
+						result = (IPerceroObject) SyncHibernateUtils.cleanObject(result, s, userId);
+					}
 					return result;
 				}
 				else {

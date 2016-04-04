@@ -25,6 +25,7 @@ public interface IDataProvider {
 	public List<Object> runQuery(MappedClass mappedClass, String queryName, Object[] queryArguments, String clientId) throws SyncException;
 	public IPerceroObject findById(ClassIDPair classIdPair, String userId);
 	public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache);
+	public IPerceroObject findById(ClassIDPair classIdPair, String userId, Boolean ignoreCache, Boolean shellOnly);
 	public IPerceroObject retrieveCachedObject(ClassIDPair classIdPair) throws Exception;
 	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId);
 	public List<IPerceroObject> findByIds(ClassIDPairs classIdPairs, String userId, Boolean ignoreCache);

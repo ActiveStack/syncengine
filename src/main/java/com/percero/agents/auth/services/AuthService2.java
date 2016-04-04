@@ -10,6 +10,7 @@ import com.percero.agents.auth.vo.*;
 import com.percero.agents.sync.exceptions.SyncDataException;
 import com.percero.agents.sync.metadata.*;
 import com.percero.agents.sync.services.ISyncAgentService;
+import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.framework.bl.IManifest;
 import com.percero.framework.bl.ManifestHelper;
 import com.percero.framework.vo.IPerceroObject;
@@ -599,7 +600,7 @@ public class AuthService2 {
 
                 if (!isInaccurateList && !serviceUserRoleExists) {
                     logger.warn("Deleting role " + nextUserRole.getRoleName() + " for " + user.getID());
-                    syncAgentService.systemDeleteObject(nextUserRole, null, true, new HashSet<IPerceroObject>());
+                    syncAgentService.systemDeleteObject(BaseDataObject.toClassIdPair(nextUserRole), null, true);
                 } else
                     updatedUserRoles.add(nextUserRole);
             }

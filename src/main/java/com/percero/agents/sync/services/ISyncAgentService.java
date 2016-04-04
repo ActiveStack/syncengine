@@ -29,8 +29,8 @@ public interface ISyncAgentService {
 	public ServerResponse deleteObject(ClassIDPair theClassIdPair, String clientId, Boolean pushToClient) throws Exception;
 	public ServerResponse deleteObjectById(String theClassName, String theId, String clientId) throws Exception;
 	public ServerResponse deleteObjectById(String theClassName, String theId, String clientId, Boolean pushToClient) throws Exception;
-	public boolean systemDeleteObject(IPerceroObject perceroObject, String clientId, boolean pushToUser) throws Exception;
-	public boolean systemDeleteObject(IPerceroObject perceroObject, String clientId, boolean pushToUser, Collection<IPerceroObject> deletedObjects) throws Exception;
+	public boolean systemDeleteObject(ClassIDPair classIdPair, String clientId, boolean pushToUser) throws Exception;
+	public boolean systemDeleteObject(ClassIDPair classIdPair, String clientId, boolean pushToUser, Collection<ClassIDPair> deletedObjects) throws Exception;
 
 	public ServerResponse putObject(IPerceroObject perceroObject, String transactionId, Date updateDate, String clientId) throws Exception;
 	public ServerResponse putObject(IPerceroObject perceroObject, String transactionId, Date updateDate, String clientId, Boolean pushToClient) throws Exception;
