@@ -2,15 +2,21 @@ package com.percero.example;
 
 import com.google.gson.JsonObject;
 import com.percero.agents.auth.vo.IUserAnchor;
+import com.percero.agents.sync.metadata.MappedClass;
+import com.percero.agents.sync.metadata.MappedClass.MappedClassMethodPair;
 import com.percero.agents.sync.metadata.annotations.EntityInterface;
 import com.percero.agents.sync.metadata.annotations.Externalize;
 import com.percero.agents.sync.metadata.annotations.PropertyInterface;
 import com.percero.agents.sync.vo.BaseDataObject;
+import com.percero.serial.BDODeserializer;
+import com.percero.serial.BDOSerializer;
 import com.percero.serial.JsonUtils;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.annotate.JsonProperty;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.map.annotate.JsonDeserialize;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 
 import javax.persistence.*;
 import java.io.IOException;
@@ -134,6 +140,21 @@ public class Person extends BaseDataObject implements Serializable, IUserAnchor
     public void setCircles(List<Circle> value) {
         this.circles = value;
     }
+    
+    
+    
+	@JsonSerialize(using=BDOSerializer.class)
+	@JsonDeserialize(using=BDODeserializer.class)
+    @com.percero.agents.sync.metadata.annotations.Externalize
+	@OneToOne(fetch=FetchType.LAZY, mappedBy="person", cascade=javax.persistence.CascadeType.REMOVE)
+	private PersonDetail personDetail;
+	public PersonDetail getPersonDetail() {
+		return this.personDetail;
+	}
+	public void setPersonDetail(PersonDetail value) {
+		this.personDetail = value;
+	}
+    
 
     //////////////////////////////////////////////////////
     // JSON
@@ -265,6 +286,17 @@ public class Person extends BaseDataObject implements Serializable, IUserAnchor
         }
         objectJson += "]";
 
+		// Target Relationships
+		objectJson += ",\"personDetail\":";
+		if (getPersonDetail() == null)
+			objectJson += "null";
+		else {
+			try {
+				objectJson += ((BaseDataObject) getPersonDetail()).toEmbeddedJson();
+			} catch(Exception e) {
+				objectJson += "null";
+			}
+		}
 
 
         return objectJson;
@@ -281,9 +313,22 @@ public class Person extends BaseDataObject implements Serializable, IUserAnchor
         setFirstName(JsonUtils.getJsonString(jsonObject, "firstName"));
         setLastName(com.percero.serial.JsonUtils.getJsonString(jsonObject, "lastName"));
 
-        this.personRoles = (List<PersonRole>) JsonUtils.getJsonListPerceroObject(jsonObject, "personRoles");
+		this.personRoles = (List<PersonRole>) JsonUtils.getJsonListPerceroObject(jsonObject, "personRoles");
         this.emails = (List<Email>) JsonUtils.getJsonListPerceroObject(jsonObject, "emails");
         this.circles = (List<Circle>) JsonUtils.getJsonListPerceroObject(jsonObject, "circles");
+        
+        // Target Relationships
+        this.personDetail = JsonUtils.getJsonPerceroObject(jsonObject, "personDetail");
     }
+
+	@Override
+	protected List<MappedClassMethodPair> getListSetters() {
+		List<MappedClassMethodPair> listSetters = super.getListSetters();
+
+		// Target Relationships
+		listSetters.add(MappedClass.getFieldSetters(CountryPermit.class, "personDetail"));
+	
+		return listSetters;
+	}
 
 }

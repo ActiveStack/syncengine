@@ -22,6 +22,13 @@ public class ExampleManifest implements IManifest {
             classList.add(PersonRole.class);
             classList.add(Email.class);
             classList.add(Block.class);
+
+            classList.add(Country.class);
+            classList.add(CountryPermit.class);
+            classList.add(PermitDocument.class);
+            classList.add(PermitLine.class);
+            classList.add(PostalAddress.class);
+            classList.add(ShippingAddress.class);
         }
         return classList;
     }
@@ -35,6 +42,13 @@ public class ExampleManifest implements IManifest {
             objectList.add(new PersonRole());
             objectList.add(new Email());
             objectList.add(new Block());
+            
+            objectList.add(new Country());
+            objectList.add(new CountryPermit());
+            objectList.add(new PermitDocument());
+            objectList.add(new PermitLine());
+            objectList.add(new PostalAddress());
+            objectList.add(new ShippingAddress());
         }
         return objectList;
     }
@@ -48,6 +62,13 @@ public class ExampleManifest implements IManifest {
             uuidMap.put("2", PersonRole.class);
             uuidMap.put("3", Email.class);
             uuidMap.put("4", Block.class);
+            
+            uuidMap.put("5", Country.class);
+            uuidMap.put("6", CountryPermit.class);
+            uuidMap.put("7", PermitDocument.class);
+            uuidMap.put("8", PermitLine.class);
+            uuidMap.put("9", PostalAddress.class);
+            uuidMap.put("10", ShippingAddress.class);
         }
         return uuidMap;
     }
