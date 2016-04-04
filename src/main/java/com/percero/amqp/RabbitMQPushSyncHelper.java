@@ -119,37 +119,31 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 
 	@SuppressWarnings("rawtypes")
 	protected void pushJsonToRouting(String objectJson, Class objectClass, String routingKey) {
-		try{
-            
-            
+		try {
 			Message convertedMessage = toMessage(objectJson, objectClass, MessageProperties.CONTENT_TYPE_JSON);
 			template.send(routingKey, convertedMessage);
 		}
-		catch(Exception e){
+		catch(Exception e) {
 			logger.error(e.getMessage(), e);
 		}
 	}
 	
 	protected void pushMessageToRouting(Message convertedMessage, String routingKey) {
-		try{
-            
-            
+		try {
 			template.send(routingKey, convertedMessage);
 		}
-		catch(Exception e){
+		catch(Exception e) {
 			logger.error(e.getMessage(), e);
 		}
 	}
 	
 	@SuppressWarnings("rawtypes")
 	protected void pushStringToRouting(String objectJson, Class objectClass, String routingKey) {
-		try{
-            
-            
+		try {
 			Message convertedMessage = toMessage(objectJson, objectClass, MessageProperties.CONTENT_TYPE_BYTES);
 			template.send(routingKey, convertedMessage);
 		}
-		catch(Exception e){
+		catch(Exception e) {
 			logger.error(e.getMessage(), e);
 		}
 	}
@@ -157,8 +151,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@SuppressWarnings("rawtypes")
 	public final Message toMessage(String objectJson, Class objectClass, String contentEncoding)
 			throws MessageConversionException {
-                
-                
 		MessageProperties messageProperties = new MessageProperties();
 		messageProperties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
 		messageProperties.setContentEncoding(this.defaultCharset);
@@ -169,8 +161,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@SuppressWarnings("rawtypes")
 	public final Message toMessage(String objectJson, Class objectClass, MessageProperties messageProperties, String contentEncoding)
 			throws MessageConversionException {
-        
-                
 		Message message = createMessage(objectJson, objectClass, messageProperties, contentEncoding);
 		return message;
 	}
@@ -178,9 +168,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	@SuppressWarnings("rawtypes")
 	protected Message createMessage(String aString, Class objectClass, MessageProperties messageProperties, String contentEncoding)
 			throws MessageConversionException {
-                
-        
-                
 		byte[] bytes = null;
 		try {
 			String jsonString = aString;
@@ -192,15 +179,11 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 			messageProperties.setContentLength(bytes.length);
 		}
 
-//		String objectClassName = objectClass.getName();
-//		messageProperties.getHeaders().put("__TypeId__", objectClassName);
 		classMapper.fromClass(objectClass, messageProperties);
 		return new Message(bytes, messageProperties);
 	}
 
 	public void pushSyncResponseToClient(SyncResponse anObject, String clientId) {
-        
-        
 		if (anObject != null && StringUtils.hasText(clientId)) {
 			pushJsonToRouting(anObject.toJson(objectMapper), anObject.getClass(), clientId);
 		}
@@ -208,8 +191,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	
 	@SuppressWarnings("rawtypes")
 	public void pushSyncResponseToClients(SyncResponse syncResponse, Collection<String> clientIds) {
-        
-        
 		if ( syncResponse != null && clientIds != null && !clientIds.isEmpty() ) {
 			Class objectClass = syncResponse.getClass();
 			
@@ -224,8 +205,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	}
 	
 	public void pushObjectToClients(Object anObject, Collection<String> listClients) {
-        
-        
 		if (anObject != null && listClients != null && !listClients.isEmpty() ) {
 			// Route to specific clients.
 			// Optimization: create the JSON string of the object.
@@ -249,8 +228,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 
 	@Override
 	public void pushStringToRoute(String aString, String routeName) {
-        
-        
 		if (StringUtils.hasText(routeName)) {
 			pushStringToRouting(aString, String.class, routeName);
 		}
@@ -258,8 +235,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	
 	@Override
 	public Boolean removeClient(String clientId) {
-        
-        
 		try {
 			if (!cacheDataStore.getSetIsMember(RedisKeyUtils.eolClients(), clientId)) {
 				logger.debug("RabbitMQ Removing Client " + clientId);
@@ -298,8 +273,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	}
 	
 	protected Boolean deleteQueue(String queue) {
-        
-        
 		try {
 			logger.debug("RabbitMQ Deleting Queue " + queue);
 			Queue clientQueue = new Queue(queue, durableQueues);
@@ -319,8 +292,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	
 	@Override
 	public Boolean renameClient(String thePreviousClientId, String clientId) {
-        
-        
 		if (!StringUtils.hasText(thePreviousClientId)) {
 			logger.warn("RabbitMQ renameClient previous client not set");
 			return false;
