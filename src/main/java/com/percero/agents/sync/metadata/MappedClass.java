@@ -1,5 +1,6 @@
 package com.percero.agents.sync.metadata;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -415,40 +416,68 @@ public class MappedClass implements IMappedClass {
 		entityImplementations.put(entityInterface.interfaceClass(), entityImpl);
 		return entityImpl;
 	}
-
+	
 	@SuppressWarnings("rawtypes")
+	protected MappedField handleCreateMappedFieldFromClass(Class fieldClass) {
+		MappedField newMappedField = null;
+		if (fieldClass == int.class)
+			newMappedField = new MappedFieldInt();
+		else if (fieldClass == Integer.class)
+			newMappedField = new MappedFieldInteger();
+		else if (fieldClass == float.class)
+			newMappedField = new MappedFieldFloat();
+		else if (fieldClass == Float.class)
+			newMappedField = new MappedFieldFloat();
+		else if (fieldClass == double.class)
+			newMappedField = new MappedFieldDouble();
+		else if (fieldClass == Double.class)
+			newMappedField = new MappedFieldDouble();
+		else if (fieldClass == boolean.class)
+			newMappedField = new MappedFieldBool();
+		else if (fieldClass == Boolean.class)
+			newMappedField = new MappedFieldBoolean();
+		else if (fieldClass == String.class)
+			newMappedField = new MappedFieldString();
+		else if (fieldClass == Date.class)
+			newMappedField = new MappedFieldDate();
+		/**
+		 * else if (nextFieldClass == Map.class) nextMappedField = new
+		 * MappedFieldMap(); else if (nextFieldClass == List.class)
+		 * nextMappedField = new MappedFieldList();
+		 **/
+		else if (implementsInterface(fieldClass, IPerceroObject.class)) {
+			newMappedField = new MappedFieldPerceroObject();
+			externalizablePerceroObjectFields.add((MappedFieldPerceroObject) newMappedField);
+		}
+		else if (implementsInterface(fieldClass, Map.class))
+			newMappedField = new MappedFieldMap();
+		else if (implementsInterface(fieldClass, List.class))
+			newMappedField = new MappedFieldList();
+
+		else
+			newMappedField = new MappedField();
+		
+		return newMappedField;
+	}
+
 	public void initializeFields() {
 		if (fieldsInitialized) {
 			return;
 		}
 
 		try {
-			Class clazz = MappedClass.forName(className);
+			if (clazz == null) {
+				clazz = MappedClass.forName(className);
+			}
 
 			List<Field> fields = SyncHibernateUtils.getClassFields(clazz);
 			for (Field nextField : fields) {
-				// Ignore this field if marked as Transient.
-				Transient transientAnno = (Transient) nextField
-						.getAnnotation(Transient.class);
-				if (transientAnno != null)
-					continue;
-
-				Externalize externalize = (Externalize) nextField
-						.getAnnotation(Externalize.class);
-				if (externalize == null) {
-					// Only process Externalizeable fields.
-					continue;
-				}
-
 				// Check to see if this Field has already been processed.
-				Iterator<MappedField> itrExternalizeFields = externalizableFields
-						.iterator();
+				Iterator<MappedField> itrExternalizeFields = externalizableFields.iterator();
 				Boolean fieldAlreadyMapped = false;
 				while (itrExternalizeFields.hasNext()) {
-					MappedField nextExistingMappedField = itrExternalizeFields
-							.next();
-					if (nextExistingMappedField.getField().getName()
-							.equals(nextField.getName())) {
+					MappedField nextExistingMappedField = itrExternalizeFields.next();
+					if (nextExistingMappedField.getField().getName().equals(nextField.getName())) {
 						// This field has already been mapped.
 						fieldAlreadyMapped = true;
 						break;
@@ -459,57 +488,26 @@ public class MappedClass implements IMappedClass {
 					continue;
 				}
 
-				Method theGetter = SyncHibernateUtils.getFieldGetters(clazz,
-						nextField);
-				transientAnno = (Transient) theGetter
-						.getAnnotation(Transient.class);
-				if (transientAnno != null)
+				Method theGetter = SyncHibernateUtils.getFieldGetters(clazz, nextField);
+
+				// Ignore this field if marked as Transient.
+				if (hasAnnotation(nextField, theGetter, Transient.class))
 					continue;
-				Method theSetter = SyncHibernateUtils.getFieldSetters(clazz,
-						nextField);
 
-				MappedField nextMappedField = null;
-				Class nextFieldClass = nextField.getType();
-				if (nextFieldClass == int.class)
-					nextMappedField = new MappedFieldInt();
-				else if (nextFieldClass == Integer.class)
-					nextMappedField = new MappedFieldInteger();
-				else if (nextFieldClass == float.class)
-					nextMappedField = new MappedFieldFloat();
-				else if (nextFieldClass == Float.class)
-					nextMappedField = new MappedFieldFloat();
-				else if (nextFieldClass == double.class)
-					nextMappedField = new MappedFieldDouble();
-				else if (nextFieldClass == Double.class)
-					nextMappedField = new MappedFieldDouble();
-				else if (nextFieldClass == boolean.class)
-					nextMappedField = new MappedFieldBool();
-				else if (nextFieldClass == Boolean.class)
-					nextMappedField = new MappedFieldBoolean();
-				else if (nextFieldClass == String.class)
-					nextMappedField = new MappedFieldString();
-				else if (nextFieldClass == Date.class)
-					nextMappedField = new MappedFieldDate();
-				/**
-				 * else if (nextFieldClass == Map.class) nextMappedField = new
-				 * MappedFieldMap(); else if (nextFieldClass == List.class)
-				 * nextMappedField = new MappedFieldList();
-				 **/
-				else if (implementsInterface(nextFieldClass,
-						IPerceroObject.class))
-					nextMappedField = new MappedFieldPerceroObject();
-				else if (implementsInterface(nextFieldClass, Map.class))
-					nextMappedField = new MappedFieldMap();
-				else if (implementsInterface(nextFieldClass, List.class))
-					nextMappedField = new MappedFieldList();
+				Externalize externalize = retrieveAnnotation(nextField, theGetter, Externalize.class);
+				if (externalize == null) {
+					// Only process Externalizeable fields.
+					continue;
+				}
 
-				else
-					nextMappedField = new MappedField();
+				Method theSetter = SyncHibernateUtils.getFieldSetters(clazz, nextField);
 
+				MappedField nextMappedField = handleCreateMappedFieldFromClass(nextField.getType());
 				nextMappedField.setMappedClass(this);
 				nextMappedField.setField(nextField);
 				nextMappedField.setGetter(theGetter);
 				nextMappedField.setSetter(theSetter);
+				externalizableFields.add(nextMappedField);
 
 				nextMappedField.setUseLazyLoading(externalize.useLazyLoading());
 				if (!nextMappedField.getUseLazyLoading())
@@ -517,53 +515,14 @@ public class MappedClass implements IMappedClass {
 
 				if (!externalize.useLazyLoading())
 					nonLazyLoadingFields.add(nextMappedField);
-				externalizableFields.add(nextMappedField);
-				if (nextMappedField instanceof MappedFieldPerceroObject)
-					externalizablePerceroObjectFields
-							.add((MappedFieldPerceroObject) nextMappedField);
 
-				OneToMany oneToMany = (OneToMany) theGetter
-						.getAnnotation(OneToMany.class);
-				if (oneToMany == null)
-					oneToMany = (OneToMany) nextField
-							.getAnnotation(OneToMany.class);
-				if (oneToMany != null) {
-					toManyFields.add(nextMappedField);
-					getTargetMappedFields().add(nextMappedField);
-				}
-				
-				if (oneToMany != null) {
-					((MappedFieldList) nextMappedField).setListClass(oneToMany.targetEntity());
-				}
-
-				ManyToOne manyToOne = (ManyToOne) theGetter
-						.getAnnotation(ManyToOne.class);
-				if (manyToOne == null)
-					manyToOne = (ManyToOne) nextField
-							.getAnnotation(ManyToOne.class);
-				if (manyToOne != null) {
-					getSourceMappedFields().add(
-							(MappedFieldPerceroObject) nextMappedField);
-				}
-
-				OneToOne oneToOne = (OneToOne) theGetter
-						.getAnnotation(OneToOne.class);
-				if (oneToOne == null)
-					oneToOne = (OneToOne) nextField
-							.getAnnotation(OneToOne.class);
-				if (oneToOne != null) {
-					if (StringUtils.hasText(oneToOne.mappedBy())) {
-						getTargetMappedFields().add(nextMappedField);
-					} else {
-						getSourceMappedFields().add(
-								(MappedFieldPerceroObject) nextMappedField);
-					}
-				}
+				handleAnnotation_OneToMany(nextField, theGetter, nextMappedField);
+				handleAnnotation_ManyToOne(nextField, theGetter, nextMappedField);
+				handleAnnotation_OneToOne(nextField, theGetter, nextMappedField);
 
 				Boolean isPropertyField = true;
-				Entity nextEntity = (Entity) nextField.getType().getAnnotation(
-						Entity.class);
-				if (nextEntity != null) {
+				if (nextField.getType().isAnnotationPresent(Entity.class)) {
+//				if (hasAnnotation(nextField.getType(), null, Entity.class)) {
 					entityFields.add(nextField);
 					toOneFields.add((MappedFieldPerceroObject) nextMappedField);
 					isPropertyField = false;
@@ -585,146 +544,15 @@ public class MappedClass implements IMappedClass {
 					propertyFields.add(nextMappedField);
 				}
 
-				Id id = (Id) theGetter.getAnnotation(Id.class);
-				if (id == null)
-					id = (Id) nextField.getAnnotation(Id.class);
-				if (id != null) {
-					idMappedField = nextMappedField;
-
-					List<MappedField> uniqueConstraintList = new ArrayList<MappedField>(
-							1);
-					uniqueConstraintList.add(nextMappedField);
-					uniqueConstraints.add(uniqueConstraintList);
-
-					// Check to see if this class has a Generated ID.
-					GeneratedValue generatedValue = (GeneratedValue) nextField
-							.getAnnotation(GeneratedValue.class);
-					hasGeneratedId = (generatedValue != null);
-				}
-
-				Column column = (Column) theGetter.getAnnotation(Column.class);
-				if (column == null)
-					column = (Column) nextField.getAnnotation(Column.class);
-				if (column != null) {
-					if (column.unique()) {
-						List<MappedField> uniqueConstraintList = new ArrayList<MappedField>(
-								1);
-						uniqueConstraintList.add(nextMappedField);
-						uniqueConstraints.add(uniqueConstraintList);
-					}
-
-					if (column.name() != null
-							&& column.name().trim().length() > 0)
-						nextMappedField.setColumnName(column.name());
-					else
-						nextMappedField.setColumnName(nextField.getName());
-				}
-
-				JoinColumn joinColumn = (JoinColumn) theGetter
-						.getAnnotation(JoinColumn.class);
-				if (joinColumn == null)
-					joinColumn = (JoinColumn) nextField
-							.getAnnotation(JoinColumn.class);
-				if (joinColumn != null) {
-					if (StringUtils.hasText(joinColumn.name())) {
-						nextMappedField.setJoinColumnName(joinColumn.name());
-					}
-				}
-
-				// Get NamedQueries for handling Access Rights.
-				AccessRights accessRights = (AccessRights) nextField
-						.getAnnotation(AccessRights.class);
-				if (accessRights == null)
-					accessRights = (AccessRights) nextMappedField.getGetter()
-							.getAnnotation(AccessRights.class);
-				if (accessRights != null) {
-					for (AccessRight nextAccessRight : accessRights.value()) {
-						/*
-						 * if
-						 * (nextAccessRight.type().equalsIgnoreCase("createQuery"
-						 * )) { if (nextAccessRight.query().indexOf("jpql:") >=
-						 * 0) nextMappedField.createQuery = new JpqlQuery();
-						 * else nextMappedField.createQuery = new MappedQuery();
-						 * nextMappedField
-						 * .createQuery.setQuery(nextAccessRight.query()); }
-						 * else if
-						 * (nextAccessRight.type().equalsIgnoreCase("updateQuery"
-						 * )) { if (nextAccessRight.query().indexOf("jpql:") >=
-						 * 0) nextMappedField.updateQuery = new JpqlQuery();
-						 * else nextMappedField.updateQuery = new MappedQuery();
-						 * nextMappedField
-						 * .updateQuery.setQuery(nextAccessRight.query()); }
-						 * else
-						 */
-						if (nextAccessRight.type()
-								.equalsIgnoreCase("readQuery")) {
-							if (nextAccessRight.query().indexOf("jpql:") >= 0) {
-								nextMappedField.setReadQuery(new JpqlQuery());
-								nextMappedField.getReadQuery().setQuery(
-										nextAccessRight.query());
-							} else if (nextAccessRight.query().indexOf("sql:") >= 0) {
-								nextMappedField.setReadQuery(new SqlQuery(
-										nextAccessRight.query().substring(
-												nextAccessRight.query()
-														.indexOf("sql:") + 4)));
-							} else {
-								// Whatever type of Query this is, it is not
-								// supported.
-								continue;
-								// nextMappedField.setReadQuery(new
-								// MappedQuery());
-							}
-							nextMappedField.setHasReadAccessRights(true);
-							readAccessRightsFieldReferences
-									.add(nextMappedField);
-						} /*
-						 * else if
-						 * (nextAccessRight.type().equalsIgnoreCase("deleteQuery"
-						 * )) { if (nextAccessRight.query().indexOf("jpql:") >=
-						 * 0) nextMappedField.deleteQuery = new JpqlQuery();
-						 * else nextMappedField.deleteQuery = new MappedQuery();
-						 * nextMappedField
-						 * .deleteQuery.setQuery(nextAccessRight.query()); }
-						 */
-
-						// Add to queries list.
-						IMappedQuery nextQuery = null;
-						if (nextAccessRight.query().indexOf("jpql:") >= 0) {
-							nextQuery = new JpqlQuery();
-							nextQuery.setQuery(nextAccessRight.query());
-						} else if (nextAccessRight.query().indexOf("sql:") >= 0) {
-							nextQuery = new SqlQuery(nextAccessRight.query()
-									.substring(
-											nextAccessRight.query().indexOf(
-													"sql:") + 4));
-						} else {
-							// Unsupported Query type
-							continue;
-							// nextQuery = new MappedQuery();
-						}
-						nextQuery.setQueryName(nextAccessRight.type());
-
-						nextMappedField.queries.add(nextQuery);
-					}
-				}
+				handleAnnotation_Id(nextField, theGetter, nextMappedField);
+				handleAnnotation_Column(nextField, theGetter, nextMappedField);
+				handleAnnotation_JoinColumn(nextField, theGetter, nextMappedField);
+				handleAnnotation_AccessRights(nextField, theGetter, nextMappedField);
 
 				// Check to see if this has any PropertyInterfaces that need to
-				// be addresed.
-				PropertyInterface propInterface = (PropertyInterface) nextField
-						.getAnnotation(PropertyInterface.class);
-				if (propInterface != null) {
-					processMappedFieldPropertyInterface(propInterface,
-							nextMappedField);
-				}
-				PropertyInterfaces propertyInterfaces = (PropertyInterfaces) nextField
-						.getAnnotation(PropertyInterfaces.class);
-				if (propertyInterfaces != null) {
-					for (PropertyInterface nextPropInterface : propertyInterfaces
-							.propertyInterfaces()) {
-						processMappedFieldPropertyInterface(nextPropInterface,
-								nextMappedField);
-					}
-				}
+				// be addressed.
+				handleAnnotation_PropertyInterface(nextField, theGetter, nextMappedField);
+				handleAnnotation_PropertyInterfaces(nextField, theGetter, nextMappedField);
 			}
 		} catch (Exception e) {
 			logger.error("Error parsing MappedClass " + this.className, e);
@@ -732,6 +560,276 @@ public class MappedClass implements IMappedClass {
 		fieldsInitialized = true;
 	}
 
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param nextMappedField
+	 * @return
+	 */
+	protected PropertyInterfaces handleAnnotation_PropertyInterfaces(Field nextField, Method theGetter,
+			MappedField nextMappedField) {
+		PropertyInterfaces propertyInterfaces = retrieveAnnotation(nextField, theGetter, PropertyInterfaces.class);
+		if (propertyInterfaces != null) {
+			for (PropertyInterface nextPropInterface : propertyInterfaces.propertyInterfaces()) {
+				processMappedFieldPropertyInterface(nextPropInterface, nextMappedField);
+			}
+		}
+		return propertyInterfaces;
+	}
+
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param nextMappedField
+	 * @return
+	 */
+	protected PropertyInterface handleAnnotation_PropertyInterface(Field nextField, Method theGetter,
+			MappedField nextMappedField) {
+		PropertyInterface propInterface = retrieveAnnotation(nextField, theGetter, PropertyInterface.class);
+		if (propInterface != null) {
+			processMappedFieldPropertyInterface(propInterface, nextMappedField);
+		}
+		return propInterface;
+	}
+
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param nextMappedField
+	 * @return
+	 */
+	protected OneToOne handleAnnotation_OneToOne(Field nextField, Method theGetter, MappedField nextMappedField) {
+		OneToOne oneToOne = retrieveAnnotation(nextField, theGetter, OneToOne.class);
+		if (oneToOne != null) {
+			if (StringUtils.hasText(oneToOne.mappedBy())) {
+				getTargetMappedFields().add(nextMappedField);
+			} else {
+				getSourceMappedFields().add((MappedFieldPerceroObject) nextMappedField);
+			}
+		}
+		return oneToOne;
+	}
+
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param nextMappedField
+	 */
+	protected void handleAnnotation_ManyToOne(Field nextField, Method theGetter, MappedField nextMappedField) {
+		if (hasAnnotation(nextField, theGetter, ManyToOne.class)) {
+			getSourceMappedFields().add((MappedFieldPerceroObject) nextMappedField);
+		}
+	}
+
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param nextMappedField
+	 * @return
+	 */
+	protected OneToMany handleAnnotation_OneToMany(Field nextField, Method theGetter, MappedField nextMappedField) {
+		OneToMany oneToMany = retrieveAnnotation(nextField, theGetter, OneToMany.class);
+		if (oneToMany != null) {
+			toManyFields.add(nextMappedField);
+			getTargetMappedFields().add(nextMappedField);
+			((MappedFieldList) nextMappedField).setListClass(oneToMany.targetEntity());
+		}
+		return oneToMany;
+	}
+
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param nextMappedField
+	 */
+	protected void handleAnnotation_Id(Field nextField, Method theGetter, MappedField nextMappedField) {
+		if (hasAnnotation(nextField, theGetter, Id.class)) {
+			idMappedField = nextMappedField;
+
+			List<MappedField> uniqueConstraintList = new ArrayList<MappedField>(1);
+			uniqueConstraintList.add(nextMappedField);
+			uniqueConstraints.add(uniqueConstraintList);
+
+			// Check to see if this class has a Generated ID.
+			hasGeneratedId = hasAnnotation(nextField, theGetter, GeneratedValue.class);
+		}
+	}
+
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param nextMappedField
+	 * @return
+	 */
+	protected JoinColumn handleAnnotation_JoinColumn(Field nextField, Method theGetter, MappedField nextMappedField) {
+		JoinColumn joinColumn = retrieveAnnotation(nextField, theGetter, JoinColumn.class);
+		if (joinColumn != null) {
+			if (StringUtils.hasText(joinColumn.name())) {
+				nextMappedField.setJoinColumnName(joinColumn.name());
+			}
+		}
+		return joinColumn;
+	}
+
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param nextMappedField
+	 * @return
+	 */
+	protected Column handleAnnotation_Column(Field nextField, Method theGetter, MappedField nextMappedField) {
+		Column column = retrieveAnnotation(nextField, theGetter, Column.class);
+		if (column != null) {
+			if (column.unique()) {
+				List<MappedField> uniqueConstraintList = new ArrayList<MappedField>(1);
+				uniqueConstraintList.add(nextMappedField);
+				uniqueConstraints.add(uniqueConstraintList);
+			}
+
+			if (column.name() != null && column.name().trim().length() > 0)
+				nextMappedField.setColumnName(column.name());
+			else
+				nextMappedField.setColumnName(nextField.getName());
+		}
+		return column;
+	}
+
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param nextMappedField
+	 * @return
+	 */
+	protected AccessRights handleAnnotation_AccessRights(Field nextField, Method theGetter, MappedField nextMappedField) {
+		AccessRights accessRights = retrieveAnnotation(nextField, theGetter, AccessRights.class);
+		if (accessRights != null) {
+			// Get NamedQueries for handling Access Rights.
+			for (AccessRight nextAccessRight : accessRights.value()) {
+				/*
+				 * if
+				 * (nextAccessRight.type().equalsIgnoreCase("createQuery"
+				 * )) { if (nextAccessRight.query().indexOf("jpql:") >=
+				 * 0) nextMappedField.createQuery = new JpqlQuery();
+				 * else nextMappedField.createQuery = new MappedQuery();
+				 * nextMappedField
+				 * .createQuery.setQuery(nextAccessRight.query()); }
+				 * else if
+				 * (nextAccessRight.type().equalsIgnoreCase("updateQuery"
+				 * )) { if (nextAccessRight.query().indexOf("jpql:") >=
+				 * 0) nextMappedField.updateQuery = new JpqlQuery();
+				 * else nextMappedField.updateQuery = new MappedQuery();
+				 * nextMappedField
+				 * .updateQuery.setQuery(nextAccessRight.query()); }
+				 * else
+				 */
+				if (nextAccessRight.type()
+						.equalsIgnoreCase("readQuery")) {
+					if (nextAccessRight.query().indexOf("jpql:") >= 0) {
+						nextMappedField.setReadQuery(new JpqlQuery());
+						nextMappedField.getReadQuery().setQuery(
+								nextAccessRight.query());
+					} else if (nextAccessRight.query().indexOf("sql:") >= 0) {
+						nextMappedField.setReadQuery(new SqlQuery(
+								nextAccessRight.query().substring(
+										nextAccessRight.query()
+												.indexOf("sql:") + 4)));
+					} else {
+						// Whatever type of Query this is, it is not
+						// supported.
+						continue;
+						// nextMappedField.setReadQuery(new
+						// MappedQuery());
+					}
+					nextMappedField.setHasReadAccessRights(true);
+					readAccessRightsFieldReferences
+							.add(nextMappedField);
+				} /*
+				 * else if
+				 * (nextAccessRight.type().equalsIgnoreCase("deleteQuery"
+				 * )) { if (nextAccessRight.query().indexOf("jpql:") >=
+				 * 0) nextMappedField.deleteQuery = new JpqlQuery();
+				 * else nextMappedField.deleteQuery = new MappedQuery();
+				 * nextMappedField
+				 * .deleteQuery.setQuery(nextAccessRight.query()); }
+				 */
+
+				// Add to queries list.
+				IMappedQuery nextQuery = null;
+				if (nextAccessRight.query().indexOf("jpql:") >= 0) {
+					nextQuery = new JpqlQuery();
+					nextQuery.setQuery(nextAccessRight.query());
+				} else if (nextAccessRight.query().indexOf("sql:") >= 0) {
+					nextQuery = new SqlQuery(nextAccessRight.query()
+							.substring(
+									nextAccessRight.query().indexOf(
+											"sql:") + 4));
+				} else {
+					// Unsupported Query type
+					continue;
+					// nextQuery = new MappedQuery();
+				}
+				nextQuery.setQueryName(nextAccessRight.type());
+
+				nextMappedField.queries.add(nextQuery);
+			}
+		}
+		return accessRights;
+	}
+
+	/**
+	 * @param mappedField
+	 * @param annotationClass
+	 * @return
+	 */
+	private <T extends Annotation> T retrieveAnnotation(MappedField mappedField, Class<T> annotationClass) {
+		if (mappedField != null) {
+			return retrieveAnnotation(mappedField.getField(), mappedField.getGetter(), annotationClass);
+		}
+		else {
+			return null;
+		}
+	}
+	
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param annotationClass
+	 * @return
+	 */
+	private <T extends Annotation> T retrieveAnnotation(Field nextField, Method theGetter, Class<T> annotationClass) {
+		T annotation = (theGetter != null ? theGetter.getAnnotation(annotationClass) : null);
+		if (annotation == null)
+			annotation = (nextField != null ? nextField.getAnnotation(annotationClass) : null);
+		return annotation;
+	}
+
+	/**
+	 * @param mappedField
+	 * @param annotationClass
+	 * @return
+	 */
+	private boolean hasAnnotation(MappedField mappedField, Class annotationClass) {
+		if (mappedField != null) {
+			return hasAnnotation(mappedField.getField(),  mappedField.getGetter(), annotationClass);
+		}
+		else {
+			return false;
+		}
+	}
+	/**
+	 * @param nextField
+	 * @param theGetter
+	 * @param annotationClass
+	 * @return
+	 */
+	@SuppressWarnings("rawtypes")
+	private boolean hasAnnotation(Field nextField, Method theGetter, Class annotationClass) {
+		boolean result = (theGetter != null ? theGetter.isAnnotationPresent(annotationClass) : false);
+		if (!result)
+			result = (nextField != null ? nextField.isAnnotationPresent(annotationClass) : false);
+		return result;
+	}
+	
 	private void processMappedFieldPropertyInterface(
 			PropertyInterface propInterface, MappedField mappedField) {
 		if (propInterface == null
@@ -879,13 +977,7 @@ public class MappedClass implements IMappedClass {
 								// Need to find the corresponding field.
 								for (MappedField nextRefMappedField : referencedMappedClass.toManyFields) {
 									if (nextRefMappedField instanceof MappedFieldList) {
-										OneToMany refOneToMany = nextRefMappedField
-												.getField().getAnnotation(
-														OneToMany.class);
-										if (refOneToMany == null)
-											refOneToMany = nextRefMappedField
-													.getGetter().getAnnotation(
-															OneToMany.class);
+										OneToMany refOneToMany = retrieveAnnotation(nextRefMappedField, OneToMany.class);
 
 										if (refOneToMany != null
 												&& refOneToMany.targetEntity()
@@ -904,13 +996,7 @@ public class MappedClass implements IMappedClass {
 											break;
 										}
 									} else if (nextRefMappedField instanceof MappedFieldPerceroObject) {
-										OneToOne refOneToOne = nextRefMappedField
-												.getField().getAnnotation(
-														OneToOne.class);
-										if (refOneToOne == null)
-											refOneToOne = nextRefMappedField
-													.getGetter().getAnnotation(
-															OneToOne.class);
+										OneToOne refOneToOne = retrieveAnnotation(nextRefMappedField, OneToOne.class);
 
 										if (refOneToOne != null
 												&& refOneToOne.targetEntity()
@@ -1003,13 +1089,7 @@ public class MappedClass implements IMappedClass {
 			while (itrExternalizeFields.hasNext()) {
 				MappedField nextMappedField = itrExternalizeFields.next();
 
-				OneToMany oneToMany = (OneToMany) nextMappedField.getGetter()
-						.getAnnotation(OneToMany.class);
-				if (oneToMany == null)
-					oneToMany = (OneToMany) nextMappedField.getField()
-							.getAnnotation(OneToMany.class);
-
-				if (oneToMany != null) {
+				if (hasAnnotation(nextMappedField, OneToMany.class)) {
 					// // This must be a source MappedField
 					// sourceMappedFields.add((MappedFieldPerceroObject)
 					// nextMappedField);
@@ -1034,35 +1114,8 @@ public class MappedClass implements IMappedClass {
 
 				}
 
-				ManyToOne manyToOne = (ManyToOne) nextMappedField.getGetter()
-						.getAnnotation(ManyToOne.class);
-				if (manyToOne == null)
-					manyToOne = (ManyToOne) nextMappedField.getField()
-							.getAnnotation(ManyToOne.class);
-
-				// if (manyToOne != null) {
-				// // This must be a target MappedField
-				// targetMappedFields.add(nextMappedField);
-				// }
-
-				OneToOne oneToOne = (OneToOne) nextMappedField.getGetter()
-						.getAnnotation(OneToOne.class);
-				if (oneToOne == null)
-					oneToOne = (OneToOne) nextMappedField.getField()
-							.getAnnotation(OneToOne.class);
-
-				// if (oneToOne != null) {
-				// // Not sure if this is source or target, let's find out...
-				// if(StringUtils.hasText(oneToOne.mappedBy())) {
-				// // This must be a target MappedField
-				// targetMappedFields.add(nextMappedField);
-				// }
-				// else {
-				// // This must be a source MappedField
-				// sourceMappedFields.add((MappedFieldPerceroObject)
-				// nextMappedField);
-				// }
-				// }
+				ManyToOne manyToOne = retrieveAnnotation(nextMappedField, ManyToOne.class);
+				OneToOne oneToOne = retrieveAnnotation(nextMappedField, OneToOne.class);
 
 				if (manyToOne != null && !manyToOne.optional()
 						|| oneToOne != null && !oneToOne.optional()) {
@@ -1087,20 +1140,13 @@ public class MappedClass implements IMappedClass {
 					// Find the reverse field.
 					for (MappedField nextRefMappedField : referencedMappedClass.toManyFields) {
 						if (nextRefMappedField instanceof MappedFieldList) {
-							OneToMany refOneToMany = nextRefMappedField
-									.getField().getAnnotation(OneToMany.class);
-							if (refOneToMany == null)
-								refOneToMany = nextRefMappedField.getGetter()
-										.getAnnotation(OneToMany.class);
+							OneToMany refOneToMany = retrieveAnnotation(nextRefMappedField, OneToMany.class);
 
 							if (refOneToMany != null) {
 
-								 Boolean inheritsFrom =
-								 inheritsFrom(this.clazz,
-								 refOneToMany.targetEntity());
-								 if (inheritsFrom &&
-								 nextMappedField.getField().getName().equals(refOneToMany.mappedBy()))
-								 {
+								Boolean inheritsFrom = inheritsFrom(this.clazz, refOneToMany.targetEntity());
+								if (inheritsFrom
+										&& nextMappedField.getField().getName().equals(refOneToMany.mappedBy())) {
 //								if (this.clazz == refOneToMany.targetEntity()
 //										&& nextMappedField
 //												.getField()
@@ -1112,11 +1158,7 @@ public class MappedClass implements IMappedClass {
 								}
 							}
 						} else if (nextRefMappedField instanceof MappedFieldPerceroObject) {
-							OneToOne refOneToOne = nextRefMappedField
-									.getField().getAnnotation(OneToOne.class);
-							if (refOneToOne == null)
-								refOneToOne = nextRefMappedField.getGetter()
-										.getAnnotation(OneToOne.class);
+							OneToOne refOneToOne = retrieveAnnotation(nextRefMappedField, OneToOne.class);
 
 							if (refOneToOne != null) {
 								 Boolean inheritsFrom =
@@ -1140,13 +1182,7 @@ public class MappedClass implements IMappedClass {
 						// Find the reverse field.
 						for (MappedField nextRefMappedField : referencedMappedClass.toOneFields) {
 							if (nextRefMappedField instanceof MappedFieldPerceroObject) {
-								OneToOne refOneToOne = nextRefMappedField
-										.getField().getAnnotation(
-												OneToOne.class);
-								if (refOneToOne == null)
-									refOneToOne = nextRefMappedField
-											.getGetter().getAnnotation(
-													OneToOne.class);
+								OneToOne refOneToOne = retrieveAnnotation(nextRefMappedField, OneToOne.class);
 
 								if (refOneToOne != null) {
 									if (StringUtils.hasText(refOneToOne.mappedBy())) {
@@ -1220,11 +1256,7 @@ public class MappedClass implements IMappedClass {
 					// Find the reverse field.
 					for (MappedField nextRefMappedField : referencedMappedClass.toManyFields) {
 						if (nextRefMappedField instanceof MappedFieldList) {
-							OneToMany refOneToMany = nextRefMappedField
-									.getField().getAnnotation(OneToMany.class);
-							if (refOneToMany == null)
-								refOneToMany = nextRefMappedField.getGetter()
-										.getAnnotation(OneToMany.class);
+							OneToMany refOneToMany = retrieveAnnotation(nextRefMappedField, OneToMany.class);
 
 							if (refOneToMany != null) {
 								 Boolean inheritsFrom =
@@ -1244,11 +1276,7 @@ public class MappedClass implements IMappedClass {
 								}
 							}
 						} else if (nextRefMappedField instanceof MappedFieldPerceroObject) {
-							OneToOne refOneToOne = nextRefMappedField
-									.getField().getAnnotation(OneToOne.class);
-							if (refOneToOne == null)
-								refOneToOne = nextRefMappedField.getGetter()
-										.getAnnotation(OneToOne.class);
+							OneToOne refOneToOne = retrieveAnnotation(nextRefMappedField, OneToOne.class);
 
 							if (refOneToOne != null) {
 								if (StringUtils.hasText(refOneToOne.mappedBy())) {
@@ -1282,13 +1310,7 @@ public class MappedClass implements IMappedClass {
 						// Find the reverse field.
 						for (MappedField nextRefMappedField : referencedMappedClass.toOneFields) {
 							if (nextRefMappedField instanceof MappedFieldPerceroObject) {
-								OneToOne refOneToOne = nextRefMappedField
-										.getField().getAnnotation(
-												OneToOne.class);
-								if (refOneToOne == null)
-									refOneToOne = nextRefMappedField
-											.getGetter().getAnnotation(
-													OneToOne.class);
+								OneToOne refOneToOne = retrieveAnnotation(nextRefMappedField, OneToOne.class);
 
 								if (refOneToOne != null) {
 									// Boolean inheritsFrom =
@@ -1334,14 +1356,12 @@ public class MappedClass implements IMappedClass {
 
 				// Check to see if this has any RelationshipInterfaces that need
 				// to be addresed.
-				RelationshipInterface propInterface = (RelationshipInterface) nextMappedField
-						.getField().getAnnotation(RelationshipInterface.class);
-				if (propInterface != null) {
-					processMappedFieldRelationshipInterface(propInterface,
+				RelationshipInterface relationshipInterface = retrieveAnnotation(nextMappedField, RelationshipInterface.class);
+				if (relationshipInterface != null) {
+					processMappedFieldRelationshipInterface(relationshipInterface,
 							nextMappedField);
 				}
-				RelationshipInterfaces relationshipInterfaces = (RelationshipInterfaces) nextMappedField
-						.getField().getAnnotation(RelationshipInterfaces.class);
+				RelationshipInterfaces relationshipInterfaces = retrieveAnnotation(nextMappedField, RelationshipInterfaces.class);
 				if (relationshipInterfaces != null) {
 					for (RelationshipInterface nextPropInterface : relationshipInterfaces
 							.relationshipInterfaces()) {
