@@ -54,7 +54,7 @@ public class TestMappedClassUtils {
 	public void testGetFieldSetters() throws NoSuchFieldException, SecurityException {
 		List<Field> fields = MappedClassUtils.getClassFields(PostalAddress.class);
 		for(Field field : fields) {
-			Method result = MappedClassUtils.getFieldGetters(PostalAddress.class, field);
+			Method result = MappedClassUtils.getFieldSetters(PostalAddress.class, field);
 			assertNotNull(result);
 		}
 	}

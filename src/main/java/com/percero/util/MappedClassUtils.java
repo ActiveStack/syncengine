@@ -78,7 +78,7 @@ public class MappedClassUtils {
 		if (theModifiedFieldName.indexOf("_") == 0)
 			theModifiedFieldName = theModifiedFieldName.substring(1);
 		
-		String setterMethodName = (new StringBuilder("set").append(theModifiedFieldName)).toString();
+		String setterMethodName = (new StringBuilder("set").append(theModifiedFieldName.toLowerCase())).toString();
 		
 		Map<String, Method> methods = retrieveClassMethods(theClass);
 		if (methods != null && !methods.isEmpty()) {
