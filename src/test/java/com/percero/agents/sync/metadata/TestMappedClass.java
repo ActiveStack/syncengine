@@ -1,6 +1,10 @@
-package com.percero.agents.sync.metadta;
+package com.percero.agents.sync.metadata;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Map;
 
@@ -24,8 +28,6 @@ import com.percero.example.Person;
 import com.percero.example.PostalAddress;
 import com.percero.example.ShippingAddress;
 import com.percero.framework.bl.IManifest;
-
-import ch.qos.logback.classic.turbo.MatchingFilter;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = { "classpath:spring/percero-spring-config.xml" })
@@ -168,4 +170,48 @@ public class TestMappedClass {
 		}
 	}
 
+	@Test
+	public void testHandleAnnotation_PropertyInterfaces() {
+		System.out.println("Not yet implemented");
+	}
+
+	@Test
+	public void testHandleAnnotation_PropertyInterface() {
+		System.out.println("Not yet implemented");
+	}
+
+	@Test
+	public void testHandleAnnotation_OneToOne() {
+		System.out.println("Not yet implemented");
+	}
+
+	@Test
+	public void testHandleAnnotation_ManyToOne() {
+		System.out.println("Not yet implemented");
+	}
+
+	@Test
+	public void testHandleAnnotation_OneToMany() {
+		System.out.println("Not yet implemented");
+	}
+
+	@Test
+	public void testHandleAnnotation_Id() {
+		System.out.println("Not yet implemented");
+	}
+
+	@Test
+	public void testHandleAnnotation_JoinColumn() {
+		System.out.println("Not yet implemented");
+	}
+
+	@Test
+	public void testHandleAnnotation_Column() {
+		System.out.println("Not yet implemented");
+	}
+
+	@Test
+	public void testHandleAnnotation_AccessRights() {
+		System.out.println("Not yet implemented");
+	}
 }
