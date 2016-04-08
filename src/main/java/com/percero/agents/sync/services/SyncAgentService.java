@@ -383,26 +383,49 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		if (processHelper != null)
 		{
 			try {
-				Object args[] = new Object[2];
-				args[0] = clientId;
-				args[1] = queryArguments;
-				Method method = processHelper.getClass().getDeclaredMethod(processName, new Class[]{String.class,Object[].class});
-				result = method.invoke(processHelper, args);
-			} catch(Exception e) {
-				if (e instanceof InvocationTargetException) {
-					InvocationTargetException ite = (InvocationTargetException) e;
-					if (ite.getTargetException() instanceof SyncException) {
-						throw (SyncException) ite.getTargetException();
-					}
-					else {
-						log.error("Unable to run Process", ite.getTargetException());
-						throw new SyncException("Error Running Process", -101, "Unable to run process " + processName + ":\n" + ite.getTargetException().getMessage());
-					}
+				Object[] args = null;
+				Method method = null;
+				try {
+					method = processHelper.getClass().getDeclaredMethod(processName, new Class[]{String.class,Object[].class});
+				} catch(NoSuchMethodException nsme) {}
+				
+				if (method != null) {
+					// Attempt to see if a method exists with parameters as an array.
+					args = new Object[2];
+					args[0] = clientId;
+					args[1] = (queryArguments instanceof List ? ((List)queryArguments).toArray() : queryArguments);
 				}
 				else {
-					log.error("Unable to run Process", e);
-					throw new SyncException("Error Running Process", -101, "Unable to run process " + processName + ":\n" + e.getMessage());
+					try {
+						method = processHelper.getClass().getDeclaredMethod(processName, new Class[]{String.class,Object.class});
+					} catch(NoSuchMethodException nsme) {}
+
+					if (method != null) {
+						args = new Object[2];
+						args[0] = clientId;
+						args[1] = queryArguments;
+					}
+					else {
+						args = new Object[1];
+						args[0] = clientId;
+						// Don't catch the "NoSuchMethodException" here since we
+						// have tried the last method signature, now we just
+						// fail
+						method = processHelper.getClass().getDeclaredMethod(processName, new Class[]{String.class});
+					}
 				}
+				result = method.invoke(processHelper, args);
+			} catch(InvocationTargetException e) {
+				if (e.getTargetException() instanceof SyncException) {
+					throw (SyncException) e.getTargetException();
+				}
+				else {
+					throw new SyncException("Error Running Process", -101, "Unable to run process " + processName + ":\n" + e.getTargetException().getMessage(), e);
+				}
+			} catch(NoSuchMethodException e) {
+				throw new SyncException("Error Running Process", -101, "Unable to run process " + processName + ":\n" + e.getMessage(), e);
+			} catch(Exception e) {
+				throw new SyncException("Error Running Process", -101, "Unable to run process " + processName + ":\n" + e.getMessage(), e);
 			}
 		}
 		
@@ -749,82 +772,8 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mappedClass.dataProviderName);
 				changedFields = dataProvider.getChangedMappedFields(perceroObject);
 				if (changedFields == null || changedFields.size() > 0) {
-					// Something has changed.
-					result = dataProvider.putObject(perceroObject, changedFields, userId);
-					
-					if (result != null) {
-						// Now record the updated object.
-						ObjectModJournal newModJournal = new ObjectModJournal();
-						newModJournal.setDateModified(updateDate);
-						newModJournal.setUserId(userId);
-						
-						if (transactionId == null || transactionId.length() == 0)
-							transactionId = UUID.randomUUID().toString();
-						newModJournal.setTransactionId(transactionId);
-						newModJournal.setClassID(result.getID());
-						newModJournal.setClassName(result.getClass().getName());
-						
-						cacheDataStore.lpushListValue(RedisKeyUtils.objectModJournal(perceroObject.getClass().getCanonicalName(), perceroObject.getID()), newModJournal);
-						
-						// Also store historical record, if necessary.
-						// Get the Current object if this is a BaseHistoryObject.
-						if (storeHistory && (result instanceof IHistoryObject))
-						{
-							HistoricalObject historyObject = new HistoricalObject();
-							historyObject.setObjectVersion(result.classVersion());
-							historyObject.setID(UUID.randomUUID().toString());
-							historyObject.setObjectChangeDate(updateDate);
-							historyObject.setObjectClassName(result.getClass().getName());
-							historyObject.setObjectId(result.getID());
-							historyObject.setObjectChangerId(userId);
-							historyObject.setObjectData(safeObjectMapper.writeValueAsString(result));
-							
-							cacheDataStore.lpushListValue(RedisKeyUtils.historicalObject(result.getClass().getCanonicalName(), result.getID()), historyObject);
-						}
-
-//						if (taskExecutor != null && false) {
-//							taskExecutor.execute(new PostPutTask(postPutHelper, BaseDataObject.toClassIdPair((BaseDataObject) result), userId, clientId, pushToClient, changedFields));
-//						} else {
-							postPutHelper.postPutObject(BaseDataObject.toClassIdPair((BaseDataObject) result), userId, clientId, pushToClient, changedFields);
-//						}
-						
-						// For each changed field, we look at the reverse mapped
-						// relationship (if one exists) and update that object
-						// (this was already done in the cache by the
-						// cacheManager).
-						if (changedFields != null && !changedFields.isEmpty()) {
-							Iterator<Map.Entry<ClassIDPair, Collection<MappedField>>> itrChangedFieldEntryset = changedFields.entrySet().iterator();
-							while (itrChangedFieldEntryset.hasNext()) {
-								Map.Entry<ClassIDPair, Collection<MappedField>> nextEntry = itrChangedFieldEntryset.next();
-								ClassIDPair thePair = nextEntry.getKey();
-								Collection<MappedField> changedMappedFields = nextEntry.getValue();
-								
-								// If thePair is NOT the object being updated, then need to run the postPutHelper for the Pair object as well.
-								if (!thePair.equals(classIdPair)) {
-									Map<ClassIDPair, Collection<MappedField>> thePairChangedFields = new HashMap<ClassIDPair, Collection<MappedField>>(1);
-									thePairChangedFields.put(thePair, changedMappedFields);
-									
-									// This will also run thePair through the ChangeWatcher check below.
-//									if (taskExecutor != null && false) {
-//										taskExecutor.execute(new PostPutTask(postPutHelper, thePair, userId, clientId, pushToClient, thePairChangedFields));
-//									} else {
-										postPutHelper.postPutObject(thePair, userId, clientId, pushToClient, thePairChangedFields);
-//									}
-								}
-								else {
-									Iterator<MappedField> itrChangedFields = changedMappedFields.iterator();
-									String[] fieldNames = new String[changedMappedFields.size()];
-									int i = 0;
-									while (itrChangedFields.hasNext()) {
-										MappedField nextChangedField = itrChangedFields.next();
-										fieldNames[i] = nextChangedField.getField().getName();
-										i++;
-									}
-									accessManager.checkChangeWatchers(thePair, fieldNames, null, null);
-								}
-							}
-						}
-					}
+					result = handleUpdateObject_ChangedFields(perceroObject, transactionId, updateDate, clientId,
+							pushToClient, changedFields, dataProvider);
 				}
 				else {
 					log.info("Unnecessary PutObject: " + perceroObject.getClass().getCanonicalName() + " (" + perceroObject.getID() + ")");
@@ -923,11 +872,13 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	 * @throws Exception
 	 */
 	private IPerceroObject handleUpdateObject_ChangedFields(IPerceroObject perceroObject, String transactionId,
-			Date updateDate, String userId, boolean pushToUser, Map<ClassIDPair, Collection<MappedField>> changedFields,
+			Date updateDate, String clientId, boolean pushToClient, Map<ClassIDPair, Collection<MappedField>> changedFields,
 			IDataProvider dataProvider)
 					throws SyncException, IOException, JsonGenerationException, JsonMappingException, Exception {
 		IPerceroObject result;
-		result = dataProvider.putObject(perceroObject, changedFields, null);
+		
+		String userId = accessManager.getClientUserId(clientId);
+		result = dataProvider.putObject(perceroObject, changedFields, userId);
 		
 		if (result != null) {
 			// Now record the updated object.
@@ -958,9 +909,9 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			}
 			
 			if (taskExecutor != null && false) {
-				taskExecutor.execute(new PostPutTask(postPutHelper, BaseDataObject.toClassIdPair((BaseDataObject) result), userId, null, pushToUser, changedFields));
+				taskExecutor.execute(new PostPutTask(postPutHelper, BaseDataObject.toClassIdPair((BaseDataObject) result), userId, null, pushToClient, changedFields));
 			} else {
-				postPutHelper.postPutObject(BaseDataObject.toClassIdPair((BaseDataObject) result), userId, null, pushToUser, changedFields);
+				postPutHelper.postPutObject(BaseDataObject.toClassIdPair((BaseDataObject) result), userId, null, pushToClient, changedFields);
 			}
 		}
 		return result;
@@ -1201,17 +1152,10 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	 * @return
 	 * @throws Exception
 	 */
-	/**
-	 * @param classIdPair
-	 * @param clientId
-	 * @param pushToUser
-	 * @param deletedObjects
-	 * @return
-	 * @throws Exception
-	 */
-	@SuppressWarnings("unchecked")
-	public boolean systemDeleteObject(ClassIDPair classIdPair, String clientId, boolean pushToUser, Collection<ClassIDPair> deletedObjects) throws Exception {
+	public boolean systemDeleteObject(ClassIDPair classIdPair, String clientId, boolean pushToUser,
+			Collection<ClassIDPair> deletedObjects) throws Exception {
 
+		// Validate our input
 		if(classIdPair == null)
 			return true;
 		if (deletedObjects.contains(classIdPair))
@@ -1236,12 +1180,11 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 
 		handleDeleteObject_CascadeRemove(perceroObject, mappedClass, deletedObjects, clientId);
 
-		handleDeleteObject_CascadeNull(perceroObject, mappedClass, userId);
+		handleDeleteObject_CascadeNull(perceroObject, mappedClass, clientId);
 		
 		// This is a list of objects that need to be notified that they have
 		// somehow changed. That somehow is directly linked to these objects
 		// relationship with the deleted object.
-		Map<ClassIDPair, MappedField> objectsToUpdate = mappedClass.getRelatedClassIdPairMappedFieldMap(perceroObject, false);
 		
 		if (dataProvider.deleteObject(BaseDataObject.toClassIdPair(perceroObject), userId)) {
 			// Also store historical record, if necessary.
@@ -1269,16 +1212,6 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 				postDeleteHelper.postDeleteObject(perceroObject, userId, clientId, pushToUser);
 			}
 			
-			Iterator<Entry<ClassIDPair, MappedField>> itrObjectsToUpdate = objectsToUpdate.entrySet().iterator();
-			while (itrObjectsToUpdate.hasNext()) {
-				Entry<ClassIDPair, MappedField> nextObjectToUpdate = itrObjectsToUpdate.next();
-				Map<ClassIDPair, Collection<MappedField>> changedFields = new HashMap<ClassIDPair, Collection<MappedField>>();
-				Collection<MappedField> changedMappedFields = new ArrayList<MappedField>(1);
-				changedMappedFields.add(nextObjectToUpdate.getValue());
-				changedFields.put(nextObjectToUpdate.getKey(), changedMappedFields);
-				postPutHelper.postPutObject(nextObjectToUpdate.getKey(), userId, clientId, true, changedFields);
-			}
-			
 			return true;
 		}
 
@@ -1295,7 +1228,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 	 * @param userId
 	 * @throws SyncDataException
 	 */
-	private void handleDeleteObject_CascadeNull(IPerceroObject perceroObject, MappedClass mappedClass, String userId)
+	private void handleDeleteObject_CascadeNull(IPerceroObject perceroObject, MappedClass mappedClass, String clientId)
 			throws SyncDataException {
 		Iterator<Map.Entry<MappedField, MappedField>> itrNulledOnRemoveFieldReferencesEntrySet = mappedClass.getNulledOnRemoveFieldReferences().entrySet().iterator();
 		while (itrNulledOnRemoveFieldReferencesEntrySet.hasNext()) {
@@ -1320,7 +1253,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						Collection<MappedField> mappedFields = new ArrayList<MappedField>(1);
 						mappedFields.add(nextToNullMappedFieldRef);
 						changedFields.put(BaseDataObject.toClassIdPair(nextReferencingObject), mappedFields);
-						handleUpdateObject_ChangedFields((IPerceroObject) nextReferencingObject, null, new Date(), userId, true, changedFields, dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName));
+						handleUpdateObject_ChangedFields((IPerceroObject) nextReferencingObject, null, new Date(), clientId, true, changedFields, dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName));
 					}
 				}
 				else {
@@ -1329,26 +1262,34 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 						List<IPerceroObject> referencingObjects = (List<IPerceroObject>) nextMappedField.getGetter().invoke(perceroObject);
 						if (referencingObjects != null && !referencingObjects.isEmpty()) {
 							for(IPerceroObject nextReferencingObject : referencingObjects) {
+								nextReferencingObject = systemGetByObject(nextReferencingObject);
 								nextToNullMappedFieldRef.setToNull(nextReferencingObject);
 //									systemPutObject((IPerceroObject) nextReferencingObject, null, new Date(), userId, true);
 								Map<ClassIDPair, Collection<MappedField>> changedFields = new HashMap<ClassIDPair, Collection<MappedField>>(1);
 								Collection<MappedField> mappedFields = new ArrayList<MappedField>(1);
 								mappedFields.add(nextToNullMappedFieldRef);
 								changedFields.put(BaseDataObject.toClassIdPair(nextReferencingObject), mappedFields);
-								handleUpdateObject_ChangedFields((IPerceroObject) nextReferencingObject, null, new Date(), userId, true, changedFields, dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName));
+								handleUpdateObject_ChangedFields((IPerceroObject) nextReferencingObject, null, new Date(), clientId, true, changedFields, dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName));
 							}
+							
+							// Now remove these objects from teh list.
+							referencingObjects.clear();
 						}
 					}
 					else if (nextMappedField instanceof MappedFieldPerceroObject) {
 						IPerceroObject referencingObject = (IPerceroObject) nextMappedField.getGetter().invoke(perceroObject);
 						if (referencingObject != null) {
+							referencingObject = systemGetByObject(referencingObject);
 							nextToNullMappedFieldRef.setToNull(referencingObject);
 //								systemPutObject((IPerceroObject) referencingObject, null, new Date(), userId, true);
 							Map<ClassIDPair, Collection<MappedField>> changedFields = new HashMap<ClassIDPair, Collection<MappedField>>(1);
 							Collection<MappedField> mappedFields = new ArrayList<MappedField>(1);
 							mappedFields.add(nextToNullMappedFieldRef);
 							changedFields.put(BaseDataObject.toClassIdPair(referencingObject), mappedFields);
-							handleUpdateObject_ChangedFields((IPerceroObject) referencingObject, null, new Date(), userId, true, changedFields, dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName));
+							handleUpdateObject_ChangedFields((IPerceroObject) referencingObject, null, new Date(), clientId, true, changedFields, dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName));
+							
+							// Now remove the reference to this object.
+							nextMappedField.setToNull(perceroObject);
 						}
 					}
 					else {
@@ -1366,7 +1307,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 							Collection<MappedField> mappedFields = new ArrayList<MappedField>(1);
 							mappedFields.add(nextToNullMappedFieldRef);
 							changedFields.put(BaseDataObject.toClassIdPair(nextReferencingObject), mappedFields);
-							handleUpdateObject_ChangedFields((IPerceroObject) nextReferencingObject, null, new Date(), userId, true, changedFields, dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName));
+							handleUpdateObject_ChangedFields((IPerceroObject) nextReferencingObject, null, new Date(), clientId, true, changedFields, dataProviderManager.getDataProviderByName(nextToNullMappedFieldRef.getMappedClass().dataProviderName));
 						}
 					}
 				}
@@ -1397,7 +1338,6 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 			MappedField nextRemoveMappedFieldRef = nextEntry.getKey();
 			try {
 				MappedField nextMappedField = nextEntry.getValue();
-				System.out.println(nextMappedField);
 				if (nextMappedField == null) {
 					// There is no direct link from mappedClass, so need to get all by example.
 					IPerceroObject tempObject = (IPerceroObject) nextRemoveMappedFieldRef.getMappedClass().newPerceroObject();
@@ -1418,12 +1358,18 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 							for(IPerceroObject nextReferencingObject : referencingObjects) {
 								systemDeleteObject(BaseDataObject.toClassIdPair(nextReferencingObject), clientId, true, deletedObjects);
 							}
+							
+							// Now remove these objects from the list.
+							referencingObjects.clear();
 						}
 					}
 					else if (nextMappedField instanceof MappedFieldPerceroObject) {
 						IPerceroObject referencingObject = (IPerceroObject) nextMappedField.getGetter().invoke(perceroObject);
 						if (referencingObject != null) {
 							systemDeleteObject(BaseDataObject.toClassIdPair(referencingObject), clientId, true, deletedObjects);
+
+							// Now remove the refernce to this object.
+							nextMappedField.setToNull(perceroObject);
 						}
 					}
 					else {

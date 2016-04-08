@@ -85,4 +85,8 @@ public class TestSyncAgentService {
 		assertTrue(deletedObjects.contains(new ClassIDPair("1", Person.class.getCanonicalName())));
 	}
 
+	@Test
+	public void test_handleUpdateObject_ChangedFields() {
+		System.out.println("Not yet implemented");
+	}
 }
