@@ -34,6 +34,7 @@ import com.percero.agents.sync.metadata.MappedField;
 import com.percero.agents.sync.metadata.MappedFieldPerceroObject;
 import com.percero.agents.sync.services.DataProviderManager;
 import com.percero.agents.sync.services.IDataProvider;
+import com.percero.agents.sync.services.IPushSyncHelper;
 import com.percero.agents.sync.vo.BaseDataObject;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.framework.bl.IManifest;
@@ -54,6 +55,7 @@ public class UpdateTableProcessor implements Runnable{
     protected UpdateTableConnectionFactory connectionFactory;
     protected PostDeleteHelper postDeleteHelper;
     protected PostPutHelper postPutHelper;
+    protected IPushSyncHelper pushSyncHelper;
     protected IManifest manifest;
     protected CacheManager cacheManager;
     protected DataProviderManager dataProviderManager;
@@ -346,7 +348,7 @@ public class UpdateTableProcessor implements Runnable{
                             fieldNames[i] = nextChangedField.getField().getName();
                             i++;
                         }
-                        postPutHelper.enqueueCheckChangeWatcher(thePair, fieldNames, null, oldValue);
+                        pushSyncHelper.enqueueCheckChangeWatcher(thePair, fieldNames, null, oldValue);
                     }
                 }
             }
@@ -522,7 +524,8 @@ public class UpdateTableProcessor implements Runnable{
 
         cacheManager.handleDeletedObject(cachedObject, className, isShellObject);
 
-        postDeleteHelper.postDeleteObject(new ClassIDPair(id, className), null, null, true);
+//        postDeleteHelper.postDeleteObject(new ClassIDPair(id, className), null, null, true);
+        postDeleteHelper.postDeleteObject(cachedObject, null, null, true);
     }
 
     @SuppressWarnings("rawtypes")
