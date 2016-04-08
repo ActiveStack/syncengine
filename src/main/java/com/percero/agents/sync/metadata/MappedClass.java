@@ -36,7 +36,6 @@ import org.springframework.util.StringUtils;
 
 import com.percero.agents.sync.annotations.PerceroNamedNativeQueries;
 import com.percero.agents.sync.annotations.PerceroNamedNativeQuery;
-import com.percero.agents.sync.hibernate.SyncHibernateUtils;
 import com.percero.agents.sync.metadata.annotations.AccessRight;
 import com.percero.agents.sync.metadata.annotations.AccessRights;
 import com.percero.agents.sync.metadata.annotations.DataProvider;
@@ -57,6 +56,7 @@ import com.percero.framework.bl.ManifestHelper;
 import com.percero.framework.metadata.IMappedClass;
 import com.percero.framework.metadata.IMappedQuery;
 import com.percero.framework.vo.IPerceroObject;
+import com.percero.util.MappedClassUtils;
 
 @SuppressWarnings("unchecked")
 public class MappedClass implements IMappedClass {
@@ -470,7 +470,7 @@ public class MappedClass implements IMappedClass {
 				clazz = MappedClass.forName(className);
 			}
 
-			List<Field> fields = SyncHibernateUtils.getClassFields(clazz);
+			List<Field> fields = MappedClassUtils.getClassFields(clazz);
 			for (Field nextField : fields) {
 				// Check to see if this Field has already been processed.
 				Iterator<MappedField> itrExternalizeFields = externalizableFields.iterator();
@@ -488,7 +488,7 @@ public class MappedClass implements IMappedClass {
 					continue;
 				}
 
-				Method theGetter = SyncHibernateUtils.getFieldGetters(clazz, nextField);
+				Method theGetter = MappedClassUtils.getFieldGetters(clazz, nextField);
 
 				// Ignore this field if marked as Transient.
 				if (hasAnnotation(nextField, theGetter, Transient.class))
@@ -500,7 +500,7 @@ public class MappedClass implements IMappedClass {
 					continue;
 				}
 
-				Method theSetter = SyncHibernateUtils.getFieldSetters(clazz, nextField);
+				Method theSetter = MappedClassUtils.getFieldSetters(clazz, nextField);
 
 				MappedField nextMappedField = handleCreateMappedFieldFromClass(nextField.getType());
 				nextMappedField.setMappedClass(this);
