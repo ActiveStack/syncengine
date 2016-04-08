@@ -1,8 +1,5 @@
 package com.percero.agents.sync.hibernate;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -658,59 +655,6 @@ public class SyncHibernateUtils {
 		}
 		
 		return object;
-	}
-	
-	@SuppressWarnings("rawtypes")
-	public static List<Field> getClassFields(Class theClass) {
-		List<Field> fieldList = new ArrayList<Field>();
-		Field[] theFields = theClass.getDeclaredFields();
-		
-		for(Field nextField : theFields) {
-			boolean isStatic = Modifier.STATIC == (nextField.getModifiers() & Modifier.STATIC);
-			if (!isStatic)
-				fieldList.add(nextField);
-		}
-		
-		if (theClass.getSuperclass() != null)
-			fieldList.addAll(getClassFields(theClass.getSuperclass()));
-		
-		return fieldList;
-	}
-
-	@SuppressWarnings("rawtypes")
-	public static Method getFieldGetters(Class theClass, Field theField) {
-		Method theMethod = null;
-		Method[] theMethods = theClass.getMethods();
-		String theModifiedFieldName = theField.getName();
-		if (theModifiedFieldName.indexOf("_") == 0)
-			theModifiedFieldName = theModifiedFieldName.substring(1);
-		
-		for(Method nextMethod : theMethods) {
-			if (nextMethod.getName().equalsIgnoreCase("get" + theModifiedFieldName)) {
-				theMethod = nextMethod;
-				break;
-			}
-		}
-		
-		return theMethod;
-	}
-
-	@SuppressWarnings("rawtypes")
-	public static Method getFieldSetters(Class theClass, Field theField) {
-		Method theMethod = null;
-		Method[] theMethods = theClass.getMethods();
-		String theModifiedFieldName = theField.getName();
-		if (theModifiedFieldName.indexOf("_") == 0)
-			theModifiedFieldName = theModifiedFieldName.substring(1);
-		
-		for(Method nextMethod : theMethods) {
-			if (nextMethod.getName().equalsIgnoreCase("set" + theModifiedFieldName)) {
-				theMethod = nextMethod;
-				break;
-			}
-		}
-		
-		return theMethod;
 	}
 	
 	@SuppressWarnings("rawtypes")

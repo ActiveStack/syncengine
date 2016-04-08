@@ -80,21 +80,12 @@ public class PostPutHelper {
 					break;
 				}
 			}
-//			Iterator<ClassIDPair> itrChangedFieldsKeys = changedFields.keySet().iterator();
-//			while (itrChangedFieldsKeys.hasNext()) {
-//				ClassIDPair nextPair = itrChangedFieldsKeys.next();
-//				if (nextPair.equals(pair)) {
-//					pairChangedFields = changedFields.get(nextPair);
-//					break;
-//				}
-//			}
 		}
 		pushObjectUpdateJournals(clientIds, pair, pairChangedFields);
 		
 		// Now run past the ChangeWatcher.
 		if (changedFields == null || changedFields.isEmpty()) {
-			enqueueCheckChangeWatcher(pair, null, null, oldValue);
-//			accessManager.checkChangeWatchers(pair, null, null);
+			pushSyncHelper.enqueueCheckChangeWatcher(pair, null, null, oldValue);
 		}
 		else {
 			// TODO: Need to somehow aggregate changes per client/object.
@@ -127,40 +118,10 @@ public class PostPutHelper {
 					}
 
 					// Swap out inline processing for a worker queue
-					enqueueCheckChangeWatcher(thePair, fieldNames, null, oldValue);
-//					accessManager.checkChangeWatchers(thePair, fieldNames, null);
+					pushSyncHelper.enqueueCheckChangeWatcher(thePair, fieldNames, null, oldValue);
 				}
 			}
-
-//			Iterator<ClassIDPair> itrChangedFieldKeyset = changedFields.keySet().iterator();
-//			while (itrChangedFieldKeyset.hasNext()) {
-//				ClassIDPair thePair = itrChangedFieldKeyset.next();
-//				Collection<MappedField> changedMappedFields = changedFields.get(thePair);
-//				Iterator<MappedField> itrChangedFields = changedMappedFields.iterator();
-//				String[] fieldNames = new String[changedMappedFields.size()];
-//				int i = 0;
-//				while (itrChangedFields.hasNext()) {
-//					MappedField nextChangedField = itrChangedFields.next();
-//					fieldNames[i] = nextChangedField.getField().getName();
-//					i++;
-//				}
-//				accessManager.checkChangeWatchers(thePair, fieldNames, null);
-//			}
 		}
-	}
-
-	public void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params, IPerceroObject oldValue){
-		CheckChangeWatcherMessage message = new CheckChangeWatcherMessage();
-		message.classIDPair = classIDPair;
-		message.fieldNames = fieldNames;
-		message.params = params;
-		if(oldValue != null)
-			message.oldValueJson = ((BaseDataObject)oldValue).toJson();
-		template.convertAndSend("checkChangeWatcher", message);
-	}
-
-	public void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params){
-		enqueueCheckChangeWatcher(classIDPair, fieldNames, params, null);
 	}
 
 	public void pushObjectUpdateJournals(Collection<String> clientIds, ClassIDPair classIdPair, Collection<MappedField> changedFields) {
@@ -237,74 +198,9 @@ public class PostPutHelper {
 						pushUpdateResponse.getObjectList().add(object);
 						pushSyncHelper.pushSyncResponseToClients(pushUpdateResponse, userClients);
 					}
-
-//					try {
-//						PushUpdateResponse pushUpdateResponse = new PushUpdateResponse();
-//						pushUpdateResponse.setObjectList(new ArrayList<BaseDataObject>());
-//						
-//						pushUpdateResponse.setClientId(nextClientId);
-//						
-//						// Need to get version of this object appropriate for this client.
-//						Object object = dataProvider.findById(classIdPair, userId);
-//						
-//						if (object != null) {
-//							pushUpdateResponse.getObjectList().add((BaseDataObject) object);
-//
-//							// Add changed fields names
-//							if (changedFields != null) {
-//								Iterator<MappedField> itrChangedFields = changedFields.iterator();
-//								while (itrChangedFields.hasNext()) {
-//									MappedField nextChangedField = itrChangedFields.next();
-//									pushUpdateResponse.addUpdatedField(nextChangedField.getField().getName());
-//								}
-//							}
-//
-//							pushSyncHelper.pushSyncResponseToClient(pushUpdateResponse, nextClientId);
-//						}
-//					} catch(Exception e) {
-//						log.error("Error pushing Object Update Journal to clients", e);
-//					}
 				}
 			}
 		}
 	}
 	
-//	public void pushClientUpdateJournals(Map<String, Set<ClassIDPair>> clientUpdates) {
-//
-//		Iterator<Map.Entry<String, Set<ClassIDPair>>> itrClientUpdatesEntrySet = clientUpdates.entrySet().iterator();
-//		while (itrClientUpdatesEntrySet.hasNext()) {
-//			Map.Entry<String, Set<ClassIDPair>> nextEntry = itrClientUpdatesEntrySet.next();
-//			String nextClientId = nextEntry.getKey();
-//			Set<ClassIDPair> pairs = nextEntry.getValue();
-//			
-//			String userId = accessManager.getClientUserId(nextClientId);
-//			List<BaseDataObject> objectList = new ArrayList<BaseDataObject>();
-//
-//			PushUpdateResponse pushUpdateResponse = new PushUpdateResponse();
-//			pushUpdateResponse.setObjectList(objectList);
-//			pushUpdateResponse.setClientId(nextClientId);
-//			
-//			Iterator<ClassIDPair> itrPairs = pairs.iterator();
-//			while (itrPairs.hasNext()) {
-//				try {
-//					ClassIDPair pair = itrPairs.next();
-//	
-//					IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
-//					MappedClass mc = mcm.getMappedClassByClassName(pair.getClassName());
-//					IDataProvider dataProvider = dataProviderManager.getDataProviderByName(mc.dataProviderName);
-//					BaseDataObject perceroObject = (BaseDataObject) dataProvider.findById(pair, userId);
-//					
-//					if (perceroObject != null) {
-//						objectList.add(perceroObject);
-//					}
-//				} catch(Exception e) {
-//					log.error("Error pushing Object Update Journal to client " + nextClientId, e);
-//				}
-//			}
-//			
-//			if (!objectList.isEmpty()) {
-//				pushSyncHelper.pushSyncResponseToClient(pushUpdateResponse, nextClientId);
-//			}
-//		}
-//	}
 }

@@ -1,6 +1,10 @@
 package com.percero.agents.sync.helpers;
 
 import com.percero.agents.sync.access.IAccessManager;
+import com.percero.agents.sync.metadata.IMappedClassManager;
+import com.percero.agents.sync.metadata.MappedClass;
+import com.percero.agents.sync.metadata.MappedClassManagerFactory;
+import com.percero.agents.sync.metadata.MappedField;
 import com.percero.agents.sync.services.IPushSyncHelper;
 import com.percero.agents.sync.services.ISyncAgentService;
 import com.percero.agents.sync.vo.ClassIDPair;
@@ -14,7 +18,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 @Component
 public class PostDeleteHelper {
@@ -62,10 +70,7 @@ public class PostDeleteHelper {
 		log.debug("PostDeleteHelper for " + theObject.toString() + " from clientId " + (pusherClientId == null ? "NULL" : pusherClientId));
 
 		ClassIDPair pair = new ClassIDPair(theObject.getID(), theObject.getClass().getCanonicalName());
-		postDeleteObject(pair, pusherUserId, pusherClientId, pushToUser);
-	}
 
-	public void postDeleteObject(ClassIDPair pair, String pusherUserId, String pusherClientId, boolean pushToUser) throws Exception {
 		// Remove all UpdateJournals for the objects.
 		accessManager.removeUpdateJournalsByObject(pair);
 
@@ -88,6 +93,32 @@ public class PostDeleteHelper {
 
 		/*Collection<Object> deleteJournals = */accessManager.saveDeleteJournalClients(pair, clientIds, guaranteeUpdateDelivery, pusherClientId, pushToUser);
 		pushObjectDeleteJournals(clientIds, pair.getClassName(), pair.getID());
+
+		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
+		MappedClass mappedClass = mcm.getMappedClassByClassName(pair.getClassName());
+		if (mappedClass != null) {
+			// Since this object has been deleted, ALL fields have changed.
+			Iterator<MappedField> itrChangedFields = mappedClass.externalizableFields.iterator();
+			String[] fieldNames = new String[mappedClass.externalizableFields.size()];
+			int i = 0;
+			while (itrChangedFields.hasNext()) {
+				MappedField nextChangedField = itrChangedFields.next();
+				fieldNames[i] = nextChangedField.getField().getName();
+				i++;
+			}
+			pushSyncHelper.enqueueCheckChangeWatcher(pair, fieldNames, null, theObject);
+			
+			Map<ClassIDPair, MappedField> objectsToUpdate = mappedClass.getRelatedClassIdPairMappedFieldMap(theObject, false);
+			Iterator<Entry<ClassIDPair, MappedField>> itrObjectsToUpdate = objectsToUpdate.entrySet().iterator();
+			while (itrObjectsToUpdate.hasNext()) {
+				Entry<ClassIDPair, MappedField> nextObjectToUpdate = itrObjectsToUpdate.next();
+				Map<ClassIDPair, Collection<MappedField>> changedFields = new HashMap<ClassIDPair, Collection<MappedField>>();
+				Collection<MappedField> changedMappedFields = new ArrayList<MappedField>(1);
+				changedMappedFields.add(nextObjectToUpdate.getValue());
+				changedFields.put(nextObjectToUpdate.getKey(), changedMappedFields);
+				postPutHelper.postPutObject(nextObjectToUpdate.getKey(), pusherUserId, pusherClientId, true, changedFields);
+			}
+		}
 	}
 
 	protected void pushObjectDeleteJournals(Collection<String> clientIds, String className, String classId) {

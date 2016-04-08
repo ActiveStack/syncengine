@@ -1,5 +1,6 @@
 package com.percero.agents.sync.helpers;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -81,19 +82,31 @@ public class PostCreateHelper {
 		if (pusherUserId != null && pusherUserId.length() > 0)
 			accessManager.saveAccessJournal(pair, pusherUserId, pusherClientId);
 		
-		// Sending an empty List as the ChangedFields parameter will cause the PostPutHelper to NOT check access 
-		//	managers for each field since it is impossible for change watchers to already exist for this new
-		//	object.
-		postPutHelper.postPutObject(pair, pusherUserId, pusherClientId, pushToUser, new HashMap<ClassIDPair, Collection<MappedField>>());
-
 		// For each association, update push the associated objects.
 		IMappedClassManager mcm = MappedClassManagerFactory.getMappedClassManager();
 		MappedClass mappedClass = mcm.getMappedClassByClassName(pair.getClassName());
 		
+		// Sending an empty List as the ChangedFields parameter will cause the PostPutHelper to NOT check access 
+		//	managers for each field since it is impossible for change watchers to already exist for this new
+		//	object.
+
+		// Since this object has been deleted, ALL fields have changed.
+		Iterator<MappedField> itrChangedFields = mappedClass.externalizableFields.iterator();
+		Map<ClassIDPair, Collection<MappedField>> changedFields = new HashMap<ClassIDPair, Collection<MappedField>>(1);
+		Collection<MappedField> changedMappedFields = new ArrayList<MappedField>(mappedClass.externalizableFields.size());
+		while (itrChangedFields.hasNext()) {
+			MappedField nextChangedField = itrChangedFields.next();
+			changedMappedFields.add(nextChangedField);
+		}
+
+		postPutHelper.postPutObject(pair, pusherUserId, pusherClientId, pushToUser, changedFields);
+
 		Map<ClassIDPair, Collection<MappedField>> changedObjects = new HashMap<ClassIDPair, Collection<MappedField>>();
 		
-		for(MappedFieldPerceroObject nextMappedField : mappedClass.externalizablePerceroObjectFields) {
+		// The only relationship fields that could have changed are source relationship fields 
+		for(MappedFieldPerceroObject nextMappedField : mappedClass.getSourceMappedFields()) {
 			try {
+				// We only care about two-way relationships.
 				if (nextMappedField.getReverseMappedField() != null) {
 					IPerceroObject fieldValue = (IPerceroObject) nextMappedField.getValue(perceroObject);
 					if (fieldValue != null) {
