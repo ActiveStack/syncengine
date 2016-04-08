@@ -57,12 +57,15 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.percero.agents.sync.access.IAccessManager;
 import com.percero.agents.sync.access.RedisKeyUtils;
+import com.percero.agents.sync.cw.CheckChangeWatcherMessage;
 import com.percero.agents.sync.datastore.ICacheDataStore;
 import com.percero.agents.sync.services.IPushSyncHelper;
 import com.percero.agents.sync.vo.BaseDataObject;
+import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.agents.sync.vo.IJsonObject;
 import com.percero.agents.sync.vo.PushUpdateResponse;
 import com.percero.agents.sync.vo.SyncResponse;
+import com.percero.framework.vo.IPerceroObject;
 import com.rabbitmq.client.ShutdownSignalException;
 
 import edu.emory.mathcs.backport.java.util.Arrays;
@@ -233,6 +236,22 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 		}
 	}
 	
+	@Override
+	public void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params){
+		enqueueCheckChangeWatcher(classIDPair, fieldNames, params, null);
+	}
+	
+	@Override
+	public void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params, IPerceroObject oldValue){
+		CheckChangeWatcherMessage message = new CheckChangeWatcherMessage();
+		message.classIDPair = classIDPair;
+		message.fieldNames = fieldNames;
+		message.params = params;
+		if(oldValue != null)
+			message.oldValueJson = ((BaseDataObject)oldValue).toJson();
+		template.convertAndSend("checkChangeWatcher", message);
+	}
+
 	@Override
 	public Boolean removeClient(String clientId) {
 		try {

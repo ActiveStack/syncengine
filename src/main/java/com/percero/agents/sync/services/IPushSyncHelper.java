@@ -2,7 +2,9 @@ package com.percero.agents.sync.services;
 
 import java.util.Collection;
 
+import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.agents.sync.vo.SyncResponse;
+import com.percero.framework.vo.IPerceroObject;
 
 public interface IPushSyncHelper {
 	
@@ -17,4 +19,7 @@ public interface IPushSyncHelper {
 
 	public Boolean removeClient(String clientId);
 	public Boolean renameClient(String thePreviousClientId, String clientId);
+	void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params);
+	void enqueueCheckChangeWatcher(ClassIDPair classIDPair, String[] fieldNames, String[] params,
+			IPerceroObject oldValue);
 }
