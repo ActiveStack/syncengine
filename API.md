@@ -159,7 +159,7 @@ Sent whenever an object has been updated for which a client has registered to re
 - [PutObject Pushes](src/main/java/com/percero/agents/sync/helpers/PostPutHelper.java#L173)
 - [Client Reconnect Push Updates](src/main/java/com/percero/agents/sync/services/SyncAgentService.java#L1357)
 - [Change Watcher Pushes](src/main/java/com/percero/agents/sync/cw/DerivedValueChangeWatcherHelper.java#L326)
-- Response: [`PushUpdateResponse`](src/main/
+- Response: [`PushUpdateResponse`](src/main/java/com/percero/agents/sync/vo/PushUpdateResponse.java)
 
 ### `deleteUpdate`
 Sent whenever an object has been deleted for which a client has registered to receive updates.
