@@ -13,6 +13,10 @@ import com.percero.agents.sync.services.ISyncAgentService;
 import com.percero.agents.sync.vo.SyncRequest;
 import com.percero.amqp.handlers.*;
 import com.percero.framework.accessor.IAccessorService;
+
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.log4j.Logger;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.AmqpTemplate;
@@ -26,6 +30,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * This class supplies the main method that creates the spring context
@@ -362,7 +367,15 @@ public class PerceroAgentListener implements MessageListener {
             else if(key.equals("disconnectAuth")){
                 if (request instanceof com.percero.agents.auth.vo.DisconnectRequest) {
                     response = new DisconnectResponse();
-                    result = authService.logoutUser(request.getUserId(), request.getToken(), request.getClientId());
+                    Set<String> clientIds = new HashSet<String>();
+                    clientIds.add(request.getClientId());
+                    if (StringUtils.hasText(((com.percero.agents.auth.vo.DisconnectRequest) request).getExistingClientId())) {
+                    	clientIds.add(((com.percero.agents.auth.vo.DisconnectRequest) request).getExistingClientId());
+                    }
+                    if (((com.percero.agents.auth.vo.DisconnectRequest) request).getExistingClientIds() != null && !((com.percero.agents.auth.vo.DisconnectRequest) request).getExistingClientIds().isEmpty()) {
+                    	clientIds.addAll(((com.percero.agents.auth.vo.DisconnectRequest) request).getExistingClientIds());
+                    }
+                    result = authService.logoutUser(request.getUserId(), request.getToken(), clientIds);
                     ((DisconnectResponse) response).setResult((Boolean)result);
                 }
             }

@@ -646,9 +646,15 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 	 * @see com.com.percero.agents.auth.services.IAuthService#logoutUser(java.lang.String, java.lang.String, java.lang.String)
 	 */
 	public Boolean logoutUser(String aUserId, String aToken, String aClientId) {
+		Set<String> clientIds = new HashSet<String>(1);
+		clientIds.add(aClientId);
+		return logoutUser(aUserId, aToken, clientIds);
+	}
+
+	public Boolean logoutUser(String aUserId, String aToken, Set<String> clientIds) {
 		Boolean result = false;
 		boolean validUser = StringUtils.hasText(aUserId);
-		boolean validClient = StringUtils.hasText(aClientId);
+		boolean validClient = clientIds != null && !clientIds.isEmpty();
 		boolean validToken = StringUtils.hasText(aToken);
 		
 		// If neither a valid user or a valid client, then no one to logout.
@@ -661,17 +667,16 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 		
 		// Match EITHER the ClientID OR the Token
 		if (validClient && validToken) {
-			log.debug("Logging out Client: " + aClientId + ", Token: " + aToken);
-			deleteUserTokenSql += " (clientId=:clientId OR token=:token) ";
+			log.debug("Logging out Client(s): " + StringUtils.collectionToCommaDelimitedString(clientIds) + " / Token: " + aToken);
+			deleteUserTokenSql += " (clientId IN (" + StringUtils.collectionToDelimitedString(clientIds, ",", "\"", "\"") + ") OR token=:token) ";
 		}
 		else if (validToken) {
-			log.debug("Logging out Token: " + aToken);
 			log.debug("Logging out Token: " + aToken);
 			deleteUserTokenSql += " token=:token ";
 		}
 		else if (validClient) {
-			log.debug("Logging out Client: " + aClientId);
-			deleteUserTokenSql += " clientId=:clientId ";
+			log.debug("Logging out Client(s): " + StringUtils.collectionToCommaDelimitedString(clientIds));
+			deleteUserTokenSql += " clientId IN (" + StringUtils.collectionToDelimitedString(clientIds, ",", "\"", "\"") + ") ";
 		}
 		else if (validUser) {
 			// This will log out ALL of the User's devices, logging them out completely.
@@ -687,13 +692,9 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 			
 			if (validClient && validToken) {
 				deleteQuery.setString("token", aToken);
-				deleteQuery.setString("clientId", aClientId);
 			}
 			else if (validToken) {
 				deleteQuery.setString("token", aToken);
-			}
-			else if (validClient) {
-				deleteQuery.setString("clientId", aClientId);
 			}
 			else if (validUser) {
 				deleteQuery.setString("user_ID", aUserId);

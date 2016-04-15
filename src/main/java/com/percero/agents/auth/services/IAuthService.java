@@ -3,7 +3,6 @@ package com.percero.agents.auth.services;
 import java.util.List;
 import java.util.Set;
 
-import com.percero.agents.auth.vo.AuthProvider;
 import com.percero.agents.auth.vo.OAuthResponse;
 import com.percero.agents.auth.vo.OAuthToken;
 import com.percero.agents.auth.vo.ServiceUser;
@@ -109,8 +108,9 @@ public interface IAuthService {
 	 * 
 	 * @param aUserId
 	 * @param aToken
-	 * @param aClientId
+	 * @param clientIds
 	 * @return TRUE if user/client successfully logged out, FALSE if user/client unable to be logged out 
 	 */
-	public Boolean logoutUser(String aUserId, String aToken, String aClientId);
+	public Boolean logoutUser(String aUserId, String aToken, Set<String> clientIds);
+	public Boolean logoutUser(String aUserId, String aToken, String clientId);
 }
