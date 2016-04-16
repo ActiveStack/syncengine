@@ -696,6 +696,9 @@ at com.com.percero.agents.auth.services.AuthService.loginUserAccount(AuthService
 			else if (validToken) {
 				deleteQuery.setString("token", aToken);
 			}
+			else if (validClient) {
+				// Do nothing.
+			}
 			else if (validUser) {
 				deleteQuery.setString("user_ID", aUserId);
 			}
