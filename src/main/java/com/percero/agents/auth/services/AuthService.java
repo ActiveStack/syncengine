@@ -1,13 +1,24 @@
 package com.percero.agents.auth.services;
 
-import com.percero.agents.auth.helpers.IAccountHelper;
-import com.percero.agents.auth.hibernate.AssociationExample;
-import com.percero.agents.auth.hibernate.AuthHibernateUtils;
-import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
-import com.percero.agents.auth.vo.*;
-import com.percero.agents.sync.access.IAccessManager;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
 import org.apache.log4j.Logger;
-import org.hibernate.*;
+import org.hibernate.Criteria;
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.StaleStateException;
+import org.hibernate.Transaction;
+import org.hibernate.criterion.Restrictions;
 import org.hibernate.exception.LockAcquisitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +26,19 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.util.*;
+import com.percero.agents.auth.helpers.IAccountHelper;
+import com.percero.agents.auth.hibernate.AuthHibernateUtils;
+import com.percero.agents.auth.vo.AuthProvider;
+import com.percero.agents.auth.vo.OAuthResponse;
+import com.percero.agents.auth.vo.OAuthToken;
+import com.percero.agents.auth.vo.ServiceIdentifier;
+import com.percero.agents.auth.vo.ServiceUser;
+import com.percero.agents.auth.vo.SvcAppRole;
+import com.percero.agents.auth.vo.User;
+import com.percero.agents.auth.vo.UserAccount;
+import com.percero.agents.auth.vo.UserIdentifier;
+import com.percero.agents.auth.vo.UserToken;
+import com.percero.agents.sync.access.IAccessManager;
 
 /**
  * The AuthService is responsible for managing authentication of users within the Percero framework. The AuthService
@@ -74,31 +97,6 @@ public class AuthService implements IAuthService {
 	public AuthService() {
 	}
 
-
-	@SuppressWarnings("rawtypes")
-	protected List findByExample(Object theQueryObject,
-			List<String> excludeProperties) {
-		Session s = null;
-		try {
-			s = sessionFactoryAuth.openSession();
-			Criteria criteria = s.createCriteria(theQueryObject.getClass());
-			AssociationExample example = AssociationExample
-					.create(theQueryObject);
-			BaseDataObjectPropertySelector propertySelector = new BaseDataObjectPropertySelector(
-					excludeProperties);
-			example.setPropertySelector(propertySelector);
-			criteria.add(example);
-
-			List result = criteria.list();
-			return (List) AuthHibernateUtils.cleanObject(result);
-		} catch (Exception e) {
-			log.error("Unable to findByExample", e);
-		} finally {
-			if (s != null)
-				s.close();
-		}
-		return null;
-	}
 
 	/* (non-Javadoc)
 	 * @see com.com.percero.agents.auth.services.IAuthService#authenticateOAuthCode(com.com.percero.agents.auth.vo.AuthProvider, java.lang.String, java.lang.String, java.lang.String, java.lang.String, com.com.percero.agents.auth.vo.OAuthToken)
@@ -427,20 +425,18 @@ public class AuthService implements IAuthService {
 		UserAccount theFoundUserAccount = null;
 		Session s = null;
 		try {
-			List<String> excludeProperties = new ArrayList<String>();
-			excludeProperties.add("accessToken");
-			excludeProperties.add("refreshToken");
-			excludeProperties.add("isAdmin");
-			excludeProperties.add("isSuspended");
-			List userAccounts = findByExample(theQueryObject,
-					excludeProperties);
+			s = sessionFactoryAuth.openSession();
+			Criteria criteria = s.createCriteria(UserAccount.class)
+					.add(Restrictions.eq("accountId", theQueryObject.getAccountId()))
+					.add(Restrictions.eq("authProviderID", theQueryObject.getAuthProviderID()));
+			List result = criteria.list();
+			List userAccounts = (List) AuthHibernateUtils.cleanObject(result);
 
 			// It is possible that this Service Provider (or this use case) does not have an AccessToken, so set one here.
 			if (theQueryObject.getAccessToken() == null || theQueryObject.getAccessToken().length() == 0)
 				theQueryObject.setAccessToken(getRandomId());
 
-			if ((userAccounts instanceof List)
-					&& ((List) userAccounts).size() > 0) {
+			if (userAccounts != null && !userAccounts.isEmpty()) {
 				// Found a valid UserAccount.
 				List userAccountList = (List) userAccounts;
 				theFoundUserAccount = (UserAccount) userAccountList.get(0);
@@ -449,7 +445,6 @@ public class AuthService implements IAuthService {
 					theFoundUserAccount.setAccessToken(theQueryObject.getAccessToken());
 					if(theQueryObject.getRefreshToken() != null && !theQueryObject.getRefreshToken().isEmpty())
 						theFoundUserAccount.setRefreshToken(theQueryObject.getRefreshToken());
-					s = sessionFactoryAuth.openSession();
 					Transaction tx = s.beginTransaction();
 					tx.begin();
 					theFoundUserAccount = (UserAccount) s
@@ -457,8 +452,6 @@ public class AuthService implements IAuthService {
 					tx.commit();
 				}
 			} else if (createIfNotExist) {
-				s = sessionFactoryAuth.openSession();
-
 				User theUser = null;
 
 				// Attempt to find this user by finding a matching UserIdentifier.
@@ -520,8 +513,6 @@ public class AuthService implements IAuthService {
 
 				// Now enter in the UserIdentifiers for this User.
 				if (serviceUser.getIdentifiers() != null && serviceUser.getIdentifiers().size() > 0) {
-					if (s == null)
-						s = sessionFactoryAuth.openSession();
 					Transaction tx = s.beginTransaction();
 					Query q = null;
 					for(ServiceIdentifier nextServiceIdentifier : serviceUser.getIdentifiers()) {
@@ -563,17 +554,16 @@ public class AuthService implements IAuthService {
 				UserToken theUserToken = null;
 				if (theUserAccount != null) {
 					Date currentDate = new Date();
-					UserToken queryUserToken = new UserToken();
-					queryUserToken.setUser(theUserAccount.getUser());
-					queryUserToken.setClientId(clientId);
-					List userTokenResult = findByExample(queryUserToken, null);
+					s = sessionFactoryAuth.openSession();
+					Criteria criteria = s.createCriteria(UserToken.class).add(Restrictions.eq("clientId", clientId))
+							.add(Restrictions.eq("user.ID", theUserAccount.getUser().getID()));
+					List result = criteria.list();
+					List userTokenResult = (List) AuthHibernateUtils.cleanObject(result);
 
 					if ( !userTokenResult.isEmpty() ) {
 						theUserToken = (UserToken) userTokenResult.get(0);
 					}
 
-					if (s == null)
-						s = sessionFactoryAuth.openSession();
 					Transaction tx = s.beginTransaction();
 					tx.begin();
 

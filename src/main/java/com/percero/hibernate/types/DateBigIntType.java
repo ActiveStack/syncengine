@@ -3,13 +3,16 @@ package com.percero.hibernate.types;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.util.Date;
 
 import org.hibernate.type.BigIntegerType;
-import org.hibernate.type.DateType;
 
 public class DateBigIntType extends BigIntegerType {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -5880508702368203232L;
 
 	public Object get(ResultSet rs, String name)
 			throws SQLException {
@@ -26,9 +29,5 @@ public class DateBigIntType extends BigIntegerType {
 			stmt.setLong(index, 0);
 		else
 			stmt.setLong(index, ((Date) value).getTime());
-	}
-	
-	public int sqlType() {
-		return Types.BIGINT;
 	}
 }

@@ -3,6 +3,7 @@ package com.percero.agents.sync.cw;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -13,7 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import com.percero.agents.sync.hibernate.SyncHibernateUtils;
+import com.percero.agents.sync.exceptions.SyncException;
 import com.percero.agents.sync.metadata.IMappedClassManager;
 import com.percero.agents.sync.metadata.MappedClass;
 import com.percero.agents.sync.metadata.MappedClassManagerFactory;
@@ -340,7 +341,7 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 					//if (value instanceof BaseDataObject) {
 						String userId = accessManager.getClientUserId(clientId);
 						// Clean the value if it is a framework object.
-						value = SyncHibernateUtils.cleanObject(value, null, userId);
+						value = cleanChangeWatcherValue(value, userId);
 					//}
 					pushUpdateResponse.setValue(value);
 					pushUpdateResponse.setClientId(clientId);
@@ -353,6 +354,37 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 			}
 		}
 	}
+	/**
+	 * @param value
+	 * @param userId
+	 * @return
+	 * @throws SyncException
+	 */
+	private Object cleanChangeWatcherValue(Object value, String userId) throws SyncException {
+		if (value instanceof IPerceroObject) {
+			MappedClass mc = MappedClassManagerFactory.getMappedClassManager().getMappedClassByClassName(value.getClass().getCanonicalName());
+			value = mc.getDataProvider().cleanObject((IPerceroObject) value, userId); 
+		}
+		else if (value instanceof List<?>) {
+			// We know this is a list, so best attempt is to get class of first object in list and use that to get the corresponding mapped class.
+			List<?> listValue = (List<?>) value;
+			if (!listValue.isEmpty()) {
+				Object firstListValue = listValue.get(0);
+				if (firstListValue instanceof IPerceroObject) {
+					MappedClass mc = MappedClassManagerFactory.getMappedClassManager().getMappedClassByClassName(firstListValue.getClass().getCanonicalName());
+					try {
+						// No guarantee this will work, so wrap in try/catch.
+						value = mc.getDataProvider().cleanObject((List<IPerceroObject>) value, userId);
+					}
+					catch(Exception e) {
+						// Do nothing.
+						log.debug("Unable to clean change watcher value", e);
+					}
+				}
+			}
+		}
+		return value;
+	}
 	public void pushChangeWatcherUpdate(String clientId, ClassIDPair classIdPair, String fieldName, String[] params, Object value) {
 		if (StringUtils.hasText(clientId)) {
 			try {
@@ -364,7 +396,7 @@ public class DerivedValueChangeWatcherHelper extends ChangeWatcherHelper impleme
 				if (value instanceof IPerceroObject) {
 					String userId = accessManager.getClientUserId(clientId);
 					// Clean the value if it is a framework object.
-					value = (BaseDataObject) SyncHibernateUtils.cleanObject(value, null, userId);
+					value = cleanChangeWatcherValue(value, userId);
 				}
 				pushUpdateResponse.setValue(value);
 				

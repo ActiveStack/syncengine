@@ -1,29 +1,56 @@
 package com.percero.agents.auth.services;
 
-import com.percero.agents.auth.helpers.RoleHelper;
-import com.percero.agents.auth.helpers.UserAnchorHelper;
-import com.percero.agents.auth.helpers.UserIdentifierHelper;
-import com.percero.agents.auth.hibernate.AssociationExample;
-import com.percero.agents.auth.hibernate.AuthHibernateUtils;
-import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
-import com.percero.agents.auth.vo.*;
-import com.percero.agents.sync.exceptions.SyncDataException;
-import com.percero.agents.sync.metadata.*;
-import com.percero.agents.sync.services.ISyncAgentService;
-import com.percero.agents.sync.vo.BaseDataObject;
-import com.percero.framework.bl.IManifest;
-import com.percero.framework.bl.ManifestHelper;
-import com.percero.framework.vo.IPerceroObject;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ServiceConfigurationError;
+import java.util.UUID;
+
 import org.apache.log4j.Logger;
-import org.hibernate.*;
+import org.hibernate.Criteria;
+import org.hibernate.NonUniqueResultException;
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.exception.LockAcquisitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import com.percero.agents.auth.helpers.RoleHelper;
+import com.percero.agents.auth.helpers.UserAnchorHelper;
+import com.percero.agents.auth.helpers.UserIdentifierHelper;
+import com.percero.agents.auth.hibernate.AuthHibernateUtils;
+import com.percero.agents.auth.vo.AuthProviderResponse;
+import com.percero.agents.auth.vo.AuthenticationRequest;
+import com.percero.agents.auth.vo.AuthenticationResponse;
+import com.percero.agents.auth.vo.IUserAnchor;
+import com.percero.agents.auth.vo.IUserIdentifier;
+import com.percero.agents.auth.vo.IUserRole;
+import com.percero.agents.auth.vo.ReauthenticationRequest;
+import com.percero.agents.auth.vo.ServiceIdentifier;
+import com.percero.agents.auth.vo.ServiceUser;
+import com.percero.agents.auth.vo.User;
+import com.percero.agents.auth.vo.UserAccount;
+import com.percero.agents.auth.vo.UserIdentifier;
+import com.percero.agents.auth.vo.UserToken;
+import com.percero.agents.sync.exceptions.SyncDataException;
+import com.percero.agents.sync.metadata.EntityImplementation;
+import com.percero.agents.sync.metadata.IMappedClassManager;
+import com.percero.agents.sync.metadata.MappedClass;
+import com.percero.agents.sync.metadata.MappedClassManagerFactory;
+import com.percero.agents.sync.metadata.PropertyImplementation;
+import com.percero.agents.sync.metadata.PropertyImplementationParam;
+import com.percero.agents.sync.metadata.RelationshipImplementation;
+import com.percero.agents.sync.services.ISyncAgentService;
+import com.percero.agents.sync.vo.BaseDataObject;
+import com.percero.framework.bl.IManifest;
+import com.percero.framework.bl.ManifestHelper;
+import com.percero.framework.vo.IPerceroObject;
 
 /**
  * This class handles AuthenticationRequest type authentication
@@ -106,28 +133,30 @@ public class AuthService2 {
      * @param serviceUser
      * @return
      */
-    private UserAccount findUserAccount(ServiceUser serviceUser) throws SyncDataException {
+    @SuppressWarnings("rawtypes")
+	private UserAccount findUserAccount(ServiceUser serviceUser) throws SyncDataException {
         UserAccount theFoundUserAccount = null;
-        UserAccount theQueryObject = new UserAccount();
-        theQueryObject.setAccountId(serviceUser.getId());
-        theQueryObject.setAuthProviderID(serviceUser.getAuthProviderID());
+        List userAccounts = null;
+        Session s = null;
+        try {
+			s = sessionFactoryAuth.openSession();
+			Criteria criteria = s.createCriteria(UserAccount.class)
+					.add(Restrictions.eq("accountId", serviceUser.getId()))
+					.add(Restrictions.eq("authProviderID", serviceUser.getAuthProviderID()));
+			List result = criteria.list();
+			userAccounts = (List) AuthHibernateUtils.cleanObject(result);
+        } finally {
+            if (s != null)
+                s.close();
+        }
 
-        List<String> excludeProperties = new ArrayList<String>();
-        excludeProperties.add("accessToken");
-        excludeProperties.add("refreshToken");
-        excludeProperties.add("isAdmin");
-        excludeProperties.add("isSuspended");
-        List userAccounts = findByExample(theQueryObject,
-                excludeProperties);
-
-        if ((userAccounts instanceof List)) {
-        	List listUserAccounts = (List) userAccounts;
-    		if (listUserAccounts.size() == 1) {
+        if (userAccounts != null && !userAccounts.isEmpty()) {
+    		if (userAccounts.size() == 1) {
 	            // Found a valid UserAccount.
-	            theFoundUserAccount = (UserAccount) listUserAccounts.get(0);
+	            theFoundUserAccount = (UserAccount) userAccounts.get(0);
     		}
-    		else if (listUserAccounts.size() > 1) {
-    			throw new SyncDataException(listUserAccounts.size() + " UserAccounts found for serviceUser " + serviceUser.getId(), 1001);
+    		else if (userAccounts.size() > 1) {
+    			throw new SyncDataException(userAccounts.size() + " UserAccounts found for serviceUser " + serviceUser.getId(), 1001);
     		}
         }
 
@@ -263,17 +292,16 @@ public class AuthService2 {
         UserToken theUserToken = null;
         try {
             Date currentDate = new Date();
-            UserToken queryUserToken = new UserToken();
-            queryUserToken.setUser(theUserAccount.getUser());
-            queryUserToken.setClientId(clientId);
-            List userTokenResult = findByExample(queryUserToken, null);
+            s = sessionFactoryAuth.openSession();
+			Criteria criteria = s.createCriteria(UserToken.class).add(Restrictions.eq("clientId", clientId))
+					.add(Restrictions.eq("user.ID", theUserAccount.getUser().getID()));
+			List result = criteria.list();
+			List userTokenResult = (List) AuthHibernateUtils.cleanObject(result);
 
             if ( !userTokenResult.isEmpty() ) {
                 theUserToken = (UserToken) userTokenResult.get(0);
             }
 
-            if (s == null)
-                s = sessionFactoryAuth.openSession();
             Transaction tx = s.beginTransaction();
             tx.begin();
 
@@ -317,31 +345,6 @@ public class AuthService2 {
         }
 
         return theUserToken;
-    }
-
-    @SuppressWarnings("rawtypes")
-    protected List findByExample(Object theQueryObject,
-                                 List<String> excludeProperties) {
-        Session s = null;
-        try {
-            s = sessionFactoryAuth.openSession();
-            Criteria criteria = s.createCriteria(theQueryObject.getClass());
-            AssociationExample example = AssociationExample
-                    .create(theQueryObject);
-            BaseDataObjectPropertySelector propertySelector = new BaseDataObjectPropertySelector(
-                    excludeProperties);
-            example.setPropertySelector(propertySelector);
-            criteria.add(example);
-
-            List result = criteria.list();
-            return (List) AuthHibernateUtils.cleanObject(result);
-        } catch (Exception e) {
-            logger.error("Unable to findByExample", e);
-        } finally {
-            if (s != null)
-                s.close();
-        }
-        return null;
     }
 
     private static String getRandomId() {
@@ -571,7 +574,6 @@ public class AuthService2 {
         return null;
     }
 
-    @SuppressWarnings({ "unchecked" })
     public void setupUserRoles(User user, ServiceUser serviceUser) throws Exception {
 //        Session s = appSessionFactory.openSession();
 

@@ -8,8 +8,6 @@ import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.map.JsonSerializer;
 import org.codehaus.jackson.map.SerializerProvider;
-import org.hibernate.collection.PersistentBag;
-import org.hibernate.proxy.HibernateProxy;
 
 import com.percero.agents.sync.metadata.MappedClass;
 import com.percero.agents.sync.metadata.MappedClassManagerFactory;
@@ -36,12 +34,6 @@ public class BDOSerializer extends JsonSerializer<BaseDataObject>{
 					try {
 						List<ClassIDPair> listToAdd = new ArrayList<ClassIDPair>();
 						List<IPerceroObject> nextFieldList = (List<IPerceroObject>) nextMappedField.getGetter().invoke(ob);
-						if (nextFieldList instanceof PersistentBag) {
-							if (((PersistentBag) nextFieldList).getSession() == null || ((PersistentBag) nextFieldList).getSession().isClosed()) {
-								// The session is closed, so this ain't gonna work...
-								continue;
-							}
-						}
 						for(IPerceroObject nextListObject : nextFieldList) {
 							listToAdd.add(new ClassIDPair(nextListObject.getID(), nextListObject.getClass().getName()));
 						}
@@ -52,11 +44,8 @@ public class BDOSerializer extends JsonSerializer<BaseDataObject>{
 				} else if (nextMappedField instanceof MappedFieldPerceroObject) {
 					try {
 						IPerceroObject nextFieldPerceroObject = (IPerceroObject) nextMappedField.getGetter().invoke(ob);
-						if (!(nextFieldPerceroObject instanceof HibernateProxy)) {
-							// Only include NOT a HibernateProxy
-							ClassIDPair nextFieldPair = new ClassIDPair(nextFieldPerceroObject.getID(), nextFieldPerceroObject.getClass().getName());
-							pair.addProperty(nextMappedField.getField().getName(), nextFieldPair);
-						}
+						ClassIDPair nextFieldPair = new ClassIDPair(nextFieldPerceroObject.getID(), nextFieldPerceroObject.getClass().getName());
+						pair.addProperty(nextMappedField.getField().getName(), nextFieldPair);
 					} catch(Exception e) {
 						// Do nothing, for now.
 					}

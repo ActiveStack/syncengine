@@ -16,12 +16,11 @@ import java.util.TreeSet;
 import javax.persistence.Entity;
 
 import org.apache.log4j.Logger;
-import org.hibernate.collection.PersistentBag;
-import org.hibernate.collection.PersistentList;
-import org.hibernate.collection.PersistentMap;
-import org.hibernate.collection.PersistentSet;
-import org.hibernate.collection.PersistentSortedSet;
-import org.hibernate.engine.SessionImplementor;
+import org.hibernate.collection.internal.PersistentBag;
+import org.hibernate.collection.internal.PersistentList;
+import org.hibernate.collection.internal.PersistentMap;
+import org.hibernate.collection.internal.PersistentSet;
+import org.hibernate.collection.internal.PersistentSortedSet;
 import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.proxy.HibernateProxyHelper;
 
@@ -93,8 +92,8 @@ public class AuthHibernateUtils {
 				}
 				else if (fieldObject instanceof PersistentList) {
 					try {
-						PersistentList pList = (PersistentList) fieldObject;
-						SessionImplementor session = pList.getSession();
+						org.hibernate.collection.internal.PersistentList pList = (org.hibernate.collection.internal.PersistentList) fieldObject;
+						org.hibernate.engine.spi.SessionImplementor session = pList.getSession();
 						if (session != null && session.isOpen()) {
 							List ar = new ArrayList();
 							for (Object ob : pList) {
@@ -109,8 +108,8 @@ public class AuthHibernateUtils {
 					}
 				} else if (fieldObject instanceof PersistentBag) {
 					try {
-						PersistentBag pBag = (PersistentBag) fieldObject;
-						SessionImplementor session = pBag.getSession();
+						org.hibernate.collection.internal.PersistentBag pBag = (org.hibernate.collection.internal.PersistentBag) fieldObject;
+						org.hibernate.engine.spi.SessionImplementor session = pBag.getSession();
 						if (session != null && session.isOpen()) {
 							List ar = new ArrayList();
 							for (Object ob : pBag) {
@@ -125,8 +124,8 @@ public class AuthHibernateUtils {
 					}
 				} else if (fieldObject instanceof PersistentSortedSet) {
 					try {
-						PersistentSortedSet pSortedSet = (PersistentSortedSet) fieldObject;
-						SessionImplementor session = pSortedSet.getSession();
+						org.hibernate.collection.internal.PersistentSortedSet pSortedSet = (org.hibernate.collection.internal.PersistentSortedSet) fieldObject;
+						org.hibernate.engine.spi.SessionImplementor session = pSortedSet.getSession();
 						if (session != null && session.isOpen()) {
 							SortedSet ar = new TreeSet();
 							for (Object ob : pSortedSet) {
@@ -141,8 +140,8 @@ public class AuthHibernateUtils {
 					}
 				} else if (fieldObject instanceof PersistentSet) {
 					try {
-						PersistentSet pSet = (PersistentSet) fieldObject;
-						SessionImplementor session = pSet.getSession();
+						org.hibernate.collection.internal.PersistentSet pSet = (org.hibernate.collection.internal.PersistentSet) fieldObject;
+						org.hibernate.engine.spi.SessionImplementor session = pSet.getSession();
 						if (session != null && session.isOpen()) {
 							Set ar = new HashSet();
 							for (Object ob : pSet) {
@@ -157,8 +156,8 @@ public class AuthHibernateUtils {
 					}
 				} else if (fieldObject instanceof PersistentMap) {
 					try {
-						PersistentMap pMap = (PersistentMap) fieldObject;
-						SessionImplementor session = pMap.getSession();
+						org.hibernate.collection.internal.PersistentMap pMap = (org.hibernate.collection.internal.PersistentMap) fieldObject;
+						org.hibernate.engine.spi.SessionImplementor session = pMap.getSession();
 						if (session != null && session.isOpen()) {
 							Map hm = new HashMap();
 							for (Object nextKey : pMap.keySet()) {

@@ -724,11 +724,7 @@ public class MappedClass implements IMappedClass {
 				 */
 				if (nextAccessRight.type()
 						.equalsIgnoreCase("readQuery")) {
-					if (nextAccessRight.query().indexOf("jpql:") >= 0) {
-						nextMappedField.setReadQuery(new JpqlQuery());
-						nextMappedField.getReadQuery().setQuery(
-								nextAccessRight.query());
-					} else if (nextAccessRight.query().indexOf("sql:") >= 0) {
+					if (nextAccessRight.query().indexOf("sql:") >= 0) {
 						nextMappedField.setReadQuery(new SqlQuery(
 								nextAccessRight.query().substring(
 										nextAccessRight.query()
@@ -755,10 +751,7 @@ public class MappedClass implements IMappedClass {
 
 				// Add to queries list.
 				IMappedQuery nextQuery = null;
-				if (nextAccessRight.query().indexOf("jpql:") >= 0) {
-					nextQuery = new JpqlQuery();
-					nextQuery.setQuery(nextAccessRight.query());
-				} else if (nextAccessRight.query().indexOf("sql:") >= 0) {
+				if (nextAccessRight.query().indexOf("sql:") >= 0) {
 					nextQuery = new SqlQuery(nextAccessRight.query()
 							.substring(
 									nextAccessRight.query().indexOf(

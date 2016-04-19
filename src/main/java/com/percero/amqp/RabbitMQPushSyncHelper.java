@@ -37,13 +37,13 @@ import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer;
+import org.springframework.amqp.rabbit.core.ChannelCallback;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.ClassMapper;
 import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.amqp.support.converter.MessageConversionException;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -66,6 +66,8 @@ import com.percero.agents.sync.vo.IJsonObject;
 import com.percero.agents.sync.vo.PushUpdateResponse;
 import com.percero.agents.sync.vo.SyncResponse;
 import com.percero.framework.vo.IPerceroObject;
+import com.rabbitmq.client.AMQP.Queue.DeclareOk;
+import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ShutdownSignalException;
 
 import edu.emory.mathcs.backport.java.util.Arrays;
@@ -95,12 +97,6 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 	// RabbitMQ Components
 	@Resource
 	AmqpAdmin amqpAdmin;
-
-	AbstractMessageListenerContainer rabbitMessageListenerContainer;
-	@Resource @Qualifier("defaultListenerContainer")
-	public void setRabbitMessageListenerContainer(AbstractMessageListenerContainer container){
-		rabbitMessageListenerContainer = container;
-	}
 
 	// RabbitMQ environment variables.
 	@Value("$pf{gateway.rabbitmq.admin_port:15672}")
@@ -331,21 +327,40 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 			// If we find an EOL Message, then we want to make sure it stays in
 			// the previous queue.
 			Message eolMessage = null;
-			while ((nextExistingMessage = template.receive(thePreviousClientId)) != null) {
-				JsonNode messageJsonNode = objectMapper.readTree(nextExistingMessage.getBody());
-				if (messageJsonNode.has("EOL")) {
-					// We found an EOL message, keep hold of it so we can resent
-					// to the previous queue.
-					eolMessage = nextExistingMessage;
-				}
-				else {
-					template.send(clientId, nextExistingMessage);
-				}
-			}
 			
-			if (eolMessage != null) {
-				// Make sure the EOL message is left intact in the old queue.
-				template.send(thePreviousClientId, eolMessage);
+			final String queueName = thePreviousClientId;
+			boolean exists = ((RabbitTemplate)template).execute(new ChannelCallback<DeclareOk>() {
+		        @Override
+		        public DeclareOk doInRabbit(Channel channel) throws Exception {
+		            try {
+		                return channel.queueDeclarePassive(queueName);
+		            }
+		            catch (Exception e) {
+		                if (logger.isDebugEnabled()) {
+		                    logger.debug("Queue '" + queueName + "' does not exist");
+		                }
+		                return null;
+		            }
+		        }
+		    }) != null;
+			
+			if (exists) {
+				while ((nextExistingMessage = template.receive(thePreviousClientId)) != null) {
+					JsonNode messageJsonNode = objectMapper.readTree(nextExistingMessage.getBody());
+					if (messageJsonNode.has("EOL")) {
+						// We found an EOL message, keep hold of it so we can resent
+						// to the previous queue.
+						eolMessage = nextExistingMessage;
+					}
+					else {
+						template.send(clientId, nextExistingMessage);
+					}
+				}
+				
+				if (eolMessage != null) {
+					// Make sure the EOL message is left intact in the old queue.
+					template.send(thePreviousClientId, eolMessage);
+				}
 			}
 		} catch(AmqpIOException e) {
 			// Most likely due to queue already being deleted.

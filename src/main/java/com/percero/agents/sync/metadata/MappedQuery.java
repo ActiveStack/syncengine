@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.hibernate.engine.query.ParamLocationRecognizer;
+import org.hibernate.engine.query.spi.ParamLocationRecognizer;
 import org.springframework.util.StringUtils;
 
 import com.percero.framework.metadata.IMappedQuery;

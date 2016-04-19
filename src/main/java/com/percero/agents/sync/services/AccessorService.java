@@ -51,7 +51,6 @@ public class AccessorService implements IAccessorService {
 	}
 
 	public Object pushMessage(String userId, String userToken, String deviceId, String className, String classId, Object message) {
-//		getSessionManager().putObject(theObject, user)
 		return false;
 	}
 

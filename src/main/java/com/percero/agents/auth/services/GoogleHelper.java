@@ -90,7 +90,7 @@ public class GoogleHelper implements IAuthHelper {
 	@Autowired @Value("$pf{oauth.google.webCallbackUrl}")
 	private String webRedirectUrl;
 	
-	@Autowired @Value("$pf{oauth.google.domain}")
+	@Autowired @Value("$pf{oauth.google.domain:}")
 	private String domain;
 	
 	@Autowired @Value("$pf{oauth.google.admin}")
@@ -659,6 +659,9 @@ public class GoogleHelper implements IAuthHelper {
 			return null;
 		} catch(GoogleJsonResponseException gjre) {
 			log.info("Error getting Google Profile Information: " + gjre.getMessage());
+			return null;
+		} catch(Exception e) {
+			log.info("Error getting Google Profile Information: " + e.getMessage());
 			return null;
 		}
 	}
