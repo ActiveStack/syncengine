@@ -19,7 +19,7 @@
 	<import resource="basic_components_spring_config.xml"/>
 
     <rabbit:listener-container acknowledge="auto" id="defaultListenerContainer">
-        <rabbit:listener queue-names="authenticateOAuthCode, authenticate, reauthenticate, 42, authenticateOAuthAccessToken, 41, authenticateUserAccount, getServiceUsers, getOAuthRequestToken, getRegAppOAuths, getRegisteredApplication, getAllServiceProviders, logoutUser, testCall, validateUserByToken, 17, disconnectAuth, connect, reconnect, hibernate, upgradeClient, disconnect, logout, create, update, processTransaction, getChangeWatcher, findById, findByIds, findByExample, countAllByName, getAllByName, runQuery, runProcess, createObject, putObject, removeObject, updatesReceived, deletesReceived, searchByExample, delete, getAccessor, getHistory" ref="perceroAgentListener" />
+        <rabbit:listener queue-names="authenticateOAuthCode, register, authenticate, reauthenticate, 42, authenticateOAuthAccessToken, 41, authenticateUserAccount, getServiceUsers, getOAuthRequestToken, getRegAppOAuths, getRegisteredApplication, getAllServiceProviders, logoutUser, testCall, validateUserByToken, 17, disconnectAuth, connect, reconnect, hibernate, upgradeClient, disconnect, logout, create, update, processTransaction, getChangeWatcher, findById, findByIds, findByExample, countAllByName, getAllByName, runQuery, runProcess, createObject, putObject, removeObject, updatesReceived, deletesReceived, searchByExample, delete, getAccessor, getHistory" ref="perceroAgentListener" />
     </rabbit:listener-container>
 
 </beans>

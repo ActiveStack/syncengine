@@ -28,6 +28,12 @@ public class AnonAuthProvider implements IAuthProvider {
         return ID;
     }
 
+    public AuthProviderResponse register(String credential) {
+    	AuthProviderResponse result = new AuthProviderResponse();
+    	result.authCode = AuthCode.FORBIDDEN;
+    	return result;
+    }
+    
     public AuthProviderResponse authenticate(String credential) {
         AuthProviderResponse result = new AuthProviderResponse();
         result.authCode = AuthCode.SUCCESS;

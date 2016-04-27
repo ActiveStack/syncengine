@@ -96,7 +96,7 @@ public class GoogleHelper implements IAuthHelper {
 	@Autowired @Value("$pf{oauth.google.admin}")
 	private String admin;
 	
-	@Autowired @Value("$pf{oauth.google.application_name}")
+	@Autowired @Value("$pf{oauth.google.application_name:}")
 	private String applicationName;
 	
 	@Autowired @Value("$pf{oauth.google.use_role_names:true}")

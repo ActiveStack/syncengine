@@ -1,29 +1,58 @@
 package com.percero.agents.auth.services;
 
-import com.percero.agents.auth.helpers.RoleHelper;
-import com.percero.agents.auth.helpers.UserAnchorHelper;
-import com.percero.agents.auth.helpers.UserIdentifierHelper;
-import com.percero.agents.auth.hibernate.AssociationExample;
-import com.percero.agents.auth.hibernate.AuthHibernateUtils;
-import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
-import com.percero.agents.auth.vo.*;
-import com.percero.agents.sync.exceptions.SyncDataException;
-import com.percero.agents.sync.metadata.*;
-import com.percero.agents.sync.services.ISyncAgentService;
-import com.percero.agents.sync.vo.BaseDataObject;
-import com.percero.framework.bl.IManifest;
-import com.percero.framework.bl.ManifestHelper;
-import com.percero.framework.vo.IPerceroObject;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ServiceConfigurationError;
+import java.util.UUID;
+
 import org.apache.log4j.Logger;
-import org.hibernate.*;
+import org.hibernate.Criteria;
+import org.hibernate.NonUniqueResultException;
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.exception.LockAcquisitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import com.percero.agents.auth.helpers.RoleHelper;
+import com.percero.agents.auth.helpers.UserAnchorHelper;
+import com.percero.agents.auth.helpers.UserIdentifierHelper;
+import com.percero.agents.auth.hibernate.AssociationExample;
+import com.percero.agents.auth.hibernate.AuthHibernateUtils;
+import com.percero.agents.auth.hibernate.BaseDataObjectPropertySelector;
+import com.percero.agents.auth.vo.AuthProviderResponse;
+import com.percero.agents.auth.vo.AuthenticationRequest;
+import com.percero.agents.auth.vo.AuthenticationResponse;
+import com.percero.agents.auth.vo.IUserAnchor;
+import com.percero.agents.auth.vo.IUserIdentifier;
+import com.percero.agents.auth.vo.IUserRole;
+import com.percero.agents.auth.vo.ReauthenticationRequest;
+import com.percero.agents.auth.vo.ServiceIdentifier;
+import com.percero.agents.auth.vo.ServiceUser;
+import com.percero.agents.auth.vo.User;
+import com.percero.agents.auth.vo.UserAccount;
+import com.percero.agents.auth.vo.UserIdentifier;
+import com.percero.agents.auth.vo.UserToken;
+import com.percero.agents.sync.exceptions.SyncDataException;
+import com.percero.agents.sync.metadata.EntityImplementation;
+import com.percero.agents.sync.metadata.IMappedClassManager;
+import com.percero.agents.sync.metadata.MappedClass;
+import com.percero.agents.sync.metadata.MappedClassManagerFactory;
+import com.percero.agents.sync.metadata.PropertyImplementation;
+import com.percero.agents.sync.metadata.PropertyImplementationParam;
+import com.percero.agents.sync.metadata.RelationshipImplementation;
+import com.percero.agents.sync.services.ISyncAgentService;
+import com.percero.agents.sync.vo.BaseDataObject;
+import com.percero.framework.bl.IManifest;
+import com.percero.framework.bl.ManifestHelper;
+import com.percero.framework.vo.IPerceroObject;
 
 /**
  * This class handles AuthenticationRequest type authentication
@@ -45,6 +74,39 @@ public class AuthService2 {
     @Autowired
     IManifest manifest;
 
+    /**
+     * Registers a new user with the selected AuthProvider (if supported by the AuthProvider).
+     * @param request
+     * @return
+     * @throws IllegalArgumentException
+     */
+    public AuthenticationResponse register(AuthenticationRequest request) throws IllegalArgumentException{
+    	if(!authProviderRegistry.hasProvider(request.getAuthProvider()))
+    		throw new IllegalArgumentException(request.getAuthProvider()+" auth provider not found");
+    	
+    	AuthenticationResponse response = new AuthenticationResponse();
+    	
+    	IAuthProvider provider = authProviderRegistry.getProvider(request.getAuthProvider());
+    	
+    	AuthProviderResponse apResponse = provider.register(request.getCredential());
+    	ServiceUser serviceUser = apResponse.serviceUser;
+    	response.setStatusCode(apResponse.authCode.getCode());
+    	response.setMessage(apResponse.authCode.getMessage());
+    	
+    	if(serviceUser != null) {
+    		// Registration successful
+    		logger.debug(provider.getID() + " Registration success");
+    		serviceUser.setAuthProviderID(provider.getID()); // Set the provider ID just in case the provider didn't
+    	}
+    	else {
+    		// Registration failed
+    		logger.warn("REGISTRATION FAILED: (" + provider.getID() + "): Unable to retrieve valid Service User");
+    		logger.warn("              ERROR: ("+response.getStatusCode()+") "+response.getMessage());
+    	}
+    	
+    	return response;
+    }
+    
     public AuthenticationResponse authenticate(AuthenticationRequest request) throws IllegalArgumentException{
         if(!authProviderRegistry.hasProvider(request.getAuthProvider()))
             throw new IllegalArgumentException(request.getAuthProvider()+" auth provider not found");
@@ -147,22 +209,41 @@ public class AuthService2 {
 
         // Attempt to find this user by finding a matching UserIdentifier.
         if (serviceUser.getIdentifiers() != null && serviceUser.getIdentifiers().size() > 0) {
-            String strFindUserIdentifier = "SELECT ui.user FROM UserIdentifier ui WHERE";
+            String strFindUserIdentifier = "SELECT u.ID, u.dateCreated, u.dateModified, u.firstName, u.lastName FROM UserIdentifier ui, User u WHERE";
             int counter = 0;
             for(ServiceIdentifier nextServiceIdentifier : serviceUser.getIdentifiers()) {
-                if (counter > 0)
+                if (counter > 0) {
                     strFindUserIdentifier += " OR ";
+                }
+                else {
+                	strFindUserIdentifier += "(";
+                }
                 strFindUserIdentifier += " ui.type='" + nextServiceIdentifier.getParadigm() + "' AND ui.userIdentifier='" + nextServiceIdentifier.getValue() + "'";
                 counter++;
             }
-
-            Query q = s.createQuery(strFindUserIdentifier);
-            List<User> userList = (List<User>) q.list();
-            if (userList.size() == 1) {
-                theUser = userList.get(0);
+            if (counter > 0) {
+            	strFindUserIdentifier += ") ";
             }
-            else if (userList.size() > 1) {
-            	throw new SyncDataException(userList.size() + " UserIdentifiers found for serviceUser " + serviceUser.getId(), 1001);
+            strFindUserIdentifier += " AND u.ID=ui.user_ID GROUP BY u.ID";
+
+            Query q = s.createSQLQuery(strFindUserIdentifier);
+            List queryResult = null;
+            try {
+            	queryResult = q.list();
+            } catch(Exception e) {
+            	throw new SyncDataException(e);
+            }
+            if (queryResult.size() == 1) {
+            	Object[] firstResult = (Object[]) queryResult.get(0);
+            	theUser = new User();
+            	theUser.setID((String) firstResult[0]);
+            	theUser.setDateCreated(firstResult[1] != null ? (Date) firstResult[1] : null);
+            	theUser.setDateModified(firstResult[2] != null ? (Date) firstResult[2] : null);
+            	theUser.setFirstName(firstResult[3] != null ? (String) firstResult[3] : null);
+            	theUser.setLastName(firstResult[4] != null ? (String) firstResult[4] : null);
+            }
+            else if (queryResult.size() > 1) {
+            	throw new SyncDataException(queryResult.size() + " UserIdentifiers found for serviceUser " + serviceUser.getId(), 1001);
             }
         }
 
@@ -203,6 +284,8 @@ public class AuthService2 {
                 theFoundUserAccount = new UserAccount();
 
                 theFoundUserAccount.setAuthProviderID(serviceUser.getAuthProviderID());
+                theFoundUserAccount.setAccessToken(serviceUser.getAccessToken());
+                theFoundUserAccount.setRefreshToken(serviceUser.getRefreshToken());
                 theFoundUserAccount.setUser(theUser);
                 theFoundUserAccount.setDateCreated(currentDate);
                 theFoundUserAccount.setDateModified(currentDate);
@@ -362,7 +445,7 @@ public class AuthService2 {
     private EntityImplementation getUserAnchorEntityImplementation(){
         ManifestHelper.setManifest(manifest);
         EntityImplementation userAnchorEI = null;
-        List<EntityImplementation> userAnchorMappedClasses = MappedClass.findEntityImplementation(IUserAnchor.class);
+        List<EntityImplementation> userAnchorMappedClasses = MappedClass.findRootEntityImplementation(IUserAnchor.class);
         if (userAnchorMappedClasses.size() > 0) {
             userAnchorEI = userAnchorMappedClasses.get(0);
         }
@@ -376,7 +459,7 @@ public class AuthService2 {
     private EntityImplementation getUserRoleEntityImplementation(){
         ManifestHelper.setManifest(manifest);
         EntityImplementation userRoleEI = null;
-        List<EntityImplementation> userRoleMappedClasses = MappedClass.findEntityImplementation(IUserRole.class);
+        List<EntityImplementation> userRoleMappedClasses = MappedClass.findRootEntityImplementation(IUserRole.class);
         if (userRoleMappedClasses.size() > 0) {
             userRoleEI = userRoleMappedClasses.get(0);
         }
@@ -439,7 +522,7 @@ public class AuthService2 {
         try {
             EntityImplementation eiUserAnchor = getUserAnchorEntityImplementation();
 
-            List<EntityImplementation> userIdentifierEntityImplementations = MappedClass.findEntityImplementation(IUserIdentifier.class);
+            List<EntityImplementation> userIdentifierEntityImplementations = MappedClass.findRootEntityImplementation(IUserIdentifier.class);
 
             if (userIdentifierEntityImplementations.size() > 0) {
                 List<IUserIdentifier> identifiersToSave = new ArrayList<IUserIdentifier>();

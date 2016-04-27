@@ -701,15 +701,14 @@ public class RabbitMQPushSyncHelper implements IPushSyncHelper, ApplicationConte
 		
 		Map<String, Queue> queues = this.applicationContext.getBeansOfType(Queue.class);
 		// Make sure these queue names are protected.
-		String[] strSaveQueueNames = {"authenticateOAuthCode", "42", "authenticateOAuthAccessToken", "41",
-		                              "authenticateUserAccount", "getServiceUsers", "getOAuthRequestToken",
-		                              "getRegAppOAuths", "getRegisteredApplication", "getAllServiceProviders",
-		                              "logoutUser", "testCall", "validateUserByToken", "17", "disconnectAuth",
-		                              "reconnect", "connect", "hibernate", "upgradeClient", "disconnect", "logout", "create",
-		                              "update", "processTransaction", "getChangeWatcher", "findById", "findByIds",
-		                              "findByExample", "countAllByName", "getAllByName", "runQuery", "runProcess",
-		                              "createObject", "putObject", "removeObject", "updatesReceived", "deletesReceived",
-		                              "searchByExample", "delete", "getAccessor", "getHistory", "changeWatcher"};
+		String[] strSaveQueueNames = { "authenticateOAuthCode", "42", "register", "authenticate", "reauthenticate",
+				"authenticateOAuthAccessToken", "41", "authenticateUserAccount", "getServiceUsers",
+				"getOAuthRequestToken", "getRegAppOAuths", "getRegisteredApplication", "getAllServiceProviders",
+				"logoutUser", "testCall", "validateUserByToken", "17", "disconnectAuth", "reconnect", "connect",
+				"hibernate", "upgradeClient", "disconnect", "logout", "create", "update", "processTransaction",
+				"getChangeWatcher", "findById", "findByIds", "findByExample", "countAllByName", "getAllByName",
+				"runQuery", "runProcess", "createObject", "putObject", "removeObject", "updatesReceived",
+				"deletesReceived", "searchByExample", "delete", "getAccessor", "getHistory", "changeWatcher" };
 		queueNames = new HashSet<String>(queues.size());
 		queueNames.addAll( Arrays.asList(strSaveQueueNames) );
 		

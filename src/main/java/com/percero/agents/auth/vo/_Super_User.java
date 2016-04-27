@@ -29,6 +29,8 @@ public class _Super_User implements Serializable, IAuthCachedObject
      * Properties
      */
     private String _ID;
+    private String _firstName;
+    private String _lastName;
     private Date _dateCreated;
     private Date _dateModified;
     private List _userAccounts;
@@ -50,6 +52,29 @@ public class _Super_User implements Serializable, IAuthCachedObject
         _ID = value;
     }
 
+    @Column
+    public String getFirstName()
+    {
+    	return _firstName;
+    }
+    
+    public void setFirstName(String value)
+    {
+    	_firstName = value;
+    }
+    
+    @Column
+    public String getLastName()
+    {
+    	return _lastName;
+    }
+    
+    public void setLastName(String value)
+    {
+    	_lastName = value;
+    }
+    
+    
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column

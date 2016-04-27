@@ -17,7 +17,9 @@ A successful login returns a [`UserToken`](src/main/java/com/percero/agents/auth
 ```
 This should result in the `Person` object identified by that User.ID to be returned by the ActiveStack SyncEngine.
 
-### [authenticate](src/main/java/com/percero/agents/auth/services/AuthService2.java#L47)
+### [register](src/main/java/com/percero/agents/auth/services/AuthService2.java#L48)
+
+### [authenticate](src/main/java/com/percero/agents/auth/services/AuthService2.java#L79)
 - Authenticates a user by their credentials.
   - Request: [`AuthenticationRequest`](src/main/java/com/percero/agents/auth/vo/AuthenticationRequest.java)
   - Response: [`AuthenticationResponse`](src/main/java/com/percero/agents/auth/vo/AuthenticationResponse.java)

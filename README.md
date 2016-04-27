@@ -7,6 +7,11 @@ Google and File based. We call these "Auth Providers".
 
 ### Usage
 
+#### 'register'
+
+
+#### 'authenticate'
+
 In order to authenticate against one of these authentication options you'll need to send an 'authenticate' message
 to the server with content body looking something like:
 

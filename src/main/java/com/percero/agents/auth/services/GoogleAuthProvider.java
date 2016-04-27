@@ -92,7 +92,7 @@ public class GoogleAuthProvider implements IAuthProvider{
     @Autowired @Value("$pf{oauth.google.admin}")
     private String admin;
 
-    @Autowired @Value("$pf{oauth.google.application_name}")
+    @Autowired @Value("$pf{oauth.google.application_name:}")
     private String applicationName;
 
     @Autowired @Value("$pf{oauth.google.use_role_names:true}")
@@ -177,6 +177,12 @@ public class GoogleAuthProvider implements IAuthProvider{
         }
     }
 
+    public AuthProviderResponse register(String credential) {
+    	AuthProviderResponse result = new AuthProviderResponse();
+    	result.authCode = AuthCode.FORBIDDEN;
+    	return result;
+    }
+    
     public AuthProviderResponse authenticate(String credential) {
         AuthProviderResponse result = new AuthProviderResponse();
         try {

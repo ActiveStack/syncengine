@@ -17,6 +17,34 @@ public class InMemoryAuthProvider implements IAuthProvider {
     public String getID() {
         return ID;
     }
+    
+    public AuthProviderResponse register(String credential) {
+    	AuthProviderResponse result = new AuthProviderResponse();
+    	BasicAuthCredential cred = BasicAuthCredential.fromString(credential);
+    	
+    	String hashPass = DigestUtils.sha1Hex(cred.getPassword());
+    	
+    	InMemoryAuthProviderUser user = users.get(cred.getUsername());
+    	if (user == null) {
+    		user = new InMemoryAuthProviderUser();
+    		user.setEmail(cred.getUsername());
+    		user.setPassHash(hashPass);
+    		users.put(cred.getUsername(), user);
+    	}
+
+    	ServiceUser serviceUser = new ServiceUser();
+		serviceUser.setAuthProviderID(getID());
+		serviceUser.setId(cred.getUsername());
+		serviceUser.setFirstName(user.getFirstName());
+		serviceUser.setLastName(user.getLastName());
+		serviceUser.getEmails().add(user.getEmail());
+		serviceUser.setAreRoleNamesAccurate(true);
+		serviceUser.getIdentifiers().add(new ServiceIdentifier("email", user.getEmail()));
+		result.serviceUser = serviceUser;
+		result.authCode = AuthCode.SUCCESS;
+    	
+    	return result;
+    }
 
     public AuthProviderResponse authenticate(String credential) {
         AuthProviderResponse result = new AuthProviderResponse();

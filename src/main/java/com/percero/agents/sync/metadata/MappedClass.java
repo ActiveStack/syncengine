@@ -57,6 +57,7 @@ import com.percero.framework.metadata.IMappedClass;
 import com.percero.framework.metadata.IMappedQuery;
 import com.percero.framework.vo.IPerceroObject;
 import com.percero.util.MappedClassUtils;
+import com.sun.org.apache.xerces.internal.dom.EntityImpl;
 
 @SuppressWarnings("unchecked")
 public class MappedClass implements IMappedClass {
@@ -142,6 +143,37 @@ public class MappedClass implements IMappedClass {
 		return entityInterfacesMappedClasses.get(interfaceClazz);
 	}
 
+	@SuppressWarnings("rawtypes")
+	public static List<EntityImplementation> findRootEntityImplementation(
+			Class interfaceClazz) {
+		List<EntityImplementation> entityImplementations = entityInterfacesMappedClasses.get(interfaceClazz);
+		List<EntityImplementation> result = new ArrayList<EntityImplementation>();
+		
+		for(EntityImplementation entityImpl : entityImplementations) {
+			MappedClass mc = entityImpl.mappedClass;
+			if (mc == null || mc.parentMappedClass == null) {
+				// No MappedClass or parent MappedClass.
+				result.add(entityImpl);
+				continue;
+			}
+			
+			// If the entityImpl's parent is in the list of Entity Implementations, then this is NOT a root implementation.
+			boolean entityImplsParentIsEntityImpl = false;
+			for(EntityImplementation nextEntityImpl : entityImplementations) {
+				if (nextEntityImpl.mappedClass == mc.parentMappedClass) {
+					entityImplsParentIsEntityImpl = true;
+					break;
+				}
+			}
+			
+			if (!entityImplsParentIsEntityImpl) {
+				result.add(entityImpl);
+			}
+		}
+		
+		return result;
+	}
+	
 	private static Comparator<MappedField> fieldComparator;
 
 	static {
