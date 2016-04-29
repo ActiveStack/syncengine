@@ -2,8 +2,8 @@
 
 ## Authentication
 
-ActiveStack provides several authentication mechanisms straight out of the box: anonymous,
-Google and File based. We call these "Auth Providers".
+ActiveStack provides several authentication mechanisms straight out of the box: Basic, anonymous,
+Google and File based. We call these "[Auth Providers](AUTH_PROVIDER.md)".
 
 ### Usage
 
