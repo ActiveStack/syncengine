@@ -53,7 +53,7 @@ public class CustomAuthProvider implements IAuthProvider {
 	 * client when attempting to authorize/register. It is advised to namespace
 	 * Auth Provider ID's.
 	 */
-    public static final String ID = "tykoon:custom";
+    public static final String ID = "my_app:custom";
     
 	public CustomAuthProvider() {
 		// Nothing to do...
