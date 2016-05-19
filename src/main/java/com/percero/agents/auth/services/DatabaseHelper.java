@@ -137,6 +137,17 @@ public class DatabaseHelper {
 				// User name exists, so unable to register User.
 				throw new AuthException("User name already exists", AuthException.DUPLICATE_USER_NAME);
 			}
+			
+			// If a user exists with the same email, then we fail with duplicate email.
+			if (StringUtils.hasText(email)) {
+				q = s.createQuery("FROM UserIdentifier ui WHERE ui.userIdentifier=:userName AND ui.type=:paradigm");
+				q.setString("userName", email);
+				q.setString("paradigm", ServiceIdentifier.EMAIL);
+				UserIdentifier userIdentifier = (UserIdentifier) AuthHibernateUtils.cleanObject(q.uniqueResult());
+				if (userIdentifier != null) {
+					throw new AuthException("Email already exists", AuthException.DUPLICATE_USER_NAME);
+				}
+			}
 
 			// Now check to see if the UserIdentifier exists.
 			q = s.createQuery("FROM UserIdentifier ui WHERE ui.userIdentifier=:userName AND ui.type=:paradigm");
@@ -164,16 +175,6 @@ public class DatabaseHelper {
 				
 				s.save(userIdentifier);
 				
-				// If an email was included, we can also create a UserIdentifier for email.
-				if (StringUtils.hasText(email)) {
-					userIdentifier = new UserIdentifier();
-					userIdentifier.setID(UUID.randomUUID().toString());
-					userIdentifier.setUser(user);
-					userIdentifier.setType(ServiceIdentifier.EMAIL);
-					userIdentifier.setUserIdentifier(email);
-					s.save(userIdentifier);
-				}
-				
 				tx.commit();
 				
 				// Make sure we have successfully created this UserIdentifier by re-running the query.
@@ -185,6 +186,20 @@ public class DatabaseHelper {
 				throw new AuthException("Invalid User Identifier", AuthException.INVALID_USER_IDENTIFIER);
 			}
 			
+			// If an email was included, we can also create a UserIdentifier for
+			// email. We know if does NOT currently exist because we checked for
+			// that above.
+			if (StringUtils.hasText(email)) {
+				Transaction tx = s.beginTransaction();
+				userIdentifier = new UserIdentifier();
+				userIdentifier.setID(UUID.randomUUID().toString());
+				userIdentifier.setUser(user);
+				userIdentifier.setType(ServiceIdentifier.EMAIL);
+				userIdentifier.setUserIdentifier(email);
+				s.save(userIdentifier);
+				tx.commit();
+			}
+
 			// Now we can create the UserPassword.
 			q = s.createSQLQuery("INSERT INTO UserPassword (`ID`, `password`, `userIdentifier_ID`) VALUES ('" + UUID.randomUUID().toString() + "',PASSWORD('" + password + "'),'" + userIdentifier.getID() + "')");
 			int updateResult = q.executeUpdate();

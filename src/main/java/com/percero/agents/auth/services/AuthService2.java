@@ -146,6 +146,7 @@ public class AuthService2 {
     			} catch(AuthException ae) {
     				// Request should be cancelled.
     				response.setStatusCode(BasicAuthCode.FAILURE.getCode());
+    				response.setMessage(ae.getDetail() + ": " + ae.getMessage());
     				return response;
     			}
     		}

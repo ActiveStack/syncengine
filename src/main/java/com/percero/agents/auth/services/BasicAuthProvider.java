@@ -42,8 +42,8 @@ public class BasicAuthProvider implements IAuthProvider {
         serviceUser = authDatabaseHelper.getServiceUser(cred);
         
         if (serviceUser == null) {
+        	response.authCode = BasicAuthCode.BAD_USER_PASS;
 			logger.debug("AUTH FAILURE: " + response.authCode.getMessage());
-            response.authCode = BasicAuthCode.BAD_USER_PASS;
         }
         else {
         	serviceUser.setAuthProviderID(getID());
