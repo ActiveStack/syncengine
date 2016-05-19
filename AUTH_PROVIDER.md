@@ -87,7 +87,7 @@ public class CustomAuthProvider implements IAuthProvider {
         logger.debug("Autheticating user " + cred.getUsername());
         
         // To authorize, we simply check if the user name is in the `registeredUsers` map.
-        if (cred.getPassword().equals(registeredUsers.get(cred.getUsername()))) {
+        if (cred.getUsername() != null && cred.getPassword().equals(registeredUsers.get(cred.getUsername().toLowerCase()))) {
         	logger.debug("AUTH SUCCESS: " + cred.getUsername());
         	response.authCode = AuthCode.SUCCESS;
         	
@@ -125,11 +125,16 @@ public class CustomAuthProvider implements IAuthProvider {
 
         logger.debug("Registering user " + cred.getUsername());
         
-        registeredUsers.put(cred.getUsername().toLowerCase(), cred.getPassword());
-        
-    	response.authCode = AuthCode.SUCCESS;
-    	// Now put together the ServiceUser.
-    	response.serviceUser = getServiceUser(cred.getUsername());
+        if (StringUtils.hasText(cred.getUsername()) && StringUtils.hasText(cred.getPassword())) {
+	        registeredUsers.put(cred.getUsername().toLowerCase(), cred.getPassword());
+	        
+	    	response.authCode = AuthCode.SUCCESS;
+	    	// Now put together the ServiceUser.
+	    	response.serviceUser = getServiceUser(cred.getUsername());
+	    }
+	    else {
+	    	response.authCode = AuthCode.FAILURE;
+	    }
 
     	return response;
     }

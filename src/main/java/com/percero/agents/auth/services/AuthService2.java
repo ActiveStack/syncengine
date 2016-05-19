@@ -73,7 +73,59 @@ public class AuthService2 {
 
     @Autowired
     IManifest manifest;
+    
+    
+    /**
+     * Pre Register Handlers are handlers that are called BEFORE `register`.
+     * They allow for any custom hooks/logic that may need to be run before
+     * register is called. If an AuthException is thrown, the register request
+     * is cancelled.
+     * 
+     * @param preRegisterHandler
+     */
+    protected List<IPreRegisterHandler> preRegisterHandlers = new ArrayList<IPreRegisterHandler>();
+    public void addPreRegisterHandler(IPreRegisterHandler preRegisterHandler) {
+    	preRegisterHandlers.add(preRegisterHandler);
+    }
+    
+    /**
+     * Post Register Handlers are handlers that are called AFTER `register`.
+     * They allow for any custom hooks/logic that may need to be run after
+     * register is called.
+     * 
+     * @param postRegisterHandler
+     */
+    protected List<IPostRegisterHandler> postRegisterHandlers = new ArrayList<IPostRegisterHandler>();
+    public void addPostRegisterHandler(IPostRegisterHandler postRegisterHandler) {
+    	postRegisterHandlers.add(postRegisterHandler);
+    }
 
+    /**
+     * Pre Authenticate Handlers are handlers that are called BEFORE `authenticate`.
+     * They allow for any custom hooks/logic that may need to be run before
+     * authenticate is called. If an AuthException is thrown, the authenticate request
+     * is cancelled.
+     * 
+     * @param preAuthenticateHandler
+     */
+    protected List<IPreAuthenticateHandler> preAuthenticateHandlers = new ArrayList<IPreAuthenticateHandler>();
+    public void addPreAuthenticateHandler(IPreAuthenticateHandler preAuthenticateHandler) {
+    	preAuthenticateHandlers.add(preAuthenticateHandler);
+    }
+    
+    /**
+     * Post Authenticate Handlers are handlers that are called AFTER `authenticate`.
+     * They allow for any custom hooks/logic that may need to be run after
+     * authenticate is called.
+     * 
+     * @param postAuthenticateHandler
+     */
+    protected List<IPostAuthenticateHandler> postAuthenticateHandlers = new ArrayList<IPostAuthenticateHandler>();
+    public void addPostAuthenticateHandler(IPostAuthenticateHandler postAuthenticateHandler) {
+    	postAuthenticateHandlers.add(postAuthenticateHandler);
+    }
+    
+    
     /**
      * Registers a new user with the selected AuthProvider (if supported by the AuthProvider).
      * @param request
@@ -85,6 +137,19 @@ public class AuthService2 {
     		throw new IllegalArgumentException(request.getAuthProvider()+" auth provider not found");
     	
     	AuthenticationResponse response = new AuthenticationResponse();
+    	
+    	// Before we register, we call any PreRegisterHandlers
+    	if (preRegisterHandlers != null && !preRegisterHandlers.isEmpty()) {
+    		for(IPreRegisterHandler preRegisterHandler : preRegisterHandlers) {
+    			try {
+    				preRegisterHandler.run(request);
+    			} catch(AuthException ae) {
+    				// Request should be cancelled.
+    				response.setStatusCode(BasicAuthCode.FAILURE.getCode());
+    				return response;
+    			}
+    		}
+    	}
     	
     	IAuthProvider provider = authProviderRegistry.getProvider(request.getAuthProvider());
     	
@@ -104,6 +169,17 @@ public class AuthService2 {
     		logger.warn("              ERROR: ("+response.getStatusCode()+") "+response.getMessage());
     	}
     	
+    	// Before we send back the response, we call any PostRegisterHandlers
+    	if (postRegisterHandlers != null && !postRegisterHandlers.isEmpty()) {
+    		for(IPostRegisterHandler postRegisterHandler : postRegisterHandlers) {
+    			try {
+    				response = postRegisterHandler.run(request, response, serviceUser);
+    			} catch(AuthException ae) {
+    				// Since we are "post" register, we are not going to undo the register.
+    			}
+    		}
+    	}
+    	
     	return response;
     }
     
@@ -113,6 +189,19 @@ public class AuthService2 {
 
         AuthenticationResponse response = new AuthenticationResponse();
 
+    	// Before we authenticate, we call any PreAuthenticateHandlers
+    	if (preAuthenticateHandlers != null && !preAuthenticateHandlers.isEmpty()) {
+    		for(IPreAuthenticateHandler preAuthenticateHandler : preAuthenticateHandlers) {
+    			try {
+    				preAuthenticateHandler.run(request);
+    			} catch(AuthException ae) {
+    				// Authenticate should be cancelled.
+    				response.setStatusCode(BasicAuthCode.FAILURE.getCode());
+    				return response;
+    			}
+    		}
+    	}
+    	
         IAuthProvider provider = authProviderRegistry.getProvider(request.getAuthProvider());
 
         AuthProviderResponse apResponse = provider.authenticate(request.getCredential());
@@ -134,6 +223,17 @@ public class AuthService2 {
         	logger.warn("LOGIN FAILED: (" + provider.getID() + "): Unable to retrieve valid Service User");
             logger.warn("       ERROR: ("+response.getStatusCode()+") "+response.getMessage());
         }
+    	
+    	// Before we send back the authenticate, we call any PostAuthenticateHandlers
+    	if (postAuthenticateHandlers != null && !postAuthenticateHandlers.isEmpty()) {
+    		for(IPostAuthenticateHandler postAuthenticateHandler : postAuthenticateHandlers) {
+    			try {
+    				response = postAuthenticateHandler.run(request, response, serviceUser);
+    			} catch(AuthException ae) {
+    				// Since we are "post" authenticate, we are not going to undo the authenticate.
+    			}
+    		}
+    	}
 
         return response;
     }
@@ -341,7 +441,7 @@ public class AuthService2 {
     }
 
     @SuppressWarnings("rawtypes")
-    private UserToken loginUserAccount(UserAccount theUserAccount, String clientId, String deviceId) {
+    protected UserToken loginUserAccount(UserAccount theUserAccount, String clientId, String deviceId) {
         Session s = null;
         UserToken theUserToken = null;
         try {

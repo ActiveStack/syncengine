@@ -16,7 +16,6 @@ import org.springframework.util.StringUtils;
 
 import com.google.gson.JsonObject;
 import com.percero.agents.auth.hibernate.AuthHibernateUtils;
-import com.percero.agents.auth.vo.AuthProvider;
 import com.percero.agents.auth.vo.BasicAuthCredential;
 import com.percero.agents.auth.vo.ServiceIdentifier;
 import com.percero.agents.auth.vo.ServiceUser;
@@ -63,13 +62,16 @@ public class DatabaseHelper {
 			if (userIdentifier != null) {
 				result = new ServiceUser();
 				result.setId(userIdentifier.getUserIdentifier());
+				result.setIdentifiers(new ArrayList<ServiceIdentifier>());
+				
+				ServiceIdentifier userServiceIdentifier = new ServiceIdentifier(ServiceIdentifier.ACTIVESTACK_USERID, userIdentifier.getUser().getID());
+				result.getIdentifiers().add(userServiceIdentifier);
 				
 				// Now retrieve all the EMAIL types for this User (if any exist).
 				q = s.createQuery("FROM UserIdentifier ui WHERE ui.user.ID=:userId");
 				q.setString("userId", userIdentifier.getUser().getID());
 				List<UserIdentifier> userIdentifiers = (List<UserIdentifier>) AuthHibernateUtils.cleanObject(q.list());
 				result.setEmails(new ArrayList<String>());
-				result.setIdentifiers(new ArrayList<ServiceIdentifier>());
 
 				if (userIdentifiers != null && !userIdentifiers.isEmpty()) {
 					for(UserIdentifier nextIdentifier : userIdentifiers) {
@@ -106,16 +108,20 @@ public class DatabaseHelper {
 		return result;
 	}
 	
-	public ServiceUser registerUser(BasicAuthCredential credential, String paradigm) {
-		return registerUser(credential.getUsername(), credential.getPassword(), paradigm);
+	public ServiceUser registerUser(BasicAuthCredential credential, String paradigm) throws AuthException {
+		// If included in the metadata, we want to pull in the first and last name.
+		String firstName = credential.retrieveMetadataString(BasicAuthCredential.FIRST_NAME);
+		String lastName = credential.retrieveMetadataString(BasicAuthCredential.LAST_NAME);
+		String email = credential.retrieveMetadataString(BasicAuthCredential.EMAIL);
+		return registerUser(credential.getUsername(), credential.getPassword(), paradigm, firstName, lastName, email);
 	}
+
 	@SuppressWarnings("unchecked")
-	public ServiceUser registerUser(String userName, String password, String paradigm) {
-		ServiceUser result = null;
-		
+	public ServiceUser registerUser(String userName, String password, String paradigm, String firstName,
+			String lastName, String email) throws AuthException {
 		if (!StringUtils.hasText(userName) || !StringUtils.hasText(password) || !StringUtils.hasText(paradigm)) {
 			// Invalid input.
-			return result;
+			throw new AuthException("Missing required data", AuthException.INVALID_DATA);
 		}
 		
 		Session s = null;
@@ -129,7 +135,7 @@ public class DatabaseHelper {
 			
 			if (userPasswords != null && !userPasswords.isEmpty()) {
 				// User name exists, so unable to register User.
-				return result;
+				throw new AuthException("User name already exists", AuthException.DUPLICATE_USER_NAME);
 			}
 
 			// Now check to see if the UserIdentifier exists.
@@ -144,6 +150,8 @@ public class DatabaseHelper {
 				Transaction tx = s.beginTransaction();
 				user = new User();
 				user.setID(UUID.randomUUID().toString());
+				user.setFirstName(firstName);
+				user.setLastName(lastName);
 				user.setDateCreated(new Date());
 				s.save(user);
 				user = (User) s.get(User.class, user.getID());
@@ -156,6 +164,16 @@ public class DatabaseHelper {
 				
 				s.save(userIdentifier);
 				
+				// If an email was included, we can also create a UserIdentifier for email.
+				if (StringUtils.hasText(email)) {
+					userIdentifier = new UserIdentifier();
+					userIdentifier.setID(UUID.randomUUID().toString());
+					userIdentifier.setUser(user);
+					userIdentifier.setType(ServiceIdentifier.EMAIL);
+					userIdentifier.setUserIdentifier(email);
+					s.save(userIdentifier);
+				}
+				
 				tx.commit();
 				
 				// Make sure we have successfully created this UserIdentifier by re-running the query.
@@ -164,7 +182,7 @@ public class DatabaseHelper {
 			
 			// If UserIdentifier is still null, then we have a problem.
 			if (userIdentifier == null) {
-				return result;
+				throw new AuthException("Invalid User Identifier", AuthException.INVALID_USER_IDENTIFIER);
 			}
 			
 			// Now we can create the UserPassword.
@@ -177,17 +195,13 @@ public class DatabaseHelper {
 			}
 			else {
 				// Something went wrong
-				return null;
+				throw new AuthException("Invalid User Password", AuthException.INVALID_USER_PASSWORD);
 			}
-			
-		} catch(Exception e) {
-			log.error("Unable to getServiceUser", e);
 		} finally {
-			if (s != null)
+			if (s != null) {
 				s.close();
+			}
 		}
-		
-		return result;
 	}
 	
 	public String getJsonObjectStringValue(JsonObject jsonObject,

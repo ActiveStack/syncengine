@@ -8,6 +8,7 @@ import java.util.Set;
 
 public class ServiceIdentifier implements Serializable {
 
+	public static final String ACTIVESTACK_USERID = "activestack:userid";
 	public static final String EMAIL = "email";
 	public static final String GITHUB = "github";
 	public static final String GOOGLE = "google";
