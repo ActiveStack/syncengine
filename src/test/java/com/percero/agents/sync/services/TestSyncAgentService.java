@@ -16,6 +16,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.percero.agents.sync.access.IAccessManager;
+import com.percero.agents.sync.helpers.PostDeleteHelper;
 import com.percero.agents.sync.vo.ClassIDPair;
 import com.percero.example.Person;
 import com.percero.framework.vo.IPerceroObject;
@@ -79,10 +80,13 @@ public class TestSyncAgentService {
 
 		Person person = new Person();
 		Mockito.when(dataProvider.findById(Mockito.any(ClassIDPair.class), Mockito.anyString())).thenReturn(person);
+		Mockito.when(dataProvider.deleteObject(Mockito.any(ClassIDPair.class), Mockito.anyString())).thenReturn(true);
+		mockService.postDeleteHelper = Mockito.mock(PostDeleteHelper.class);
 
-		result = mockService.systemDeleteObject(new ClassIDPair("1", Person.class.getCanonicalName()), "clientId", true, deletedObjects);
+		ClassIDPair classIdPair = new ClassIDPair("1", Person.class.getCanonicalName());
+		result = mockService.systemDeleteObject(classIdPair, "clientId", true, deletedObjects);
 		assertTrue(result);
-		assertTrue(deletedObjects.contains(new ClassIDPair("1", Person.class.getCanonicalName())));
+		assertTrue(deletedObjects.contains(classIdPair));
 	}
 
 	@Test

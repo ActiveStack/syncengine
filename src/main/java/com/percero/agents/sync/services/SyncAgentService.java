@@ -1188,7 +1188,7 @@ public class SyncAgentService implements ISyncAgentService, ApplicationEventPubl
 		
 		if (dataProvider.deleteObject(BaseDataObject.toClassIdPair(perceroObject), userId)) {
 			// Also store historical record, if necessary.
-			if (storeHistory && (perceroObject instanceof IHistoryObject))
+			if ((storeHistory != null && storeHistory.booleanValue()) && (perceroObject instanceof IHistoryObject))
 			{
 				try {
 					HistoricalObject historyObject = new HistoricalObject();
