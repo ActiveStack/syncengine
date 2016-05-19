@@ -191,12 +191,12 @@ public class DatabaseHelper {
 			// that above.
 			if (StringUtils.hasText(email)) {
 				Transaction tx = s.beginTransaction();
-				userIdentifier = new UserIdentifier();
-				userIdentifier.setID(UUID.randomUUID().toString());
-				userIdentifier.setUser(user);
-				userIdentifier.setType(ServiceIdentifier.EMAIL);
-				userIdentifier.setUserIdentifier(email);
-				s.save(userIdentifier);
+				UserIdentifier emailIdentifier = new UserIdentifier();
+				emailIdentifier.setID(UUID.randomUUID().toString());
+				emailIdentifier.setUser(user);
+				emailIdentifier.setType(ServiceIdentifier.EMAIL);
+				emailIdentifier.setUserIdentifier(email);
+				s.save(emailIdentifier);
 				tx.commit();
 			}
 
