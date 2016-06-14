@@ -1,41 +1,56 @@
 package com.percero.agents.auth.services;
 
 import org.apache.log4j.Logger;
+import org.springframework.util.StringUtils;
 
 import com.percero.agents.auth.vo.AuthCode;
 import com.percero.agents.auth.vo.AuthProviderResponse;
 import com.percero.agents.auth.vo.BasicAuthCredential;
 import com.percero.agents.auth.vo.ServiceUser;
-import com.percero.agents.sync.services.ISyncAgentService;
 
 /**
  * Basic AuthProvider implementation for database username/password
  * authentication.
+ * 
+ * @author Collin Brown
  */
 public class BasicAuthProvider implements IAuthProvider {
 
     private static Logger logger = Logger.getLogger(BasicAuthProvider.class);
-    public static final String ID = "activestack:basic";
-    
-	private static final long TIMEOUT_TIME = 2500;
 
+    public static final String ID = "activestack:basic";	// The unique ID of this auth provider.
+    
     public String getID() {
         return ID;
     }
 
-	private ISyncAgentService syncAgentService = null;
-	private AuthService2 authService2 = null;
     private DatabaseHelper authDatabaseHelper = null;
 
 
     /**
-     * @param jsonCredentialString - JSON String in `{"username":<USERNAME>, "password":<PASSWORD>}` format
+     * @param jsonCredentialString - JSON String in `{"username":<USERNAME>, "password":<PASSWORD>, "metadata":{<METADATA>}}` format
      * @return
      */
     public AuthProviderResponse authenticate(String jsonCredentialString) {
         AuthProviderResponse response = new AuthProviderResponse();
     	ServiceUser serviceUser = null;
-    	BasicAuthCredential cred = BasicAuthCredential.fromJsonString(jsonCredentialString);
+    	BasicAuthCredential cred = null;
+    	// Attempt to de-serialize the credential as JSON first, then as ":" delimited string.
+    	try {
+    		cred = BasicAuthCredential.fromJsonString(jsonCredentialString);
+    	} catch(Exception e) {
+    		// Do nothing.
+    	}
+    	if (cred == null) {
+    		cred = BasicAuthCredential.fromString(jsonCredentialString);
+    	}
+    	
+    	// If cred is empty, it means that we didn't find any valid/parseable credentials.
+    	if (!StringUtils.hasText(cred.getUsername())) {
+        	response.authCode = BasicAuthCode.BAD_USER_PASS;
+			logger.debug("AUTH FAILURE unable to parse credentials: " + response.authCode.getMessage());
+			return response;
+    	}
 
         logger.debug("Autheticating user " + cred.getUsername());
         
@@ -43,16 +58,13 @@ public class BasicAuthProvider implements IAuthProvider {
         
         if (serviceUser == null) {
         	response.authCode = BasicAuthCode.BAD_USER_PASS;
-			logger.debug("AUTH FAILURE: " + response.authCode.getMessage());
+			logger.debug("AUTH FAILURE for user " + cred.getUsername() + ": " + response.authCode.getMessage());
         }
         else {
         	serviceUser.setAuthProviderID(getID());
-//            UserAccount userAccount = authService2.getOrCreateUserAccount(serviceUser, this);
-//            serviceUser.setAccessToken(userAccount.getAccessToken());
-//            serviceUser.setRefreshToken(userAccount.getRefreshToken());
             response.serviceUser = serviceUser;
-//            validateTeamLeader(teamLeader, serviceUser);
             response.authCode = AuthCode.SUCCESS;
+			logger.debug("AUTH SUCCESS for user " + cred.getUsername());
         }
 
     	return response;
@@ -65,21 +77,38 @@ public class BasicAuthProvider implements IAuthProvider {
     public AuthProviderResponse register(String jsonRegistrationString) {
         AuthProviderResponse response = new AuthProviderResponse();
     	ServiceUser serviceUser = null;
-    	BasicAuthCredential cred = BasicAuthCredential.fromJsonString(jsonRegistrationString);
+    	BasicAuthCredential cred = null;
+    	// Attempt to de-serialize the credential as JSON first, then as ":" delimited string.
+    	try {
+    		cred = BasicAuthCredential.fromJsonString(jsonRegistrationString);
+    	} catch(Exception e) {
+    		// Do nothing.
+    	}
+    	if (cred == null) {
+    		cred = BasicAuthCredential.fromString(jsonRegistrationString);
+    	}
 
-        logger.debug("Autheticating user " + cred.getUsername());
+    	// If cred is empty, it means that we didn't find any valid/parseable credentials.
+    	if (!StringUtils.hasText(cred.getUsername())) {
+        	response.authCode = BasicAuthCode.BAD_USER_PASS;
+			logger.debug("REGISTER FAILURE unable to parse credentials: " + response.authCode.getMessage());
+			return response;
+    	}
+
+    	logger.debug("Registering user " + cred.getUsername());
         
         try {
 			serviceUser = authDatabaseHelper.registerUser(cred, getID());
 			
 			if (serviceUser == null) {
 				response.authCode = BasicAuthCode.FAILURE;
-				logger.debug("AUTH FAILURE: " + response.authCode.getMessage());
+				logger.debug("REGISTER FAILURE for user " + cred.getUsername() + ": " + response.authCode.getMessage());
 			}
 			else {
 				serviceUser.setAuthProviderID(getID());
 				response.serviceUser = serviceUser;
 				response.authCode = AuthCode.SUCCESS;
+				logger.debug("REGISTER SUCCESS for user " + cred.getUsername());
 			}
 		} catch (AuthException e) {
 			logger.error(e);
@@ -105,15 +134,7 @@ public class BasicAuthProvider implements IAuthProvider {
     	return response;
     }
 
-    /**
-     * @param hostPortAndContext - e.g. https://some_host:5400/auth
-     * @param objectMapper
-     */
-	public BasicAuthProvider(ISyncAgentService syncAgentService,
-			AuthService2 authService2, DatabaseHelper authDatabaseHelper) {
-        this.syncAgentService  = syncAgentService;
-        this.authService2 = authService2;
+	public BasicAuthProvider(DatabaseHelper authDatabaseHelper) {
         this.authDatabaseHelper = authDatabaseHelper;
-        
     }
 }

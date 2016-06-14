@@ -31,11 +31,11 @@ public class AuthProviderRegistry {
      * Add a provider to the registry
      * @param provider
      */
-    public void addProvider(IAuthProvider provider){
+    public IAuthProvider addProvider(IAuthProvider provider){
         if(providerMap.containsKey(provider.getID()))
             logger.warn("Non-unique auth provider ID: "+provider.getID());
 
-        providerMap.put(provider.getID().toLowerCase(), provider);
+        return providerMap.put(provider.getID().toLowerCase(), provider);
     }
 
     /**

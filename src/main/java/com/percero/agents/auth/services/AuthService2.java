@@ -302,7 +302,6 @@ public class AuthService2 {
      * @param serviceUser
      * @return
      */
-    @SuppressWarnings("unchecked")
 	private User findUser(ServiceUser serviceUser) throws SyncDataException {
         Session s = sessionFactoryAuth.openSession();
 
